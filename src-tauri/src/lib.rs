@@ -155,6 +155,16 @@ fn bootstrap_of(inner: &Inner, installs: Vec<GameInstall>) -> Bootstrap {
     Bootstrap { installs, active: inner.install.clone(), settings, recovered, legacy }
 }
 
+/// For mods installed from a web page (not the catalog), remember that page so the UI can link back to it.
+fn attach_pages(game_dir: &std::path::Path, items: &mut [Item], disk: &[library::InstalledMod]) {
+    for item in items.iter_mut().filter(|i| i.kind == catalog::Kind::Mod) {
+        let Some(d) = disk.iter().find(|d| catalog::slug(&d.name) == item.id) else { continue };
+        let Some(newest) = d.versions.first() else { continue };
+        let dir = library::mods_root(game_dir).join(&d.name).join(newest);
+        item.links.page = record::read(&dir).and_then(|r| r.page_url).filter(|p| !p.trim().is_empty());
+    }
+}
+
 async fn scan_disk(dir: PathBuf) -> Result<Vec<library::InstalledMod>> {
     blocking(move || Ok(library::scan(&dir))).await
 }
@@ -214,7 +224,8 @@ async fn catalog_load(state: State<'_, AppState>) -> Result<CatalogResponse> {
     };
 
     let disk = scan_disk(install.dir.clone()).await?;
-    let items = catalog::mod_items(&catalog, &disk);
+    let mut items = catalog::mod_items(&catalog, &disk);
+    attach_pages(&install.dir, &mut items, &disk);
     let launcher_version = catalog.manifest.launcher_version.clone();
     state.inner.lock().await.catalog = Some(catalog);
     Ok(CatalogResponse { items, online, launcher_version, error })
@@ -264,7 +275,9 @@ async fn catalog_reload(state: State<'_, AppState>) -> Result<Vec<Item>> {
         (require_install(&inner)?, inner.catalog.clone().ok_or_else(|| Error::msg("Catalog not loaded"))?)
     };
     let disk = scan_disk(install.dir.clone()).await?;
-    Ok(catalog::mod_items(&catalog, &disk))
+    let mut items = catalog::mod_items(&catalog, &disk);
+    attach_pages(&install.dir, &mut items, &disk);
+    Ok(items)
 }
 
 #[tauri::command]
@@ -651,6 +664,29 @@ async fn migrate_legacy(state: State<'_, AppState>) -> Result<migrate::Report> {
     .await
 }
 
+/// Show an item's files in the system file manager: the chosen version's folder (or the newest installed
+/// one). For the original game this is the game folder itself.
+#[tauri::command]
+async fn open_item_folder(app: AppHandle, state: State<'_, AppState>, id: String, version: Option<String>) -> Result<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let (install, catalog, extras) = {
+        let inner = state.inner.lock().await;
+        (require_install(&inner)?, inner.catalog.clone().unwrap_or_default(), inner.extras.clone())
+    };
+    let path = if id == catalog::ORIGINAL_GAME_ID {
+        install.dir.clone()
+    } else {
+        let disk = scan_disk(install.dir.clone()).await?;
+        let loc = target::locate(&install.dir, &catalog, &extras, &disk, &id)?;
+        let chosen = version.as_deref().filter(|v| loc.installed.iter().any(|i| i.eq_ignore_ascii_case(v)));
+        match chosen.or(loc.installed.first().map(String::as_str)) {
+            Some(v) => target::version_dir(&install.dir, &loc, v)?,
+            None => return Err(Error::msg("It is not installed yet, so there is no folder to open.")),
+        }
+    };
+    app.opener().open_path(path.to_string_lossy(), None::<&str>).map_err(|e| Error::msg(format!("Could not open the folder: {e}")))
+}
+
 /// Delete one installed version (never anything outside `.genlauncher/mods/`).
 #[tauri::command]
 async fn uninstall_version(state: State<'_, AppState>, id: String, version: String) -> Result<()> {
@@ -891,7 +927,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap, select_install, catalog_load, catalog_reload, load_extras, save_settings, launch_game, install_item, add_item, cancel_install, migrate_legacy,
-            uninstall_version, open_browser, close_browser
+            uninstall_version, open_browser, close_browser, open_item_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -932,6 +968,30 @@ mod tests {
         let browser: AddRequest =
             serde_json::from_str(r#"{"source":{"type":"browser","pageUrl":"https://www.moddb.com/mods/x"},"name":"X","version":"1.0","kind":"mod","parent":null}"#).unwrap();
         assert!(matches!(browser.source, AddSource::Browser { page_url: Some(ref p) } if p.contains("moddb")));
+    }
+
+    #[test]
+    fn mods_added_from_a_page_link_back_to_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let g = dir.path();
+        let version = library::mods_root(g).join("My Mod").join("2.0");
+        std::fs::create_dir_all(&version).unwrap();
+        std::fs::write(version.join("a.gib"), b"x").unwrap();
+        let mut rec = record::SourceRecord::now("page");
+        rec.page_url = Some("https://www.moddb.com/mods/my-mod".into());
+        record::write(&version, &rec).unwrap();
+        // a second mod whose record has no page, and a version-less folder: neither gets a link
+        let other = library::mods_root(g).join("Plain").join("1");
+        std::fs::create_dir_all(&other).unwrap();
+        std::fs::write(other.join("b.gib"), b"x").unwrap();
+
+        let disk = library::scan(g);
+        let mut items = catalog::mod_items(&Default::default(), &disk);
+        attach_pages(g, &mut items, &disk);
+        let page = |id: &str| items.iter().find(|i| i.id == id).unwrap().links.page.clone();
+        assert_eq!(page("my-mod").as_deref(), Some("https://www.moddb.com/mods/my-mod"));
+        assert_eq!(page("plain"), None);
+        assert_eq!(page(catalog::ORIGINAL_GAME_ID), None);
     }
 
     #[test]

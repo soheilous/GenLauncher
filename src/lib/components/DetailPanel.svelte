@@ -31,6 +31,8 @@
   const anyInstalled = $derived(mod.versions.some((v) => v.installed));
   const canInstall = $derived(!!mod.latest && !latestInstalled && mod.id !== "original-game");
   const canRemove = $derived(selectedInstalled && mod.id !== "original-game");
+  /** The catalog's ModDB link, or the page this mod was installed from. */
+  const pageUrl = $derived(mod.links?.moddb || mod.links?.page || "");
 
   const PHASES: Record<string, string> = {
     preparing: "Preparing…", downloading: "Downloading", verifying: "Checking files…", extracting: "Extracting…", finishing: "Finishing…",
@@ -88,8 +90,13 @@
     <div class="row2">
       <span class="lbl">Version</span>
       <Select label="Version" options={versionOptions} value={selectedVersion} onchange={(v) => app.setChosenVersion(mod.id, v)} />
-      {#if mod.links?.moddb}<button class="btn icon" title="ModDB" aria-label="Open ModDB"><Icon name="link" size={15} /></button>{/if}
-      <button class="btn icon" title="Open mod folder" aria-label="Open mod folder"><Icon name="folder" size={15} /></button>
+      {#if pageUrl}
+        <button class="btn icon" title={pageUrl.includes("moddb.com") ? "Open its ModDB page" : "Open its web page"}
+          aria-label={pageUrl.includes("moddb.com") ? "Open its ModDB page" : "Open its web page"} onclick={() => app.openPage(pageUrl)}><Icon name="link" size={15} /></button>
+      {/if}
+      <button class="btn icon" title={anyInstalled || mod.id === "original-game" ? "Show the installed files" : "Not installed yet"}
+        aria-label="Show the installed files" disabled={!anyInstalled && mod.id !== "original-game"}
+        onclick={() => app.openFolder(mod, selectedVersion)}><Icon name="folder" size={15} /></button>
       {#if canRemove}
         <button class="btn icon danger" title="Remove version {selectedVersion}" aria-label="Remove version {selectedVersion}"
           disabled={mod.progress !== undefined} onclick={() => app.uninstall(mod, selectedVersion)}><Icon name="trash" size={15} /></button>

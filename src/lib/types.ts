@@ -11,6 +11,8 @@ export interface Links {
   discord?: string | null;
   news?: string | null;
   network?: string | null;
+  /** The web page it was installed from (mods added by hand). */
+  page?: string | null;
   support?: string | null;
 }
 

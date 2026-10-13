@@ -136,3 +136,6 @@ export async function onBrowserEvent(cb: (e: BrowserEvent) => void): Promise<() 
   const { listen } = await import("@tauri-apps/api/event");
   return listen<BrowserEvent>("browser-event", (e) => cb(e.payload));
 }
+
+/** Show an item's installed files (the chosen version) in the system file manager. */
+export const openItemFolder = (id: string, version?: string | null) => invoke<void>("open_item_folder", { id, version: version ?? null });

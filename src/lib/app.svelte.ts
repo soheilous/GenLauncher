@@ -1,5 +1,6 @@
 import {
   addItem, backend, cancelInstall, confirmDialog, installItem, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type LaunchTarget,
 } from "./backend";
@@ -220,6 +221,29 @@ class AppState {
     } catch (e) {
       this.say(errText(e));
       return false;
+    }
+  }
+
+  /** Open a web page in the user's own browser. */
+  async openPage(url: string) {
+    try {
+      if (isTauri) await openInBrowser(url);
+      else window.open(url, "_blank");
+    } catch {
+      this.say("Could not open your browser. The address is: " + url);
+    }
+  }
+
+  /** Show the installed files of `item` (the given version) in the file manager. */
+  async openFolder(item: Item, version?: string) {
+    if (!isTauri) {
+      this.say("Opening folders works in the desktop app.");
+      return;
+    }
+    try {
+      await openItemFolder(item.id, version);
+    } catch (e) {
+      this.say(errText(e));
     }
   }
 

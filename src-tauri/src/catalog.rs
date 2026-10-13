@@ -60,6 +60,8 @@ pub struct Links {
     pub news: Option<String>,
     pub network: Option<String>,
     pub support: Option<String>,
+    /// The web page this was installed from (saved in its source record), for mods added by hand.
+    pub page: Option<String>,
 }
 
 /// One row/card in the UI. Mirrors `Item` in `src/lib/types.ts`.
@@ -149,6 +151,7 @@ fn links_of(info: Option<&VersionInfo>) -> Links {
         news: i.news_link.clone(),
         network: i.network_info.clone(),
         support: i.support_link.clone(),
+        page: None,
     })
 }
 
