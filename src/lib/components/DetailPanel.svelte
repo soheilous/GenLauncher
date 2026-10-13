@@ -138,10 +138,13 @@
           </div>
           {#if it.progress !== undefined}
             <button class="chip warn" aria-label="Cancel installing {it.name}" onclick={(e) => { e.stopPropagation(); app.cancel(it); }}>Cancel</button>
-          {:else if hasUpdate(it)}
-            <button class="chip warn" title="Update to {it.latest}" aria-label="Update {it.name} to {it.latest}" onclick={(e) => { e.stopPropagation(); app.install(it); }}>Update</button>
+          {:else if has}
+            <button class="chip trash" title="Remove {it.versions.find((v) => v.installed)?.v ?? ''}" aria-label="Remove {it.name}"
+              onclick={(e) => { e.stopPropagation(); app.uninstall(it, it.versions.find((v) => v.installed)?.v ?? ""); }}><Icon name="trash" size={14} /></button>
+            {#if hasUpdate(it)}<button class="chip warn" title="Update to {it.latest}" aria-label="Update {it.name} to {it.latest}" onclick={(e) => { e.stopPropagation(); app.install(it); }}>Update</button>
+            {:else}<span class="chip">{it.latest}</span>{/if}
           {:else}
-            <span class="chip" class:accent={!has}>{has ? it.latest : "Get"}</span>
+            <span class="chip accent">Get</span>
           {/if}
         </div>
       {:else}
@@ -182,6 +185,9 @@
   .meter.unknown i { width: 35% !important; animation: slide 1.1s ease-in-out infinite alternate; }
   @keyframes slide { from { transform: translateX(0); } to { transform: translateX(185%); } }
   button.chip { cursor: pointer; }
+  .chip.trash { padding: 6px; display: inline-grid; place-items: center; }
+  .chip.trash:hover { color: var(--danger); border-color: var(--danger); }
+  .row:has(.trash) { gap: 8px; }
   .add-extra { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 14px; color: var(--text-dim); font-size: 13px;
     border: 1px dashed var(--stroke-hi); transition: color .15s, border-color .15s, background .15s; }
   .add-extra:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }

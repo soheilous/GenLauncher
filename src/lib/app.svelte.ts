@@ -540,7 +540,7 @@ class AppState {
 
   /** Remove one installed version from disk (asks first). */
   async uninstall(item: Item, version: string) {
-    const msg = `Remove ${item.name} ${version} from your computer?\nIts files in the GLM folder are deleted; your game files are not touched.`;
+    const msg = `Remove ${item.name} ${version} from your computer?\nIts files are deleted from GenLauncher's folder; your game files are not touched.`;
     if (!(await confirmDialog(msg, `Remove ${item.name}`))) return;
     if (!isTauri) {
       const v = item.versions.find((x) => x.v === version);
@@ -549,6 +549,11 @@ class AppState {
     }
     try {
       await uninstallVersion(item.id, version);
+      if (item.versions.filter((v) => v.installed && v.v !== version).length === 0 && this.enabled.includes(item.id)) {
+        // nothing left of it to switch on
+        this.enabled = this.enabled.filter((id) => id !== item.id);
+        this.persist();
+      }
       this.say(`${item.name} ${version} removed`);
       await this.refreshLibrary();
     } catch (e) {

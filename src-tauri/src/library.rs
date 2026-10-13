@@ -64,6 +64,19 @@ fn extras(dir: &Path) -> Vec<Extra> {
         .collect()
 }
 
+/// Delete one installed version folder and its source record, then the folders that become empty because of it
+/// (the item's own folder, and a `patches` / `addons` / `exes` list). Never goes above `mods_root`.
+pub fn remove_version(dir: &Path, mods_root: &Path) -> crate::error::Result<()> {
+    fs::remove_dir_all(dir)?;
+    crate::record::remove(dir);
+    for parent in dir.ancestors().skip(1).take(3) {
+        if parent == mods_root || fs::remove_dir(parent).is_err() {
+            break; // the library root, or something else still lives there
+        }
+    }
+    Ok(())
+}
+
 pub fn mods_root(game_dir: &Path) -> PathBuf {
     layout::mods(game_dir)
 }
@@ -123,6 +136,29 @@ mod tests {
         fs::create_dir_all(g.join("M/2.0")).unwrap(); // empty
         file(&g.join("M/3.0/ok.big"));
         assert_eq!(scan(d.path())[0].versions, ["3.0"]);
+    }
+
+    #[test]
+    fn removing_the_last_version_tidies_up_but_keeps_siblings() {
+        let d = tempfile::tempdir().unwrap();
+        let root = d.path().join(".genlauncher/mods");
+        file(&root.join("Contra/10/a.big"));
+        file(&root.join("Contra/patches/Hotfix/3/p.big"));
+        file(&root.join("Contra/patches/Hotfix/4/p.big"));
+        file(&root.join("Contra/patches/Other/1/p.big"));
+        file(&root.join("Solo/patches/Only/1/p.big"));
+
+        // one of two versions: the item stays
+        remove_version(&root.join("Contra/patches/Hotfix/3"), &root).unwrap();
+        assert!(root.join("Contra/patches/Hotfix/4").exists());
+        // the last version of an item: its folder goes, its siblings stay
+        remove_version(&root.join("Contra/patches/Hotfix/4"), &root).unwrap();
+        assert!(!root.join("Contra/patches/Hotfix").exists());
+        assert!(root.join("Contra/patches/Other/1/p.big").exists() && root.join("Contra/10/a.big").exists());
+        // the last patch of a mod that has nothing else: the empty patches list goes, the mod folder goes too
+        remove_version(&root.join("Solo/patches/Only/1"), &root).unwrap();
+        assert!(!root.join("Solo").exists());
+        assert!(root.exists());
     }
 
     #[test]

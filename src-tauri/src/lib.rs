@@ -678,10 +678,9 @@ async fn uninstall_version(state: State<'_, AppState>, id: String, version: Stri
     let disk = scan_disk(install.dir.clone()).await?;
     let loc = target::locate(&install.dir, &catalog, &extras, &disk, &id)?;
     let dir = target::version_dir(&install.dir, &loc, &version)?;
+    let mods_root = library::mods_root(&install.dir);
     blocking(move || {
-        std::fs::remove_dir_all(&dir)?;
-        record::remove(&dir);
-        Ok(())
+        library::remove_version(&dir, &mods_root)
     })
     .await
 }
