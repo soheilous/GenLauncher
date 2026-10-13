@@ -275,6 +275,16 @@ async fn catalog_reload(state: State<'_, AppState>) -> Result<Vec<Item>> {
     Ok(items)
 }
 
+/// Messages from the project. Best effort: offline (or nothing published) simply means no messages.
+#[tauri::command]
+async fn announcements_load(state: State<'_, AppState>) -> Result<Vec<index::Announcement>> {
+    let text = match state.http.get(index::ANNOUNCEMENTS_URL).send().await.and_then(|r| r.error_for_status()) {
+        Ok(r) => r.text().await.unwrap_or_default(),
+        Err(_) => return Ok(Vec::new()),
+    };
+    Ok(index::parse_announcements(&text).unwrap_or_default())
+}
+
 #[tauri::command]
 async fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result<()> {
     let install = require_install(&*state.inner.lock().await)?;
@@ -904,7 +914,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            bootstrap, select_install, catalog_load, catalog_reload, load_extras, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
+            bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
             uninstall_version, open_browser, close_browser, open_item_folder
         ])
         .run(tauri::generate_context!())

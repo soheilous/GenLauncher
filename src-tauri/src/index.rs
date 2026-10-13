@@ -105,6 +105,38 @@ pub struct Index {
     pub executables: Vec<ExeEntry>,
 }
 
+/// A message from the project, shown in the launcher's Notifications page (`index/announcements.json`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Announcement {
+    /// Stable id: a message is shown once per person.
+    pub id: String,
+    /// `YYYY-MM-DD`.
+    pub date: String,
+    pub title: String,
+    pub text: String,
+    /// Optional page to open from the message.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub link: Option<String>,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct AnnouncementFile {
+    format: u32,
+    items: Vec<Announcement>,
+}
+
+pub const ANNOUNCEMENTS_URL: &str = "https://raw.githubusercontent.com/soheilous/GenLauncher/main/index/announcements.json";
+
+pub fn parse_announcements(text: &str) -> crate::error::Result<Vec<Announcement>> {
+    let f: AnnouncementFile = serde_json::from_str(text.trim_start_matches('\u{feff}'))?;
+    if f.format > FORMAT {
+        return Err(crate::error::Error::msg("These announcements need a newer GenLauncher"));
+    }
+    Ok(f.items.into_iter().filter(|a| !a.id.trim().is_empty() && !a.text.trim().is_empty()).collect())
+}
+
 pub fn parse(text: &str) -> crate::error::Result<Index> {
     let idx: Index = serde_json::from_str(text.trim_start_matches('\u{feff}'))?;
     if idx.format > FORMAT {
@@ -153,6 +185,17 @@ mod tests {
         let text = serde_json::to_string(&idx).unwrap();
         assert!(!text.contains("deprecated") && !text.contains("discord") && !text.contains("download"), "{text}");
         assert_eq!(parse(&text).unwrap(), idx);
+    }
+
+    #[test]
+    fn announcements_skip_incomplete_entries() {
+        let a = parse_announcements(
+            r#"{"format":1,"items":[{"id":"a","date":"2026-10-14","title":"T","text":"Hello","link":"https://x"},{"id":"","text":"no id"},{"id":"b","text":""}]}"#,
+        )
+        .unwrap();
+        assert_eq!(a.len(), 1);
+        assert_eq!(a[0].link.as_deref(), Some("https://x"));
+        assert!(parse_announcements(r#"{"format":9}"#).is_err());
     }
 
     #[test]

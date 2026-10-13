@@ -19,6 +19,7 @@
     image: "M4 5h16v14H4zM4 16l4.5-4.5 3.5 3.5 3-3L20 16M9 9.5h.01",
     collapse: "M15 6l-6 6 6 6",
     expand: "M9 6l6 6-6 6",
+    bell: "M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4",
     undo: "M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3",
   };
   let { name, size = 18 }: { name: keyof typeof paths | string; size?: number } = $props();

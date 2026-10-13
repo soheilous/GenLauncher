@@ -6,6 +6,7 @@
     { id: "library", label: "Library", icon: "library" },
     { id: "discover", label: "Discover", icon: "discover" },
     { id: "downloads", label: "Downloads", icon: "download" },
+    { id: "notifications", label: "Notifications", icon: "bell" },
   ];
   const collapsed = $derived(app.sidebarCollapsed);
   import { isTauri } from "$lib/backend";
@@ -39,6 +40,7 @@
       <button class="nav-item" class:on={app.view === n.id} onclick={() => (app.view = n.id)} title={collapsed ? n.label : undefined} aria-label={n.label}>
         <Icon name={n.icon} /> <span class="label">{n.label}</span>
         {#if n.id === "downloads" && app.downloading.length}<span class="badge">{app.downloading.length}</span>{/if}
+        {#if n.id === "notifications" && app.unread}<span class="badge" aria-label="{app.unread} unread">{app.unread}</span>{/if}
       </button>
     {/each}
   </nav>

@@ -87,3 +87,25 @@ export interface CatalogResponse {
   online: boolean;
   error: string | null;
 }
+
+export type NoticeLevel = "info" | "success" | "error" | "news";
+
+/** One entry of the Notifications page. */
+export interface Notice {
+  id: string;
+  at: number; // ms since epoch
+  level: NoticeLevel;
+  text: string;
+  title?: string;
+  link?: string | null;
+  read: boolean;
+}
+
+/** A message from the project (index/announcements.json). */
+export interface Announcement {
+  id: string;
+  date: string;
+  title: string;
+  text: string;
+  link?: string | null;
+}

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Bootstrap, CatalogResponse, Item, Settings } from "./types";
+import type { Announcement, Bootstrap, CatalogResponse, Item, Settings } from "./types";
 
 /** False in a plain browser (vite dev, headless QA); the UI then runs on mock data. */
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -74,6 +74,8 @@ export async function confirmDialog(message: string, title = "GenLauncher", okLa
   const { ask } = await import("@tauri-apps/plugin-dialog");
   return ask(message, { title, kind: "warning", okLabel, cancelLabel });
 }
+
+export const loadAnnouncements = () => invoke<Announcement[]>("announcements_load");
 
 export const migrateLegacy = () => invoke<{ stepsDone: number }>("migrate_legacy");
 

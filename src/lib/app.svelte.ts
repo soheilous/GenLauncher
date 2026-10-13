@@ -1,12 +1,12 @@
 import {
-  addItem, backend, cancelInstall, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cancelInstall, loadAnnouncements, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type LaunchTarget,
 } from "./backend";
 import { slugify } from "./guess";
 import { mockItems } from "./mock";
-import type { Bootstrap, Game, GameInstall, Item, LegacySummary, ModKind, Settings } from "./types";
+import type { Bootstrap, Game, GameInstall, Item, LegacySummary, ModKind, Notice, NoticeLevel, Settings } from "./types";
 
 /** What "Install" on a catalog entry hands to the Add dialog. */
 export interface AddPreset {
@@ -17,7 +17,7 @@ export interface AddPreset {
   update: boolean;
 }
 
-export type View = "library" | "discover" | "downloads";
+export type View = "library" | "discover" | "downloads" | "notifications";
 export type LaunchState = "idle" | "preparing" | "running";
 export type Theme = "dark" | "light";
 /** loading: talking to the core; setup: no game folder yet; ready: library available */
@@ -67,6 +67,9 @@ class AppState {
   launch = $state<LaunchState>("idle");
   settingsOpen = $state(false);
   toast = $state<string | null>(null);
+  /** Everything the launcher told the user, newest first (kept between runs). */
+  notices = $state<Notice[]>(load<Notice[]>("notices", []));
+  unread = $derived(this.notices.filter((n) => !n.read).length);
   theme = $state<Theme>("dark");
   accentFromMod = $state(true);
   sidebarCollapsed = $state(false);
@@ -117,7 +120,7 @@ class AppState {
     try {
       await this.useBootstrap(await backend.bootstrap());
     } catch (e) {
-      this.say(`Could not start: ${errText(e)}`);
+      this.say(`Could not start: ${errText(e)}`, "error");
       this.phase = "setup";
     }
   }
@@ -182,10 +185,10 @@ class AppState {
       return;
     }
     if (!r.ok) {
-      this.say(`${name}: ${r.error ?? "installation failed"}`);
+      this.say(`${name}: ${r.error ?? "installation failed"}`, "error");
       return;
     }
-    this.say(`${name} ${r.version ?? ""} installed`.trim());
+    this.say(`${name} ${r.version ?? ""} installed`.trim(), "success");
     await this.refreshLibrary();
   }
 
@@ -229,7 +232,7 @@ class AppState {
       this.view = "downloads";
       return true;
     } catch (e) {
-      this.say(errText(e));
+      this.say(errText(e), "error");
       return false;
     }
   }
@@ -253,7 +256,7 @@ class AppState {
     try {
       await openItemFolder(item.id, version);
     } catch (e) {
-      this.say(errText(e));
+      this.say(errText(e), "error");
     }
   }
 
@@ -320,7 +323,7 @@ class AppState {
       this.say("Your library was moved and the old launcher's files were removed.");
       return true;
     } catch (e) {
-      this.say(errText(e));
+      this.say(errText(e), "error");
       return false;
     }
   }
@@ -331,6 +334,7 @@ class AppState {
       this.items = res.items;
       this.online = res.online;
       this.catalogError = res.error;
+      if (!res.online) this.notify(`Could not reach the mod index, showing the saved copy. ${res.error ?? ""}`.trim(), "error", { id: "index-offline" });
       if (!this.mods.some((m) => m.id === this.activeModId)) {
         this.activeModId = (this.mods.find((m) => m.versions.some((v) => v.installed)) ?? this.mods[0])?.id ?? "";
       }
@@ -338,9 +342,10 @@ class AppState {
       this.applyProgress();
       this.phase = "ready";
       this.applyTheme();
+      void this.checkAnnouncements();
       await this.ensureExtras(this.activeModId);
     } catch (e) {
-      this.say(`Could not load the library: ${errText(e)}`);
+      this.say(`Could not load the library: ${errText(e)}`, "error");
       this.phase = "setup";
     }
   }
@@ -357,7 +362,7 @@ class AppState {
       this.applyProgress();
     } catch (e) {
       this.extrasLoaded.delete(modId);
-      this.say(`Could not load add-ons: ${errText(e)}`);
+      this.say(`Could not load add-ons: ${errText(e)}`, "error");
     } finally {
       this.loadingExtras = false;
     }
@@ -373,7 +378,7 @@ class AppState {
       this.phase = "loading";
       await this.useBootstrap(await backend.selectInstall(dir));
     } catch (e) {
-      this.say(errText(e));
+      this.say(errText(e), "error");
       this.phase = this.active ? "ready" : "setup";
     }
   }
@@ -422,7 +427,7 @@ class AppState {
     try {
       await backend.saveSettings(s);
     } catch (e) {
-      this.say(`Could not save settings: ${errText(e)}`);
+      this.say(`Could not save settings: ${errText(e)}`, "error");
       throw e;
     }
   }
@@ -484,9 +489,43 @@ class AppState {
     this.persist();
   }
 
-  say(msg: string) {
+  /** Show a short message and keep it on the Notifications page. */
+  say(msg: string, level: NoticeLevel = "info") {
+    this.notify(msg, level);
     this.toast = msg;
     setTimeout(() => { if (this.toast === msg) this.toast = null; }, 3600);
+  }
+
+  /** Keep a message on the Notifications page without a pop-up. */
+  notify(text: string, level: NoticeLevel = "info", extra: { id?: string; title?: string; link?: string | null; at?: number } = {}) {
+    const id = extra.id ?? `n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    if (this.notices.some((n) => n.id === id)) return;
+    const at = extra.at ?? Date.now();
+    // the same message twice within a few seconds (a retry loop, a double click) is one entry
+    if (!extra.id && this.notices[0]?.text === text && at - this.notices[0].at < 5000) return;
+    const unreadNow = this.view !== "notifications";
+    this.notices = [{ id, at, level, text, title: extra.title, link: extra.link ?? null, read: !unreadNow }, ...this.notices].sort((a, b) => b.at - a.at).slice(0, 200);
+    this.saveNotices();
+  }
+
+  private saveNotices() { save("notices", this.notices); }
+  markAllRead() {
+    if (!this.unread) return;
+    this.notices = this.notices.map((n) => (n.read ? n : { ...n, read: true }));
+    this.saveNotices();
+  }
+  removeNotice(id: string) { this.notices = this.notices.filter((n) => n.id !== id); this.saveNotices(); }
+  clearNotices() { this.notices = []; this.saveNotices(); }
+
+  /** Messages from the project that this person has not seen yet. */
+  async checkAnnouncements() {
+    if (!isTauri) return;
+    try {
+      for (const a of await loadAnnouncements()) {
+        const when = Date.parse(a.date);
+        this.notify(a.text, "news", { id: `news:${a.id}`, title: a.title || undefined, link: a.link, at: Number.isNaN(when) ? Date.now() : when });
+      }
+    } catch { /* best effort */ }
   }
 
   toggleChild(item: Item) {
@@ -535,7 +574,7 @@ class AppState {
 
   async cancel(item: Item) {
     if (!isTauri) { item.progress = undefined; return; }
-    try { await cancelInstall(item.id); } catch (e) { this.say(errText(e)); }
+    try { await cancelInstall(item.id); } catch (e) { this.say(errText(e), "error"); }
   }
 
   /** Remove one installed version from disk (asks first). */
@@ -557,7 +596,7 @@ class AppState {
       this.say(`${item.name} ${version} removed`);
       await this.refreshLibrary();
     } catch (e) {
-      this.say(errText(e));
+      this.say(errText(e), "error");
     }
   }
 
@@ -571,7 +610,7 @@ class AppState {
         this.launch = "running";
       } catch (e) {
         this.launch = "idle";
-        this.say(errText(e));
+        this.say(errText(e), "error");
       }
       return;
     }
