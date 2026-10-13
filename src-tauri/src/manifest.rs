@@ -127,17 +127,6 @@ pub struct VersionInfo {
     pub network_info: Option<String>,
     #[serde(rename = "DependenceName", default)]
     pub dependence_name: Option<String>,
-    #[serde(rename = "S3HostLink", default)]
-    pub s3_host: Option<String>,
-    #[serde(rename = "S3BucketName", default)]
-    pub s3_bucket: Option<String>,
-    #[serde(rename = "S3FolderName", default)]
-    pub s3_folder: Option<String>,
-    /// Optional read key a mod author puts in their own manifest for a bucket that is not publicly listable.
-    #[serde(rename = "S3HostPublicKey", default)]
-    pub s3_access_key: Option<String>,
-    #[serde(rename = "S3HostSecretKey", default)]
-    pub s3_secret_key: Option<String>,
     #[serde(rename = "Deprecated", default, deserialize_with = "null_bool")]
     pub deprecated: bool,
     #[serde(rename = "ColorsInformation", default)]

@@ -1,4 +1,4 @@
-//! Where an item (identified by its UI id) lives or will live on disk, and where it comes from.
+﻿//! Where an item (identified by its UI id) lives or will live on disk, and where it comes from.
 //! Folder layout is the one GenLauncher 1.x used so both launchers see the same installs.
 
 use std::collections::HashMap;
@@ -6,11 +6,8 @@ use std::path::{Path, PathBuf};
 
 use crate::catalog::{self, Catalog, ExtraInfos, Kind, ORIGINAL_GAME, ORIGINAL_GAME_ID, slug};
 use crate::error::{Error, Result};
-use crate::install::{Job, Source};
 use crate::library::{self, InstalledMod};
 use crate::manifest::VersionInfo;
-use crate::sigv4::Creds;
-use crate::version;
 
 #[derive(Debug, Clone)]
 pub struct Located {
@@ -139,34 +136,6 @@ pub fn locate(
     })
 }
 
-/// What it takes to install the latest version of `loc`.
-pub fn install_job(game_dir: &Path, loc: &Located) -> Result<(Job, String)> {
-    let info = loc.info.as_ref().ok_or_else(|| Error::msg("This item is not in the mod catalog, so it cannot be downloaded"))?;
-    let ver = info.version.clone().filter(|v| !v.trim().is_empty()).ok_or_else(|| Error::msg("The catalog does not say which version to download"))?;
-    let dest = loc.root.join(sanitize_component(&ver));
-
-    let source = match (&info.s3_host, &info.s3_bucket, &info.s3_folder, &info.download_link) {
-        (Some(h), Some(b), Some(f), _) if !h.is_empty() && !b.is_empty() && !f.is_empty() => {
-            let creds = match (&info.s3_access_key, &info.s3_secret_key) {
-                (Some(a), Some(s)) if !a.is_empty() && !s.is_empty() => Some(Creds { access_key: a.clone(), secret_key: s.clone() }),
-                _ => None,
-            };
-            Source::s3(h, b, f, creds)
-        }
-        (_, _, _, Some(url)) if !url.trim().is_empty() => Source::Archive { url: url.clone() },
-        _ => return Err(Error::msg(format!("{} has no download link in the catalog", loc.display))),
-    };
-
-    // newest other installed version: unchanged files are reused from it
-    let mut others: Vec<String> = loc.installed.iter().filter(|v| !eq(v, &ver)).cloned().collect();
-    version::sort_desc(&mut others);
-    let previous = others.first().map(|v| loc.root.join(v));
-    // staging is keyed by the item's folder so two items with the same name never share one
-    let key = loc.root.strip_prefix(library::mods_root(game_dir)).unwrap_or(&loc.root).to_string_lossy().replace(['/', '\\'], "_");
-    let staging = crate::layout::tmp(game_dir).join(sanitize_component(&format!("{key} {ver}")));
-    Ok((Job { dest, staging, source, previous }, ver))
-}
-
 /// Where a user-added item goes: its UI id and the folder that will hold its version folders.
 /// Adding a version of something that already exists reuses that item's folder.
 pub fn new_item(
@@ -247,38 +216,6 @@ mod tests {
     }
 
     #[test]
-    fn mod_installs_next_to_existing_versions_and_reuses_the_newest_other_one() {
-        let mut i = info("Rise of the Reds", "1.88");
-        i.s3_host = Some("gen.insave.ovh:9000".into());
-        i.s3_bucket = Some("rotr".into());
-        i.s3_folder = Some("rotr-individual-files".into());
-        let cat = catalog_with("Rise Of The Reds", i);
-        let disk = vec![InstalledMod { name: "Rise of the Reds".into(), versions: vec!["1.87".into(), "1.80".into()], ..Default::default() }];
-        let loc = locate(Path::new("G"), &cat, &HashMap::new(), &disk, "rise-of-the-reds").unwrap();
-        assert_eq!(loc.kind, Kind::Mod);
-        let (job, ver) = install_job(Path::new("G"), &loc).unwrap();
-        assert_eq!(ver, "1.88");
-        let dest = job.dest.to_string_lossy().replace('\\', "/");
-        assert!(dest.ends_with(".genlauncher/mods/Rise of the Reds/1.88"), "{dest}");
-        let staging = job.staging.to_string_lossy().replace('\\', "/");
-        assert!(staging.contains(".genlauncher/tmp/") && staging.ends_with("Rise of the Reds 1.88"), "{staging}");
-        assert!(job.previous.unwrap().to_string_lossy().ends_with("1.87"));
-        assert!(matches!(job.source, Source::S3 { .. }));
-    }
-
-    #[test]
-    fn new_mod_gets_a_safe_folder_name_and_archive_source() {
-        let mut i = info("C&C: Evil/Mod?", "2");
-        i.download_link = Some("https://x/y.zip".into());
-        let cat = catalog_with("C&C: Evil/Mod?", i);
-        let loc = locate(Path::new("G"), &cat, &HashMap::new(), &[], "c-c-evil-mod").unwrap();
-        let (job, _) = install_job(Path::new("G"), &loc).unwrap();
-        assert!(job.dest.to_string_lossy().contains("C&C_ Evil_Mod_"), "{:?}", job.dest);
-        assert!(matches!(job.source, Source::Archive { .. }));
-        assert!(job.previous.is_none());
-    }
-
-    #[test]
     fn extras_follow_the_old_folder_layout() {
         let cat = catalog_with("Contra", info("Contra", "10"));
         let mut hotfix = info("Hotfix", "4");
@@ -297,9 +234,7 @@ mod tests {
 
         let p = locate(Path::new("G"), &cat, &extras, &disk, "contra/patch/hotfix").unwrap();
         assert_eq!(p.installed, ["3"]);
-        let (job, v) = install_job(Path::new("G"), &p).unwrap();
-        assert_eq!(v, "4");
-        assert!(job.dest.to_string_lossy().replace('\\', "/").ends_with(".genlauncher/mods/Contra/patches/Hotfix/4"), "{:?}", job.dest);
+        assert!(p.root.to_string_lossy().replace('\\', "/").ends_with(".genlauncher/mods/Contra/patches/Hotfix"), "{:?}", p.root);
 
         let a = locate(Path::new("G"), &cat, &extras, &disk, "contra/addon/maps").unwrap();
         assert!(a.root.to_string_lossy().replace('\\', "/").ends_with(".genlauncher/mods/Hotfix/addons/Maps"), "{:?}", a.root);
@@ -307,9 +242,7 @@ mod tests {
 
     #[test]
     fn errors_are_clear() {
-        let cat = catalog_with("Contra", info("Contra", "10")); // no link at all
-        let loc = locate(Path::new("G"), &cat, &HashMap::new(), &[], "contra").unwrap();
-        assert!(install_job(Path::new("G"), &loc).unwrap_err().to_string().contains("no download link"));
+        let cat = catalog_with("Contra", info("Contra", "10"));
         assert!(locate(Path::new("G"), &cat, &HashMap::new(), &[], "nope").is_err());
         assert!(locate(Path::new("G"), &cat, &HashMap::new(), &[], "contra/hack/x").is_err());
     }

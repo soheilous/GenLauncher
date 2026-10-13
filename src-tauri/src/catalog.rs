@@ -51,6 +51,9 @@ impl Kind {
 pub struct VersionDto {
     pub v: String,
     pub installed: bool,
+    /// The web page this version was downloaded from (saved in its source record), when known.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -60,8 +63,6 @@ pub struct Links {
     pub news: Option<String>,
     pub network: Option<String>,
     pub support: Option<String>,
-    /// The web page this was installed from (saved in its source record), for mods added by hand.
-    pub page: Option<String>,
 }
 
 /// One row/card in the UI. Mirrors `Item` in `src/lib/types.ts`.
@@ -138,7 +139,7 @@ fn versions_dto(installed: &[String], latest: Option<&str>) -> (Vec<VersionDto>,
     version::sort_desc(&mut all);
     let dto = all
         .iter()
-        .map(|v| VersionDto { v: v.clone(), installed: installed.iter().any(|i| i.eq_ignore_ascii_case(v)) })
+        .map(|v| VersionDto { v: v.clone(), installed: installed.iter().any(|i| i.eq_ignore_ascii_case(v)), page: None })
         .collect::<Vec<_>>();
     let newest = latest.map(str::to_string).or_else(|| all.first().cloned()).unwrap_or_default();
     (dto, newest)
@@ -151,7 +152,6 @@ fn links_of(info: Option<&VersionInfo>) -> Links {
         news: i.news_link.clone(),
         network: i.network_info.clone(),
         support: i.support_link.clone(),
-        page: None,
     })
 }
 
@@ -213,7 +213,7 @@ pub fn mod_items(catalog: &Catalog, disk: &[InstalledMod]) -> Vec<Item> {
         name: ORIGINAL_GAME.into(),
         summary: String::new(),
         hue: 220,
-        versions: vec![VersionDto { v: "Stock".into(), installed: true }],
+        versions: vec![VersionDto { v: "Stock".into(), installed: true, page: None }],
         latest: "Stock".into(),
         parent: None,
         depends_on: None,
@@ -394,8 +394,8 @@ mod tests {
         assert_eq!(contra.hue, 120);
         assert_eq!(contra.latest, "009 Final");
         assert_eq!(contra.versions, [
-            VersionDto { v: "009 Final".into(), installed: false },
-            VersionDto { v: "009 Beta 3".into(), installed: true },
+            VersionDto { v: "009 Final".into(), installed: false, page: None },
+            VersionDto { v: "009 Beta 3".into(), installed: true, page: None },
         ]);
 
         let shock = items.iter().find(|i| i.id == "shockwave").unwrap();

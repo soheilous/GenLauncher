@@ -4,6 +4,8 @@ export type ModKind = "mod" | "patch" | "addon" | "exe";
 export interface Version {
   v: string;
   installed: boolean;
+  /** The web page this version was downloaded from, when it was added from one. */
+  page?: string | null;
 }
 
 export interface Links {
@@ -11,8 +13,6 @@ export interface Links {
   discord?: string | null;
   news?: string | null;
   network?: string | null;
-  /** The web page it was installed from (mods added by hand). */
-  page?: string | null;
   support?: string | null;
 }
 

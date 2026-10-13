@@ -56,7 +56,6 @@ export interface InstallFinished {
   version: string | null;
 }
 
-export const installItem = (id: string) => invoke<void>("install_item", { id });
 export const cancelInstall = (id: string) => invoke<void>("cancel_install", { id });
 export const uninstallVersion = (id: string, version: string) => invoke<void>("uninstall_version", { id, version });
 

@@ -1,5 +1,5 @@
 import {
-  addItem, backend, cancelInstall, confirmDialog, installItem, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cancelInstall, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type LaunchTarget,
@@ -7,6 +7,15 @@ import {
 import { slugify } from "./guess";
 import { mockItems } from "./mock";
 import type { Bootstrap, Game, GameInstall, Item, LegacySummary, ModKind, Settings } from "./types";
+
+/** What "Install" on a catalog entry hands to the Add dialog. */
+export interface AddPreset {
+  name: string;
+  /** Where to get it (opened in the built-in browser), if the catalog knows. */
+  pageUrl: string | null;
+  /** Another version of something already installed: no "same name" confirmation needed. */
+  update: boolean;
+}
 
 export type View = "library" | "discover" | "downloads";
 export type LaunchState = "idle" | "preparing" | "running";
@@ -181,10 +190,11 @@ class AppState {
   }
 
   // --- "Add mod": things the user picked or linked themselves ---
-  addDialog = $state<{ kind: ModKind; parent: string | null } | null>(null);
+  addDialog = $state<{ kind: ModKind; parent: string | null; preset?: AddPreset } | null>(null);
 
-  openAdd(kind: ModKind = "mod", parent: string | null = null) {
-    this.addDialog = { kind, parent };
+  /** `preset`: something the launcher already knows about (a Discover entry): its name and the page to fetch it from. */
+  openAdd(kind: ModKind = "mod", parent: string | null = null, preset?: AddPreset) {
+    this.addDialog = { kind, parent, preset };
   }
   closeAdd() {
     this.addDialog = null;
@@ -494,19 +504,18 @@ class AppState {
     this.persist();
   }
 
+  /**
+   * "Install" / "Update" on a catalog entry. The launcher never downloads a mod by itself: it opens the mod's own page
+   * in the built-in browser so the download comes from the people who published it.
+   */
   async install(item: Item) {
     if (isTauri) {
       if (this.installProgress[item.id]) return;
-      // show it as started right away; the core's progress events take over
-      this.installProgress[item.id] = { id: item.id, phase: "preparing", done: 0, total: 0 };
-      this.applyProgress();
-      try {
-        await installItem(item.id);
-      } catch (e) {
-        delete this.installProgress[item.id];
-        this.applyProgress();
-        this.say(errText(e));
-      }
+      this.openAdd(item.kind, item.kind === "mod" ? null : (item.parent ?? this.activeModId), {
+        name: item.name,
+        pageUrl: item.links?.moddb || null,
+        update: item.versions.some((v) => v.installed),
+      });
       return;
     }
     if (item.progress !== undefined) return;

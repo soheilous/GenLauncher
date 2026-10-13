@@ -10,7 +10,6 @@
   } from "$lib/guess";
   import type { ModKind } from "$lib/types";
   import Icon from "./Icon.svelte";
-  import Select from "./Select.svelte";
 
   type Source =
     | { type: "file"; path: string; pageUrl: string | null }
@@ -42,6 +41,8 @@
   // The launcher identifies a mod by its name, so a new "Zero Hour Reborn" would silently become another
   // version of the one you already have. The setup step therefore says so and asks.
   let ackSameName = $state(false);
+  /** Opened from a catalog entry's Install/Update: adding another version of it is what was asked for. */
+  const isUpdate = $derived(!!app.addDialog?.preset?.update);
   const targetId = $derived(kind === "mod" ? slugify(name) : `${parent}/${kind}/${slugify(name)}`);
   const sameItem = $derived(slugify(name) ? app.items.find((i) => i.id === targetId) : undefined);
   const installedVersions = $derived(sameItem?.versions.filter((v) => v.installed).map((v) => v.v) ?? []);
@@ -49,7 +50,7 @@
   const reserved = $derived(kind === "mod" && slugify(name) === "original-game");
   const inFlight = $derived(!!app.installProgress[targetId]);
   /** Adding must wait for the user: nothing to confirm, or a clash that is not acknowledged yet. */
-  const blocked = $derived(reserved || inFlight || (!!sameItem && (sameVersion || !ackSameName)));
+  const blocked = $derived(reserved || inFlight || (!!sameItem && (sameVersion || !(ackSameName || isUpdate))));
   const suggestedName = $derived(`${name.trim()} ${version.trim()}`.trim());
   $effect(() => {
     targetId; // a different name, type or parent starts the question over
@@ -73,11 +74,18 @@
     submitted = false;
     error = "";
     busy = false;
-    name = "";
+    const preset = app.addDialog.preset;
+    name = preset?.name ?? "";
     version = "1.0";
     kind = app.addDialog.kind;
     parent = app.addDialog.parent ?? app.activeMod.id;
     queueMicrotask(() => dialog?.focus());
+    if (preset?.pageUrl) {
+      // the catalog knows this mod's page: open it right away so the user only has to pick the version and download
+      tab = "link";
+      url = preset.pageUrl;
+      queueMicrotask(() => void continueWithLink());
+    }
   });
 
   // events from the built-in browser window
@@ -122,15 +130,6 @@
     error = message;
   }
 
-  const KINDS: { value: ModKind; label: string }[] = [
-    { value: "mod", label: "Mod" },
-    { value: "patch", label: "Patch" },
-    { value: "addon", label: "Addon" },
-    { value: "exe", label: "Executable" },
-  ];
-  const parentOptions = $derived(
-    app.mods.filter((m) => m.versions.some((v) => v.installed)).map((m) => ({ value: m.id, label: m.name }))
-  );
   const parentName = $derived(app.mods.find((m) => m.id === parent)?.name ?? "");
   const title = $derived(
     kind === "mod" ? "Add a mod" : `Add ${kind === "exe" ? "an executable" : "a " + kind}${parentName ? " for " + parentName : ""}`
@@ -243,7 +242,7 @@
       error = `${sameItem.name} ${version.trim()} is already installed. Choose another version or remove the installed one first.`;
       return;
     }
-    if (sameItem && !ackSameName) {
+    if (sameItem && !ackSameName && !isUpdate) {
       error = `You already have "${sameItem.name}". Tick the box if this is another version of it, or choose a different name.`;
       return;
     }
@@ -356,16 +355,6 @@
           <span>Version</span>
           <input bind:value={version} spellcheck="false" onkeydown={(e) => e.key === "Enter" && submit()} />
         </label>
-        <div class="field">
-          <span id="kind-label">Type</span>
-          <Select label="Type" options={KINDS} value={kind} onchange={(v) => (kind = v as ModKind)} />
-        </div>
-        {#if kind !== "mod"}
-          <div class="field">
-            <span id="parent-label">For mod</span>
-            <Select label="For mod" options={parentOptions} value={parent} onchange={(v) => (parent = v)} />
-          </div>
-        {/if}
       </div>
       {#if reserved}
         <div class="alert danger" role="alert"><strong>"Original Game" is reserved for the stock game.</strong> Choose another name.</div>
@@ -377,7 +366,7 @@
           <p>Choose another version, or remove the installed one first. If this is a different mod, give it a different name.</p>
           <div class="row"><button class="btn" onclick={useDifferentName}>Use "{suggestedName}"</button></div>
         </div>
-      {:else if sameItem}
+      {:else if sameItem && !isUpdate}
         <div class="alert warn" role="alert">
           <strong>You already have a {sameItem.kind === "mod" ? "mod" : sameItem.kind} called "{sameItem.name}"</strong>
           ({installedVersions.length ? "installed: " + installedVersions.join(", ") : "in the catalog, not installed"}).

@@ -16,8 +16,6 @@ pub mod manifest;
 pub mod migrate;
 pub mod plan;
 pub mod record;
-pub mod s3;
-pub mod sigv4;
 pub mod store;
 pub mod target;
 pub mod version;
@@ -155,13 +153,16 @@ fn bootstrap_of(inner: &Inner, installs: Vec<GameInstall>) -> Bootstrap {
     Bootstrap { installs, active: inner.install.clone(), settings, recovered, legacy }
 }
 
-/// For mods installed from a web page (not the catalog), remember that page so the UI can link back to it.
+/// Each installed version of a mod remembers the page it was downloaded from (its source record),
+/// so the UI can link back to the right page for every version.
 fn attach_pages(game_dir: &std::path::Path, items: &mut [Item], disk: &[library::InstalledMod]) {
     for item in items.iter_mut().filter(|i| i.kind == catalog::Kind::Mod) {
         let Some(d) = disk.iter().find(|d| catalog::slug(&d.name) == item.id) else { continue };
-        let Some(newest) = d.versions.first() else { continue };
-        let dir = library::mods_root(game_dir).join(&d.name).join(newest);
-        item.links.page = record::read(&dir).and_then(|r| r.page_url).filter(|p| !p.trim().is_empty());
+        for v in item.versions.iter_mut().filter(|v| v.installed) {
+            let Some(folder) = d.versions.iter().find(|n| n.eq_ignore_ascii_case(&v.v)) else { continue };
+            let dir = library::mods_root(game_dir).join(&d.name).join(folder);
+            v.page = record::read(&dir).and_then(|r| r.page_url).filter(|p| !p.trim().is_empty());
+        }
     }
 }
 
@@ -407,26 +408,6 @@ struct InstallFinished {
     cancelled: bool,
     error: Option<String>,
     version: Option<String>,
-}
-
-/// Install (or update to) the latest catalog version of an item. Returns at once; progress and the
-/// result arrive as `install-progress` / `install-finished` events.
-#[tauri::command]
-async fn install_item(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<()> {
-    let (install, catalog, extras) = {
-        let inner = state.inner.lock().await;
-        (require_install(&inner)?, inner.catalog.clone().ok_or_else(|| Error::msg("Catalog not loaded"))?, inner.extras.clone())
-    };
-    let disk = scan_disk(install.dir.clone()).await?;
-    let loc = target::locate(&install.dir, &catalog, &extras, &disk, &id)?;
-    let (job, version) = target::install_job(&install.dir, &loc)?;
-    let settings: Settings = store::load(&settings_path(&install));
-
-    let mut record = record::SourceRecord::now("catalog");
-    record.url = loc.info.as_ref().and_then(|i| i.download_link.clone());
-    record.page_url = loc.info.as_ref().and_then(|i| i.moddb_link.clone());
-    let cleanup = settings.auto_delete_old_versions.then(|| (install.dir.clone(), loc));
-    start_install(&app, &state, InstallRun { id, job, version, record, cleanup, delete_after: None, wait_for_browser: false })
 }
 
 /// Everything needed to run one install in the background.
@@ -926,7 +907,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            bootstrap, select_install, catalog_load, catalog_reload, load_extras, save_settings, launch_game, install_item, add_item, cancel_install, migrate_legacy,
+            bootstrap, select_install, catalog_load, catalog_reload, load_extras, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
             uninstall_version, open_browser, close_browser, open_item_folder
         ])
         .run(tauri::generate_context!())
@@ -971,16 +952,19 @@ mod tests {
     }
 
     #[test]
-    fn mods_added_from_a_page_link_back_to_it() {
+    fn every_version_links_back_to_its_own_page() {
         let dir = tempfile::tempdir().unwrap();
         let g = dir.path();
-        let version = library::mods_root(g).join("My Mod").join("2.0");
-        std::fs::create_dir_all(&version).unwrap();
-        std::fs::write(version.join("a.gib"), b"x").unwrap();
-        let mut rec = record::SourceRecord::now("page");
-        rec.page_url = Some("https://www.moddb.com/mods/my-mod".into());
-        record::write(&version, &rec).unwrap();
-        // a second mod whose record has no page, and a version-less folder: neither gets a link
+        // two versions of one mod, downloaded from different sites
+        for (v, page) in [("2.0", Some("https://www.moddb.com/mods/my-mod/downloads/two")), ("1.0", Some("https://www.nexusmods.com/games/generals/mods/1"))] {
+            let version = library::mods_root(g).join("My Mod").join(v);
+            std::fs::create_dir_all(&version).unwrap();
+            std::fs::write(version.join("a.gib"), b"x").unwrap();
+            let mut rec = record::SourceRecord::now("page");
+            rec.page_url = page.map(Into::into);
+            record::write(&version, &rec).unwrap();
+        }
+        // a mod whose record names no page
         let other = library::mods_root(g).join("Plain").join("1");
         std::fs::create_dir_all(&other).unwrap();
         std::fs::write(other.join("b.gib"), b"x").unwrap();
@@ -988,10 +972,11 @@ mod tests {
         let disk = library::scan(g);
         let mut items = catalog::mod_items(&Default::default(), &disk);
         attach_pages(g, &mut items, &disk);
-        let page = |id: &str| items.iter().find(|i| i.id == id).unwrap().links.page.clone();
-        assert_eq!(page("my-mod").as_deref(), Some("https://www.moddb.com/mods/my-mod"));
-        assert_eq!(page("plain"), None);
-        assert_eq!(page(catalog::ORIGINAL_GAME_ID), None);
+        let page = |id: &str, v: &str| items.iter().find(|i| i.id == id).unwrap().versions.iter().find(|x| x.v == v).and_then(|x| x.page.clone());
+        assert_eq!(page("my-mod", "2.0").as_deref(), Some("https://www.moddb.com/mods/my-mod/downloads/two"));
+        assert_eq!(page("my-mod", "1.0").as_deref(), Some("https://www.nexusmods.com/games/generals/mods/1"));
+        assert_eq!(page("plain", "1"), None);
+        assert_eq!(page(catalog::ORIGINAL_GAME_ID, "Stock"), None);
     }
 
     #[test]

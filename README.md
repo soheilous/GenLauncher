@@ -24,9 +24,7 @@ game must not see, link in the mod, patch the camera height), writes that list t
 undoes the list when the game exits. On the next start an unfinished session is undone automatically. Links are hard
 links on Windows (no admin rights or Developer Mode needed) and symlinks elsewhere.
 
-**Installing** (`install.rs`, `download.rs`, `s3.rs`, `extract.rs`): resumable downloads with retries; files from the
-mod storage are verified against their checksums and unchanged files are reused from the previous version;
-archives (zip, 7z, rar) are extracted with path-traversal protection. Each install is built in `tmp/` and swapped in
+**Installing** (`install.rs`, `download.rs`, `extract.rs`): resumable downloads with retries; archives (zip, 7z, rar) are extracted with path-traversal protection. Each install is built in `tmp/` and swapped in
 only when complete.
 
 **Migrating from GenLauncher 1.x** (`migrate.rs`): on first start the launcher offers to move an old `GLM/` library into
@@ -63,7 +61,7 @@ Without Tauri (plain `npm run dev` in a browser) the UI runs on mock data, which
 | `manifest.rs`, `catalog.rs`, `target.rs` | the mod repository format; merging it with what is on disk |
 | `library.rs`, `store.rs`, `version.rs` | installed-mod scan, JSON state with atomic writes, version ordering |
 | `plan.rs`, `journal.rs`, `launch.rs`, `big.rs` | launching, crash-safe changes, camera-height patch |
-| `download.rs`, `install.rs`, `s3.rs`, `sigv4.rs`, `extract.rs`, `links.rs` | downloading and installing |
+| `download.rs`, `install.rs`, `extract.rs`, `links.rs` | downloading and installing |
 | `migrate.rs` | moving from GenLauncher 1.x |
 | `src/` | SvelteKit UI (`lib/app.svelte.ts` is the state, `lib/components/` the pieces) |
 | `GENLAUNCHER-SPEC.md` | behaviour of the old launcher this project reproduces and improves on |
@@ -77,11 +75,12 @@ UI with per-mod covers and accent colors.
 Next: a community index of mod pages for Discover, "check for update" from the saved page.
 
 Not yet: in-app graphics options editor, GenTool and Vulkan handling, World Builder download, self-update,
-localisation (translations are in `reference/`), Linux/Wine prefix selection, and download access for mod storage that is
-not publicly listable (see below).
+localisation (translations are in `reference/`) and Linux/Wine prefix selection.
 
-### Open question: private mod storage
+### Where mods come from
 
-Most mods are hosted on the maintainers' S3 server. For 11 of the 24 S3-hosted mods the file list is public. The others
-refuse anonymous listing; the old launcher read them with a key pair embedded in its source. The new launcher
-supports per-mod keys from the catalog (`S3HostPublicKey` / `S3HostSecretKey`, signed with SigV4) but ships none.
+The launcher hosts no mods and downloads none by itself. Mods are added from a file or folder on your computer, a direct
+link, or a web page (ModDB, Nexus Mods, a mod's own site) opened in the launcher's built-in browser, where you pick the
+version and click the site's own download button. Files therefore always come from the people who published them.
+"Install" on a Discover entry does the same: it opens that mod's page. Each installed version remembers the page it was
+downloaded from. The old launcher's S3 mod storage is not used and no key of the previous author is shipped.

@@ -66,48 +66,6 @@ fn journal_exists(dir: &std::path::Path) -> bool {
     genlauncher2_lib::journal::journal_path(dir).exists()
 }
 
-/// Lists every S3-hosted mod in the real catalog (no downloads except one tiny file).
-#[tokio::test]
-#[ignore]
-async fn real_storage_listing_and_one_small_download() {
-    use genlauncher2_lib::{download, s3};
-    let fetcher = Fetcher::new().unwrap();
-    let cat = catalog::fetch(&fetcher, game::Game::Zh.manifest_url()).await.unwrap();
-    let client = reqwest::Client::new();
-    let mut smallest: Option<(String, String, String, s3::Object)> = None;
-    let (mut mods, mut files, mut bytes, mut multipart) = (0, 0u64, 0u64, 0);
-    for info in cat.mods.iter().flatten() {
-        let (Some(h), Some(b), Some(f)) = (&info.s3_host, &info.s3_bucket, &info.s3_folder) else { continue };
-        let objs = match s3::list(&client, &s3::list_base(h), b, f, None).await {
-            Ok(o) => o,
-            Err(e) => { println!("  {} -> LIST FAILED: {e}", info.name); continue }
-        };
-        mods += 1;
-        files += objs.len() as u64;
-        bytes += objs.iter().map(|o| o.size).sum::<u64>();
-        multipart += objs.iter().filter(|o| o.md5().is_none()).count();
-        for o in &objs {
-            assert!(!o.rel.contains("..") && !o.rel.contains('\\') &&!o.rel.contains(':'), "suspicious name {:?} in {}", o.rel, info.name);
-            if o.size > 0 && smallest.as_ref().is_none_or(|s| o.size < s.3.size) && o.md5().is_some() {
-                smallest = Some((h.clone(), b.clone(), f.clone(), o.clone()));
-            }
-        }
-        println!("{:<28} {:>5} files {:>9.1} MB", info.name, objs.len(), objs.iter().map(|o| o.size).sum::<u64>() as f64 / 1e6);
-    }
-    println!("TOTAL: {mods} mods, {files} files, {:.1} GB, {multipart} multipart-etag files", bytes as f64 / 1e9);
-    assert!(mods >= 8 && files > 300, "public listings should work for at least the public buckets");
-
-    let (h, b, f, o) = smallest.expect("no object");
-    let url = s3::object_url(&s3::file_base(&h), &b, &f, &o.rel).unwrap();
-    println!("downloading smallest file: {url} ({} bytes)", o.size);
-    let dir = tempfile::tempdir().unwrap();
-    let got = download::fetch(&client, &url, &dir.path().join("x.part"), &download::Cancel::new(), &|_| {}, &|_| {}, true, &download::Options::default()).await.unwrap();
-    assert_eq!(got.size, o.size);
-    assert_eq!(got.md5.as_deref(), o.md5(), "downloaded bytes must match the server's ETag");
-    println!("checksum OK over https");
-}
-
-/// Prints (never executes) what migrating the real install would do.
 #[test]
 #[ignore]
 fn migrate_dry_run_on_real_install() {

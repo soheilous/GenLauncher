@@ -5,7 +5,6 @@
 //! look installed (and an existing version is only replaced once the new one is ready). The
 //! staging folder is kept on failure so the next attempt resumes instead of starting over.
 
-use futures::{StreamExt, TryStreamExt, stream};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,12 +12,10 @@ use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use crate::download::{self, Cancel, Options, md5_file};
+use crate::download::{self, Cancel, Options};
 use crate::error::{Error, Result};
 use crate::extract;
 use crate::links;
-use crate::s3::{self, Object};
-use crate::sigv4::Creds;
 
 #[derive(Clone, Debug)]
 pub enum Source {
@@ -26,15 +23,6 @@ pub enum Source {
     Archive { url: String },
     /// A file or folder the user picked on their own computer (nothing is downloaded).
     Local { path: PathBuf },
-    /// A folder in the public mod storage: individual files, verified by checksum.
-    S3 { list_base: String, file_base: String, bucket: String, folder: String, creds: Option<Creds> },
-}
-
-impl Source {
-    /// From the catalog's `S3HostLink` (`host:9000`), bucket and folder.
-    pub fn s3(host: &str, bucket: &str, folder: &str, creds: Option<Creds>) -> Self {
-        Source::S3 { list_base: s3::list_base(host), file_base: s3::file_base(host), bucket: bucket.into(), folder: folder.into(), creds }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -114,18 +102,6 @@ impl Meter {
     }
 }
 
-/// `a/b/c.txt` from the server -> a path below `base`, refusing anything that could escape it.
-fn safe_rel(rel: &str) -> Result<PathBuf> {
-    let mut out = PathBuf::new();
-    for part in rel.split('/') {
-        if part.is_empty() || part == "." || part == ".." || part.contains(['\\', ':']) {
-            return Err(Error::msg(format!("unsafe file name from the server: {rel}")));
-        }
-        out.push(part);
-    }
-    Ok(out)
-}
-
 fn dir_has_files(dir: &Path) -> bool {
     fs::read_dir(dir).map(|rd| rd.flatten().any(|e| e.path().is_file() || (e.path().is_dir() && dir_has_files(&e.path())))).unwrap_or(false)
 }
@@ -140,7 +116,7 @@ fn link_or_copy(from: &Path, to: &Path) -> std::io::Result<()> {
 /// What the installed content came from, for the record kept next to it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Outcome {
-    /// File name of the archive that was installed (none for per-file S3 installs and folders).
+    /// File name of the archive that was installed (none for folders).
     pub archive_name: Option<String>,
     /// SHA-256 of that archive.
     pub sha256: Option<String>,
@@ -174,11 +150,6 @@ pub async fn run(client: &reqwest::Client, job: &Job, cancel: &Cancel, report: R
             let _ = fs::remove_dir_all(&content);
             meter.set_phase(Phase::Extracting);
             unpack(path.clone(), content.clone(), cancel.clone()).await?
-        }
-        Source::S3 { list_base, file_base, bucket, folder, creds } => {
-            fs::create_dir_all(&content)?;
-            s3_files(client, list_base, file_base, bucket, folder, creds.as_ref(), job.previous.as_deref(), &content, cancel, &meter, opts).await?;
-            Outcome::default()
         }
     };
     cancel.check()?;
@@ -294,111 +265,4 @@ async fn archive(client: &reqwest::Client, url: &str, temp: &Path, content: &Pat
     meter.set_total(0);
     meter.set_phase(Phase::Extracting);
     unpack(file, content.to_path_buf(), cancel.clone()).await
-}
-
-const PARALLEL_FILES: usize = 4;
-
-#[allow(clippy::too_many_arguments)]
-async fn s3_files(
-    client: &reqwest::Client,
-    list_base: &str,
-    file_base: &str,
-    bucket: &str,
-    folder: &str,
-    creds: Option<&Creds>,
-    previous: Option<&Path>,
-    content: &Path,
-    cancel: &Cancel,
-    meter: &Arc<Meter>,
-    opts: &Options,
-) -> Result<()> {
-    meter.set_phase(Phase::Preparing);
-    let objects = s3::list(client, list_base, bucket, folder, creds).await?;
-    if objects.is_empty() {
-        return Err(Error::msg("the mod storage lists no files for this version"));
-    }
-    for o in &objects {
-        safe_rel(&o.rel)?;
-    }
-    meter.set_total(objects.iter().map(|o| o.size).sum());
-
-    // Files already present (resumed install) or unchanged since the previous version are not downloaded again.
-    meter.set_phase(Phase::Verifying);
-    let todo = {
-        let (objs, content, prev, m, c) = (objects.clone(), content.to_path_buf(), previous.map(Path::to_path_buf), meter.clone(), cancel.clone());
-        tokio::task::spawn_blocking(move || -> Result<Vec<Object>> {
-            let mut todo = Vec::new();
-            for o in objs {
-                c.check()?;
-                let rel = safe_rel(&o.rel)?;
-                let here = content.join(&rel);
-                if here.is_file() {
-                    if fs::metadata(&here)?.len() == o.size && o.md5().map_or(Ok(true), |e| md5_file(&here).map(|h| h.eq_ignore_ascii_case(e)))? {
-                        m.add(o.size as i64);
-                        continue;
-                    }
-                    fs::remove_file(&here)?;
-                }
-                if let (Some(prev), Some(want)) = (&prev, o.md5()) {
-                    let old = prev.join(&rel);
-                    if old.is_file() && fs::metadata(&old)?.len() == o.size && md5_file(&old)?.eq_ignore_ascii_case(want) {
-                        link_or_copy(&old, &here)?;
-                        m.add(o.size as i64);
-                        continue;
-                    }
-                }
-                todo.push(o);
-            }
-            Ok(todo)
-        })
-        .await
-        .map_err(|e| Error::msg(e.to_string()))??
-    };
-
-    meter.set_phase(Phase::Downloading);
-    stream::iter(todo)
-        .map(Ok::<_, Error>)
-        .try_for_each_concurrent(PARALLEL_FILES, |o| async move {
-            download_object(client, file_base, bucket, folder, &o, content, cancel, meter, opts).await
-        })
-        .await
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn download_object(
-    client: &reqwest::Client,
-    file_base: &str,
-    bucket: &str,
-    folder: &str,
-    o: &Object,
-    content: &Path,
-    cancel: &Cancel,
-    meter: &Arc<Meter>,
-    opts: &Options,
-) -> Result<()> {
-    let target = content.join(safe_rel(&o.rel)?);
-    if let Some(p) = target.parent() {
-        fs::create_dir_all(p)?;
-    }
-    let mut part = target.as_os_str().to_owned();
-    part.push(".part");
-    let part = PathBuf::from(part);
-    let url = s3::object_url(file_base, bucket, folder, &o.rel)?;
-
-    for _ in 0..3 {
-        let m = meter.clone();
-        let got = download::fetch(client, &url, &part, cancel, &move |d| m.add(d), &|_| {}, o.md5().is_some(), opts).await?;
-        let md5_ok = match (o.md5(), got.md5.as_deref()) {
-            (Some(want), Some(have)) => want.eq_ignore_ascii_case(have),
-            _ => true, // multipart upload: no md5 to compare, the size check has to do
-        };
-        if got.size == o.size && md5_ok {
-            let _ = fs::remove_file(&target);
-            fs::rename(&part, &target)?;
-            return Ok(());
-        }
-        meter.add(-(got.size as i64));
-        let _ = fs::remove_file(&part); // corrupted: start this file over
-    }
-    Err(Error::msg(format!("{} failed its checksum three times; the mod storage may be damaged", o.rel)))
 }
