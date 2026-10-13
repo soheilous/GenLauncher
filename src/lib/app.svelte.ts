@@ -199,6 +199,11 @@ class AppState {
   openAdd(kind: ModKind = "mod", parent: string | null = null, preset?: AddPreset) {
     this.addDialog = { kind, parent, preset };
   }
+  /** Reopen the page an installed version came from, ready to add a newer version of it. */
+  checkForUpdate(item: Item, pageUrl: string) {
+    this.openAdd("mod", null, { name: item.name, pageUrl, update: true });
+  }
+
   closeAdd() {
     this.addDialog = null;
   }

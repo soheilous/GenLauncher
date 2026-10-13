@@ -106,19 +106,16 @@
         {
           "name": "Russian language and Leikeze hotkeys",
           "version": "10.0.2 Beta 2 Patch 1",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "Russian language and Legacy hotkeys",
           "version": "10.0.2 Beta 2 Patch 1",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "English language and Leikeze hotkeys",
           "version": "10.0.2 Beta 2 Patch 1",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         }
       ],
@@ -126,61 +123,51 @@
         {
           "name": "HD Cameos",
           "version": "10.0.2 Beta 2 Patch 1",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "Control Bar Pro",
           "version": "10.0.2 Beta 2 Patch 1",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "Control Bar Standard ZH",
           "version": "10.0.1 Beta 2",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "Enhanced Soundtrack",
           "version": "10.0.2 Beta 2 Patch 1",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "The Score Soundtrack",
           "version": "10.0.2 Beta 2 Patch 1",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "Funny General Portraits",
           "version": "10.0.1 Beta 2",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "Native Unit Voices",
           "version": "10.0.2 Beta 2",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "Disable Fog Effects",
           "version": "10.0.2 Beta 2 Patch 1",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "Disable Water Effects",
           "version": "10.0.1 Beta 2",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         },
         {
           "name": "Disable Extra Building Props",
           "version": "10.0.1 Beta 2",
-          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
           "dependsOn": "Contra"
         }
       ]
@@ -323,24 +310,19 @@
       "name": "World War 2",
       "version": "0.28",
       "page": "https://www.moddb.com/mods/ww2",
-      "image": "http://cncww2.ru/download/genlauncher/launcher_500x100_orig.jpg",
       "discord": "https://discord.com/invite/mFZVBuZ",
-      "news": "http://cncww2.ru/news/latest",
       "support": "https://www.donationalerts.com/r/generals_world_war_2",
       "network": "https://www.moddb.com/mods/ww2/tutorials/how-to-play-at-world-war-ii-in-generals-on-line",
       "colors": {
         "active": "#990000",
-        "border": "#354221",
-        "backgroundImage": "https://cdn.discordapp.com/attachments/500003252625080330/1031318358496387092/GlBg.png"
+        "border": "#354221"
       },
       "patches": [
         {
           "name": "Russian language for C&C WW2 mod",
           "version": "0.28",
           "page": "https://www.moddb.com/mods/ww2",
-          "image": "https://cdn.discordapp.com/attachments/500003252625080330/1051066194586775552/launcher_500x100_orig.jpg",
           "discord": "https://discord.com/invite/mFZVBuZ",
-          "news": "http://cncww2.ru/news/latest",
           "network": "https://vk.com/@cncww2-igra-po-lokalnoi-seti-cherez-radmin-vpn",
           "dependsOn": "World War 2"
         },
@@ -348,7 +330,6 @@
           "name": "French language for C&C WW2 mod",
           "version": "0.27.6",
           "page": "https://www.moddb.com/mods/ww2",
-          "image": "http://cncww2.ru/download/genlauncher/launcher_500x100_0276.jpg",
           "discord": "https://discord.com/invite/mFZVBuZ",
           "news": "https://www.moddb.com/mods/ww2/news/the-full-patchnote-from-v-026-to-027",
           "network": "https://vk.com/@cncww2-igra-po-lokalnoi-seti-cherez-radmin-vpn",
@@ -360,9 +341,7 @@
           "name": "Network error fix path for C&C WW2 mod",
           "version": "0.28",
           "page": "https://www.moddb.com/mods/ww2",
-          "image": "http://cncww2.ru/download/genlauncher/launcher_500x100_0276.jpg",
           "discord": "https://discord.com/invite/mFZVBuZ",
-          "news": "http://cncww2.ru/news/latest",
           "network": "https://vk.com/@cncww2-igra-po-lokalnoi-seti-cherez-radmin-vpn",
           "dependsOn": "World War 2",
           "deprecated": true

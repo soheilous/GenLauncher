@@ -96,6 +96,10 @@
       {#if pageUrl}
         <button class="btn icon" title={pageLabel} aria-label={pageLabel} onclick={() => app.openPage(pageUrl)}><Icon name="link" size={15} /></button>
       {/if}
+      {#if versionPage && selectedInstalled}
+        <button class="btn icon" title="Check for a newer version (opens the page this version came from)" aria-label="Check for a newer version"
+          onclick={() => app.checkForUpdate(mod, versionPage)}><Icon name="refresh" size={15} /></button>
+      {/if}
       <button class="btn icon" title={anyInstalled || mod.id === "original-game" ? "Show the installed files" : "Not installed yet"}
         aria-label="Show the installed files" disabled={!anyInstalled && mod.id !== "original-game"}
         onclick={() => app.openFolder(mod, selectedVersion)}><Icon name="folder" size={15} /></button>

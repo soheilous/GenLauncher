@@ -1,0 +1,38 @@
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays: are the pages in the mod index still there?
+
+jobs:
+  index:
+    name: Mod index
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # structure only on changes; links too on the weekly run
+      - run: node tools/check-index.mjs ${{ github.event_name != 'schedule' && '--offline' || '' }}
+
+  app:
+    name: Launcher
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build # the app embeds the built UI
+      - run: cargo test
+        working-directory: src-tauri

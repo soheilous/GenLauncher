@@ -90,7 +90,7 @@ downloaded from.
 Discover, and the patches / addons / executables listed under each mod, come from [`index/`](index/README.md): one JSON
 file per game, kept in this repository and read by the launcher from GitHub (a copy is built into every release, and the
 last one fetched is cached, so it works offline). It holds pointers only (names, latest version, the page a mod is
-published on, cover images), never a download link or a file. Anyone can add or fix an entry with a pull request.
+published on, cover images), never a download link or a file. Anyone can add or fix an entry with a pull request; `node tools/check-index.mjs` checks the structure and that the pages still exist (it also runs weekly on GitHub).
 
 ## Credits
 
