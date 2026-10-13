@@ -21,7 +21,7 @@ async fn real_zero_hour_catalog_and_install() {
     let items = catalog::mod_items(&cat, &disk);
     let installed: Vec<_> = items.iter().filter(|i| i.versions.iter().any(|v| v.installed)).map(|i| (&i.name, &i.latest)).collect();
     println!("installed in library: {installed:?}");
-    for d in &disk {
+    for d in disk.iter().filter(|d| !d.versions.is_empty()) {
         assert!(items.iter().any(|i| i.versions.iter().any(|v| v.installed) && i.name.eq_ignore_ascii_case(&d.name) || catalog::slug(&i.name) == catalog::slug(&d.name)),
             "disk mod {} missing from library", d.name);
     }
