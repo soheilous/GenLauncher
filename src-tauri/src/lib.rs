@@ -1,6 +1,7 @@
 pub mod big;
 pub mod browser;
 pub mod catalog;
+pub mod config;
 pub mod download;
 pub mod error;
 pub mod extract;
@@ -283,6 +284,70 @@ async fn announcements_load(state: State<'_, AppState>) -> Result<Vec<index::Ann
         Err(_) => return Ok(Vec::new()),
     };
     Ok(index::parse_announcements(&text).unwrap_or_default())
+}
+
+/// Everything that belongs in a configuration file: the settings of each game found on this computer, plus the
+/// look-and-feel the UI hands over.
+async fn collect_config(state: &AppState, ui: serde_json::Value) -> Result<config::ConfigFile> {
+    let inner = state.inner.lock().await;
+    let mut games = std::collections::BTreeMap::new();
+    for i in game::discover(&known_dirs(&inner)) {
+        games.entry(i.game.key().to_string()).or_insert_with(|| store::load::<Settings>(&settings_path(&i)));
+    }
+    Ok(config::ConfigFile::new(games, ui))
+}
+
+/// Save the settings of every game in `cfg` that is installed here. Returns the games that were updated.
+async fn apply_config(state: &AppState, cfg: &config::ConfigFile) -> Result<Vec<String>> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game before importing a configuration"));
+    }
+    let inner = state.inner.lock().await;
+    let mut applied = Vec::new();
+    for i in game::discover(&known_dirs(&inner)) {
+        let key = i.game.key();
+        if applied.iter().any(|a| a == key) {
+            continue;
+        }
+        if let Some(settings) = cfg.games.get(key) {
+            store::save(&settings_path(&i), settings)?;
+            applied.push(key.to_string());
+        }
+    }
+    Ok(applied)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportedConfig {
+    /// Games whose settings were replaced.
+    games: Vec<String>,
+    ui: serde_json::Value,
+}
+
+/// Write the configuration to `path`. `ui` is the look-and-feel the UI wants to include.
+#[tauri::command]
+async fn config_export(state: State<'_, AppState>, path: String, ui: serde_json::Value) -> Result<Vec<String>> {
+    let cfg = collect_config(&state, ui).await?;
+    let json = cfg.to_json()?;
+    let written: Vec<String> = cfg.games.keys().cloned().collect();
+    blocking(move || Ok(std::fs::write(&path, json)?)).await?;
+    Ok(written)
+}
+
+/// Replace the settings of the installed games with those in the file at `path`.
+#[tauri::command]
+async fn config_import(state: State<'_, AppState>, path: String) -> Result<ImportedConfig> {
+    let text = blocking(move || {
+        if std::fs::metadata(&path)?.len() > config::MAX_BYTES {
+            return Err(Error::msg("That file is too large to be a GenLauncher configuration"));
+        }
+        Ok(std::fs::read_to_string(&path)?)
+    })
+    .await?;
+    let cfg = config::ConfigFile::parse(&text)?;
+    let games = apply_config(&state, &cfg).await?;
+    Ok(ImportedConfig { games, ui: cfg.ui })
 }
 
 #[tauri::command]
@@ -914,7 +979,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
+            bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, config_export, config_import, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
             uninstall_version, open_browser, close_browser, open_item_folder
         ])
         .run(tauri::generate_context!())

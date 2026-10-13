@@ -140,3 +140,19 @@ export async function onBrowserEvent(cb: (e: BrowserEvent) => void): Promise<() 
 
 /** Show an item's installed files (the chosen version) in the system file manager. */
 export const openItemFolder = (id: string, version?: string | null) => invoke<void>("open_item_folder", { id, version: version ?? null });
+
+// ---- configuration files ----
+
+export const exportConfig = (path: string, ui: unknown) => invoke<string[]>("config_export", { path, ui });
+export const importConfig = (path: string) => invoke<{ games: string[]; ui: unknown }>("config_import", { path });
+
+export async function pickConfigSavePath(): Promise<string | null> {
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  return (await save({ title: "Export configuration", defaultPath: "genlauncher-config.json", filters: [{ name: "GenLauncher configuration", extensions: ["json"] }] })) ?? null;
+}
+
+export async function pickConfigFile(): Promise<string | null> {
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const picked = await open({ title: "Import configuration", multiple: false, directory: false, filters: [{ name: "GenLauncher configuration", extensions: ["json"] }] });
+  return typeof picked === "string" ? picked : null;
+}

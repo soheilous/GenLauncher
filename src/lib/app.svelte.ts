@@ -1,5 +1,5 @@
 import {
-  addItem, backend, cancelInstall, loadAnnouncements, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cancelInstall, exportConfig, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type LaunchTarget,
@@ -429,6 +429,64 @@ class AppState {
     } catch (e) {
       this.say(`Could not save settings: ${errText(e)}`, "error");
       throw e;
+    }
+  }
+
+  // --- configuration files ---
+
+  /** The look-and-feel part of a configuration file. */
+  private uiBundle(includeCovers: boolean) {
+    return {
+      theme: this.theme, sidebarCollapsed: this.sidebarCollapsed, accentFromMod: this.accentFromMod, coverBackdrop: this.coverBackdrop,
+      ...(includeCovers ? { customCovers: this.customCovers } : {}),
+    };
+  }
+
+  /** Take over what a configuration file says about the look, ignoring anything of the wrong type. */
+  private applyUiBundle(ui: unknown) {
+    if (!ui || typeof ui !== "object") return;
+    const u = ui as Record<string, unknown>;
+    if (u.theme === "dark" || u.theme === "light") save("theme", u.theme);
+    for (const k of ["sidebarCollapsed", "accentFromMod", "coverBackdrop"]) if (typeof u[k] === "boolean") save(k, u[k]);
+    if (u.customCovers && typeof u.customCovers === "object") {
+      const covers: Record<string, { cover: string; hue: number }> = {};
+      for (const [id, c] of Object.entries(u.customCovers as Record<string, { cover?: unknown; hue?: unknown }>)) {
+        // only images and numbers: a configuration file must not be able to put anything else into a cover
+        if (typeof c?.cover === "string" && /^data:image\//.test(c.cover) && typeof c.hue === "number") covers[id] = { cover: c.cover, hue: c.hue };
+      }
+      save("customCovers", { ...this.customCovers, ...covers });
+    }
+  }
+
+  /** Save the settings of every game on this computer, and the look, to a file the user chooses. */
+  async exportConfiguration(includeCovers: boolean) {
+    if (!isTauri) { this.say("Exporting works in the desktop app."); return; }
+    try {
+      const path = await pickConfigSavePath();
+      if (!path) return;
+      await this.flush();
+      const games = await exportConfig(path, this.uiBundle(includeCovers));
+      this.say(`Configuration exported (${games.map((g) => (g === "zh" ? "Zero Hour" : "Generals")).join(", ") || "look only"})`, "success");
+    } catch (e) {
+      this.say(errText(e), "error");
+    }
+  }
+
+  /** Replace this launcher's settings with those from a file (asks first), then restart the screen. */
+  async importConfiguration() {
+    if (!isTauri) { this.say("Importing works in the desktop app."); return; }
+    try {
+      const path = await pickConfigFile();
+      if (!path) return;
+      const msg = "Replace your current settings with the ones in this file?\nMods and game files are not touched.";
+      if (!(await confirmDialog(msg, "Import configuration", "Import", "Cancel"))) return;
+      const r = await importConfig(path);
+      this.applyUiBundle(r.ui);
+      const names = r.games.map((g) => (g === "zh" ? "Zero Hour" : "Generals")).join(", ") || "look only";
+      this.notify(`Configuration imported (${names}).`, "success");
+      location.reload(); // every screen re-reads its settings from the files
+    } catch (e) {
+      this.say(errText(e), "error");
     }
   }
 

@@ -4,6 +4,7 @@
   import Toggle from "./Toggle.svelte";
 
   let dialog: HTMLDivElement | undefined = $state();
+  let withCovers = $state(true);
   $effect(() => { if (app.settingsOpen) dialog?.focus(); });
 </script>
 
@@ -41,7 +42,16 @@
       <div class="line"><span>Run windowed</span><Toggle label="Windowed" checked={app.windowed} onchange={(v) => app.setPref("windowed", v)} /></div>
       <div class="line"><span>Skip intro (quick start)</span><Toggle label="Quick start" checked={app.quickStart} onchange={(v) => app.setPref("quickStart", v)} /></div>
     </div>
-    <p class="note">Preview build: graphics options, GenTool, Vulkan and file-check settings arrive with the Rust core.</p>
+    <h3>Backup</h3>
+    <div class="line"><span>Include my custom covers</span><Toggle label="Include custom covers" checked={withCovers} onchange={(v) => (withCovers = v)} /></div>
+    <div class="line">
+      <span>Settings of both games and the look of the launcher</span>
+      <div class="pair">
+        <button class="btn" onclick={() => app.exportConfiguration(withCovers)}><Icon name="download" size={14} /> Export…</button>
+        <button class="btn" onclick={() => app.importConfiguration()}><Icon name="folder" size={14} /> Import…</button>
+      </div>
+    </div>
+    <p class="note">A configuration file holds your choices only (active mod, enabled patches, options, theme). Mod files are never included.</p>
   </div>
 {/if}
 
@@ -56,6 +66,7 @@
   .seg { display: flex; padding: 3px; gap: 3px; border-radius: 999px; background: var(--surface); border: 1px solid var(--stroke); }
   .seg button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 13px; color: var(--text-dim); }
   .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .pair { display: flex; gap: 8px; }
   .slider { display: flex; align-items: center; gap: 12px; }
   input[type="range"] { accent-color: var(--accent); width: 170px; }
   output { min-width: 56px; text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
