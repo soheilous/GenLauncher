@@ -12,6 +12,7 @@ pub mod layout;
 pub mod launch;
 pub mod install;
 pub mod library;
+pub mod options;
 pub mod links;
 pub mod index;
 pub mod migrate;
@@ -348,6 +349,39 @@ async fn config_import(state: State<'_, AppState>, path: String) -> Result<Impor
     let cfg = config::ConfigFile::parse(&text)?;
     let games = apply_config(&state, &cfg).await?;
     Ok(ImportedConfig { games, ui: cfg.ui })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OptionsResponse {
+    path: String,
+    /// False until the game has run once (or the options were saved here).
+    exists: bool,
+    graphics: options::Graphics,
+}
+
+async fn options_file(app: &AppHandle, state: &AppState) -> Result<PathBuf> {
+    let game = require_install(&*state.inner.lock().await)?.game;
+    let documents = app.path().document_dir().map_err(|e| Error::msg(format!("Could not find your Documents folder: {e}")))?;
+    Ok(options::path_for(&documents, game))
+}
+
+/// The game's own graphics settings (`Options.ini` in Documents).
+#[tauri::command]
+async fn options_load(app: AppHandle, state: State<'_, AppState>) -> Result<OptionsResponse> {
+    let file = options_file(&app, &state).await?;
+    let path = file.to_string_lossy().into_owned();
+    let (exists, graphics) = blocking(move || options::load(&file)).await?;
+    Ok(OptionsResponse { path, exists, graphics })
+}
+
+#[tauri::command]
+async fn options_save(app: AppHandle, state: State<'_, AppState>, graphics: options::Graphics) -> Result<()> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game first: it rewrites its options when it exits"));
+    }
+    let file = options_file(&app, &state).await?;
+    blocking(move || options::save(&file, &graphics)).await
 }
 
 #[tauri::command]
@@ -979,7 +1013,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, config_export, config_import, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
+            bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
             uninstall_version, open_browser, close_browser, open_item_folder
         ])
         .run(tauri::generate_context!())

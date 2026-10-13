@@ -156,3 +156,17 @@ export async function pickConfigFile(): Promise<string | null> {
   const picked = await open({ title: "Import configuration", multiple: false, directory: false, filters: [{ name: "GenLauncher configuration", extensions: ["json"] }] });
   return typeof picked === "string" ? picked : null;
 }
+
+// ---- the game's own options (Options.ini) ----
+
+export interface Graphics {
+  width: number; height: number;
+  /** 0 = high, 1 = medium, 2 = low */
+  textureReduction: number;
+  maxParticleCount: number;
+  shadowVolumes: boolean; shadowDecals: boolean; buildingOcclusion: boolean; showTrees: boolean; cloudMap: boolean; lightMap: boolean;
+  softWaterEdge: boolean; heatEffects: boolean; extraAnimations: boolean; dynamicLod: boolean; alternateMouse: boolean;
+}
+
+export const optionsLoad = () => invoke<{ path: string; exists: boolean; graphics: Graphics }>("options_load");
+export const optionsSave = (graphics: Graphics) => invoke<void>("options_save", { graphics });

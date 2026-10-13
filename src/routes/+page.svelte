@@ -8,6 +8,7 @@
   import LaunchBar from "$lib/components/LaunchBar.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import AddDialog from "$lib/components/AddDialog.svelte";
+  import OptionsDialog from "$lib/components/OptionsDialog.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { formatBytes } from "$lib/guess";
 
@@ -153,6 +154,7 @@
 
   <SettingsDialog />
   <AddDialog />
+  <OptionsDialog />
   {#if app.toast}<div class="toast glass" role="status">{app.toast}</div>{/if}
 </div>
 

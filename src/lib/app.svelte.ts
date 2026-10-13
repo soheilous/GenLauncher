@@ -66,6 +66,7 @@ class AppState {
   activeModId = $state(isTauri ? "" : "rotr");
   launch = $state<LaunchState>("idle");
   settingsOpen = $state(false);
+  optionsOpen = $state(false);
   toast = $state<string | null>(null);
   /** Everything the launcher told the user, newest first (kept between runs). */
   notices = $state<Notice[]>(load<Notice[]>("notices", []));
@@ -493,6 +494,14 @@ class AppState {
     } catch (e) {
       this.say(errText(e), "error");
     }
+  }
+
+  /** Launch options kept in the settings file but edited in the game options window. */
+  get gameParams() { return this.rest.gameParams; }
+  get hideLauncher() { return this.rest.hideLauncherWhilePlaying; }
+  setLaunchExtras(gameParams: string, hideLauncherWhilePlaying: boolean) {
+    this.rest = { ...this.rest, gameParams, hideLauncherWhilePlaying };
+    this.persist();
   }
 
   toggleSidebar() { this.sidebarCollapsed = !this.sidebarCollapsed; save("sidebarCollapsed", this.sidebarCollapsed); }

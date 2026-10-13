@@ -41,6 +41,8 @@
       </div>
       <div class="line"><span>Run windowed</span><Toggle label="Windowed" checked={app.windowed} onchange={(v) => app.setPref("windowed", v)} /></div>
       <div class="line"><span>Skip intro (quick start)</span><Toggle label="Quick start" checked={app.quickStart} onchange={(v) => app.setPref("quickStart", v)} /></div>
+      <div class="line"><span>Resolution, graphics, extra arguments</span>
+        <button class="btn" onclick={() => { app.settingsOpen = false; app.optionsOpen = true; }}><Icon name="settings" size={14} /> Game options…</button></div>
     </div>
     <h3>Backup</h3>
     <div class="line"><span>Include my custom covers</span><Toggle label="Include custom covers" checked={withCovers} onchange={(v) => (withCovers = v)} /></div>
