@@ -7,7 +7,9 @@
   import DetailPanel from "$lib/components/DetailPanel.svelte";
   import LaunchBar from "$lib/components/LaunchBar.svelte";
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
+  import AddDialog from "$lib/components/AddDialog.svelte";
   import Icon from "$lib/components/Icon.svelte";
+  import { formatBytes } from "$lib/guess";
 
   onMount(() => app.init());
 
@@ -41,10 +43,13 @@
           </p>
         </div>
         {#if app.phase === "ready" && app.view !== "downloads"}
-          <label class="search glass">
-            <Icon name="search" size={16} />
-            <input placeholder="Search mods" bind:value={app.search} aria-label="Search mods" />
-          </label>
+          <div class="tools">
+            <label class="search glass">
+              <Icon name="search" size={16} />
+              <input placeholder="Search mods" bind:value={app.search} aria-label="Search mods" />
+            </label>
+            <button class="btn primary" onclick={() => app.openAdd("mod")}><Icon name="plus" size={16} /> Add mod</button>
+          </div>
         {/if}
       </header>
 
@@ -53,7 +58,7 @@
           <div class="glass setup">
             <div class="big-logo">G</div>
             <h2>Find your game</h2>
-            <p>Select the folder that contains <b>generals.exe</b>: your Command &amp; Conquer Generals or Zero Hour install. GenLauncher keeps your mods in a <code>GLM</code> folder next to it and never changes the original files permanently.</p>
+            <p>Select the folder that contains <b>generals.exe</b>: your Command &amp; Conquer Generals or Zero Hour install. GenLauncher keeps everything it needs in a <code>.genlauncher</code> folder inside it and never changes your original game files permanently.</p>
             {#each app.installs as i}
               <button class="btn" onclick={() => app.openInstall(i.dir)}>{i.game === "zh" ? "Zero Hour" : "Generals"} · {i.dir}</button>
             {/each}
@@ -88,7 +93,7 @@
         <div class="scroll">
           {#each app.downloading as d (d.id)}
             <div class="glass dl">
-              <div class="dlinfo"><strong>{d.name}</strong><small>{d.latest} · {app.phaseLabel(d)}</small>
+              <div class="dlinfo"><strong>{d.name}</strong><small>{app.versionLabel(d)} · {app.phaseLabel(d)}{d.bytes ? " · " + formatBytes(d.bytes) + " received" : ""}</small>
                 <div class="bar"><i style:width="{(d.progress ?? 0) * 100}%"></i></div></div>
               <span>{Math.round((d.progress ?? 0) * 100)}%</span>
               <button class="btn" aria-label="Cancel download" onclick={() => app.cancel(d)}><Icon name="x" size={14} /></button>
@@ -102,6 +107,7 @@
   </div>
 
   <SettingsDialog />
+  <AddDialog />
   {#if app.toast}<div class="toast glass" role="status">{app.toast}</div>{/if}
 </div>
 
@@ -115,6 +121,7 @@
   .top { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px 0; }
   h1 { font-size: 28px; font-weight: 700; letter-spacing: -.01em; }
   .top p { color: var(--text-dim); }
+  .tools { display: flex; align-items: center; gap: 12px; }
   .search { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 999px; color: var(--text-dim); box-shadow: none; }
   .search input { background: none; border: 0; outline: none; width: 220px; user-select: text; }
   .split { flex: 1; display: flex; gap: 16px; min-height: 0; }

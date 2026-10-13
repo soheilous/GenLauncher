@@ -30,6 +30,7 @@ export interface Item {
   deprecated?: boolean;
   // UI-only state
   progress?: number; // 0..1 while installing (0 while the size is still unknown)
+  bytes?: number; // bytes received so far while the total size is unknown
   phase?: string; // preparing, downloading, verifying, extracting, finishing
   selected?: boolean;
   sizeMb?: number;

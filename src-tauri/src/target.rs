@@ -167,6 +167,48 @@ pub fn install_job(game_dir: &Path, loc: &Located) -> Result<(Job, String)> {
     Ok((Job { dest, staging, source, previous }, ver))
 }
 
+/// Where a user-added item goes: its UI id and the folder that will hold its version folders.
+/// Adding a version of something that already exists reuses that item's folder.
+pub fn new_item(
+    game_dir: &Path,
+    catalog: &Catalog,
+    extras: &HashMap<String, ExtraInfos>,
+    disk: &[InstalledMod],
+    kind: Kind,
+    name: &str,
+    parent_id: Option<&str>,
+) -> Result<(String, PathBuf)> {
+    let name = name.trim();
+    let folder = sanitize_component(name);
+    if name.is_empty() || slug(name).is_empty() {
+        return Err(Error::msg("Give it a name with at least one letter or number"));
+    }
+    if kind == Kind::Mod {
+        let id = slug(name);
+        if id == ORIGINAL_GAME_ID {
+            return Err(Error::msg("That name is reserved for the stock game. Choose another name."));
+        }
+        let existing = disk.iter().find(|d| slug(&d.name) == id).map(|d| d.name.clone());
+        return Ok((id, library::mods_root(game_dir).join(existing.unwrap_or(folder))));
+    }
+
+    let parent_id = parent_id.filter(|p| !p.is_empty()).ok_or_else(|| Error::msg("Choose which mod this belongs to"))?;
+    let parent = locate(game_dir, catalog, extras, disk, parent_id)?;
+    let id = catalog::extra_id(parent_id, kind, name);
+    let (sub, pick): (&str, fn(&InstalledMod) -> &Vec<library::Extra>) = match kind {
+        Kind::Patch => (library::PATCHES_DIR, |d| &d.patches),
+        Kind::Addon => (library::ADDONS_DIR, |d| &d.addons),
+        _ => (library::EXES_DIR, |d| &d.exes),
+    };
+    let existing = disk
+        .iter()
+        .filter(|d| parent.root.file_name().is_some_and(|f| f.to_string_lossy() == d.name))
+        .flat_map(|d| pick(d).iter())
+        .find(|e| slug(&e.name) == slug(name))
+        .map(|e| e.name.clone());
+    Ok((id, parent.root.join(sub).join(existing.unwrap_or(folder))))
+}
+
 /// Folder of one installed version, only if it really is below `.genlauncher/mods/` and exists.
 pub fn version_dir(game_dir: &Path, loc: &Located, version: &str) -> Result<PathBuf> {
     let v = loc.installed.iter().find(|v| eq(v, version)).ok_or_else(|| Error::msg("that version is not installed"))?;
@@ -270,6 +312,44 @@ mod tests {
         assert!(install_job(Path::new("G"), &loc).unwrap_err().to_string().contains("no download link"));
         assert!(locate(Path::new("G"), &cat, &HashMap::new(), &[], "nope").is_err());
         assert!(locate(Path::new("G"), &cat, &HashMap::new(), &[], "contra/hack/x").is_err());
+    }
+
+    #[test]
+    fn new_items_land_in_the_right_folders() {
+        let g = Path::new("G");
+        let cat = catalog_with("Contra", info("Contra", "10"));
+        let disk = vec![InstalledMod {
+            name: "Contra".into(),
+            versions: vec!["10".into()],
+            addons: vec![library::Extra { name: "Extra Maps".into(), versions: vec!["1".into()] }],
+            ..Default::default()
+        }];
+        let none = HashMap::new();
+        let norm = |p: PathBuf| p.to_string_lossy().replace('\\', "/");
+
+        // a brand-new mod, with an unsafe character in its name
+        let (id, root) = new_item(g, &cat, &none, &disk, Kind::Mod, "  My: Mod ", None).unwrap();
+        assert_eq!(id, "my-mod");
+        assert!(norm(root).ends_with(".genlauncher/mods/My_ Mod"));
+        // another version of an existing mod (different capitalisation) reuses its folder
+        let (id, root) = new_item(g, &cat, &none, &disk, Kind::Mod, "CONTRA", None).unwrap();
+        assert_eq!(id, "contra");
+        assert!(norm(root).ends_with(".genlauncher/mods/Contra"));
+        // an addon for Contra; an existing addon of the same name reuses its folder
+        let (id, root) = new_item(g, &cat, &none, &disk, Kind::Addon, "extra maps", Some("contra")).unwrap();
+        assert_eq!(id, "contra/addon/extra-maps");
+        assert!(norm(root).ends_with(".genlauncher/mods/Contra/addons/Extra Maps"));
+        let (_, root) = new_item(g, &cat, &none, &disk, Kind::Patch, "Fix", Some("contra")).unwrap();
+        assert!(norm(root).ends_with("Contra/patches/Fix"));
+        // problems are explained
+        assert!(new_item(g, &cat, &none, &disk, Kind::Mod, "  ", None).is_err());
+        assert!(new_item(g, &cat, &none, &disk, Kind::Mod, "***", None).unwrap_err().to_string().contains("letter"));
+        // the stock game's slot cannot be taken by a mod, whatever the capitalisation or punctuation
+        for reserved in ["Original Game", "original-game", " ORIGINAL   game "] {
+            assert!(new_item(g, &cat, &none, &disk, Kind::Mod, reserved, None).unwrap_err().to_string().contains("reserved"), "{reserved}");
+        }
+        assert!(new_item(g, &cat, &none, &disk, Kind::Patch, "Fix", None).unwrap_err().to_string().contains("which mod"));
+        assert!(new_item(g, &cat, &none, &disk, Kind::Patch, "Fix", Some("unknown-mod")).is_err());
     }
 
     #[test]

@@ -1,4 +1,5 @@
 pub mod big;
+pub mod browser;
 pub mod catalog;
 pub mod download;
 pub mod error;
@@ -14,6 +15,7 @@ pub mod links;
 pub mod manifest;
 pub mod migrate;
 pub mod plan;
+pub mod record;
 pub mod s3;
 pub mod sigv4;
 pub mod store;
@@ -53,6 +55,19 @@ struct AppState {
     downloads: std::sync::Mutex<HashMap<String, download::Cancel>>,
     /// No overall timeout (mods are gigabytes); stalls are detected per chunk instead.
     download_client: reqwest::Client,
+    /// What the built-in browser's single download is doing; an install can wait for it to finish.
+    browser_session: std::sync::Mutex<BrowserSession>,
+}
+
+/// State of the file the built-in browser is receiving, shared between the window's download hooks and
+/// an install that was confirmed while the file was still arriving.
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
+enum BrowserSession {
+    #[default]
+    Idle,
+    Downloading { target: PathBuf },
+    Done { path: PathBuf },
+    Failed { message: String },
 }
 
 #[derive(Serialize)]
@@ -221,12 +236,35 @@ async fn load_extras(state: State<'_, AppState>, mod_id: String) -> Result<Vec<I
         return Ok(catalog::extra_items(&mod_id, &Default::default(), d, &disk));
     }
 
-    let infos = catalog::fetch_extras(&state.fetcher, &catalog.manifest, entry).await;
+    // Reuse what was fetched earlier in this session: re-reading the screen after an install or removal
+    // only needs the disk, not another round of downloads.
+    let cached = state.inner.lock().await.extras.get(&mod_id).cloned();
+    let infos = match cached {
+        Some(c) => c,
+        None => catalog::fetch_extras(&state.fetcher, &catalog.manifest, entry).await,
+    };
     let wanted = entry.map(|e| e.name.as_str()).unwrap_or(catalog::ORIGINAL_GAME);
     let d = disk.iter().find(|d| d.name.eq_ignore_ascii_case(wanted));
     let items = catalog::extra_items(&mod_id, &infos, d, &disk);
-    state.inner.lock().await.extras.insert(mod_id, infos);
+    // an empty result may just be a failed fetch (offline): do not remember it
+    let found_any = !(infos.patches.is_empty() && infos.addons.is_empty() && infos.exes.is_empty());
+    let expects_any = entry.is_none_or(|e| !e.patches.is_empty() || !e.addons.is_empty()) || !catalog.manifest.executables.is_empty();
+    if found_any || !expects_any {
+        state.inner.lock().await.extras.insert(mod_id, infos);
+    }
     Ok(items)
+}
+
+/// Re-merge the catalog already in memory with what is on disk (no network): used after an install,
+/// removal or move so the screen updates at once.
+#[tauri::command]
+async fn catalog_reload(state: State<'_, AppState>) -> Result<Vec<Item>> {
+    let (install, catalog) = {
+        let inner = state.inner.lock().await;
+        (require_install(&inner)?, inner.catalog.clone().ok_or_else(|| Error::msg("Catalog not loaded"))?)
+    };
+    let disk = scan_disk(install.dir.clone()).await?;
+    Ok(catalog::mod_items(&catalog, &disk))
 }
 
 #[tauri::command]
@@ -371,35 +409,111 @@ async fn install_item(app: AppHandle, state: State<'_, AppState>, id: String) ->
     let (job, version) = target::install_job(&install.dir, &loc)?;
     let settings: Settings = store::load(&settings_path(&install));
 
+    let mut record = record::SourceRecord::now("catalog");
+    record.url = loc.info.as_ref().and_then(|i| i.download_link.clone());
+    record.page_url = loc.info.as_ref().and_then(|i| i.moddb_link.clone());
+    let cleanup = settings.auto_delete_old_versions.then(|| (install.dir.clone(), loc));
+    start_install(&app, &state, InstallRun { id, job, version, record, cleanup, delete_after: None, wait_for_browser: false })
+}
+
+/// Everything needed to run one install in the background.
+struct InstallRun {
+    id: String,
+    job: install::Job,
+    version: String,
+    /// Written next to the installed version when it succeeds.
+    record: record::SourceRecord,
+    /// Older versions of the same item to remove afterwards (when that setting is on).
+    cleanup: Option<(PathBuf, target::Located)>,
+    /// A file the launcher downloaded itself (built-in browser); deleted once installed.
+    delete_after: Option<PathBuf>,
+    /// The file comes from the built-in browser and may still be arriving: wait for it, then install.
+    wait_for_browser: bool,
+}
+
+/// Wait until the built-in browser's download has finished and return the file. Progress is reported as
+/// "downloading"; cancelling closes the browser window, which stops the download.
+async fn wait_for_browser_download(app: &AppHandle, cancel: &download::Cancel, report: &install::Report) -> Result<PathBuf> {
+    loop {
+        if cancel.is_cancelled() {
+            if let Some(w) = app.get_webview_window(BROWSER) {
+                let _ = w.destroy();
+            }
+            *app.state::<AppState>().browser_session.lock().unwrap() = BrowserSession::Idle;
+            return Err(Error::Cancelled);
+        }
+        let session = app.state::<AppState>().browser_session.lock().unwrap().clone();
+        match session {
+            BrowserSession::Done { path } => {
+                *app.state::<AppState>().browser_session.lock().unwrap() = BrowserSession::Idle; // consumed
+                return Ok(path);
+            }
+            BrowserSession::Failed { message } => {
+                *app.state::<AppState>().browser_session.lock().unwrap() = BrowserSession::Idle;
+                return Err(Error::msg(message));
+            }
+            BrowserSession::Idle => return Err(Error::msg("The download from the browser did not start")),
+            BrowserSession::Downloading { target } => {
+                let done = std::fs::metadata(&target).map(|m| m.len()).unwrap_or(0);
+                report(install::Progress { phase: install::Phase::Downloading, done, total: 0 });
+                tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            }
+        }
+    }
+}
+
+/// Register the install (one per item at a time) and run it on a background task.
+fn start_install(app: &AppHandle, state: &AppState, run: InstallRun) -> Result<()> {
     let cancel = download::Cancel::new();
     {
         let mut running = state.downloads.lock().unwrap();
-        if running.contains_key(&id) {
+        if running.contains_key(&run.id) {
             return Err(Error::msg("This is already being installed"));
         }
-        running.insert(id.clone(), cancel.clone());
+        running.insert(run.id.clone(), cancel.clone());
     }
 
     let client = state.download_client.clone();
-    let game_dir = install.dir.clone();
+    let app = app.clone();
     tauri::async_runtime::spawn(async move {
+        let InstallRun { id, mut job, version, mut record, cleanup, mut delete_after, wait_for_browser } = run;
         let report: install::Report = {
             let (app, id) = (app.clone(), id.clone());
             std::sync::Arc::new(move |p: install::Progress| {
                 let _ = app.emit("install-progress", InstallProgress { id: id.clone(), phase: p.phase, done: p.done, total: p.total });
             })
         };
-        let result = install::run(&client, &job, &cancel, report, &download::Options::default()).await;
+        let result = async {
+            if wait_for_browser {
+                // confirmed while the file may still be arriving: wait for it, then install it like any local file
+                let path = wait_for_browser_download(&app, &cancel, &report).await?;
+                job.source = install::Source::Local { path: path.clone() };
+                delete_after = Some(path);
+            }
+            install::run(&client, &job, &cancel, report.clone(), &download::Options::default()).await
+        }
+        .await;
 
-        if result.is_ok() && settings.auto_delete_old_versions {
-            for old in loc.installed.iter().filter(|v| !v.eq_ignore_ascii_case(&version)) {
-                match target::version_dir(&game_dir, &loc, old) {
-                    Ok(dir) => {
-                        if let Err(e) = std::fs::remove_dir_all(&dir) {
-                            log::warn!("could not remove old version {}: {e}", dir.display());
+        if let Ok(outcome) = &result {
+            record.archive_name = outcome.archive_name.clone();
+            record.sha256 = outcome.sha256.clone();
+            if let Err(e) = record::write(&job.dest, &record) {
+                log::warn!("could not save the source record: {e}");
+            }
+            if let Some(file) = &delete_after {
+                let _ = std::fs::remove_file(file);
+            }
+            if let Some((game_dir, loc)) = cleanup {
+                for old in loc.installed.iter().filter(|v| !v.eq_ignore_ascii_case(&version)) {
+                    match target::version_dir(&game_dir, &loc, old) {
+                        Ok(dir) => {
+                            if let Err(e) = std::fs::remove_dir_all(&dir) {
+                                log::warn!("could not remove old version {}: {e}", dir.display());
+                            }
+                            record::remove(&dir);
                         }
+                        Err(e) => log::warn!("not removing old version {old}: {e}"),
                     }
-                    Err(e) => log::warn!("not removing old version {old}: {e}"),
                 }
             }
         }
@@ -418,6 +532,97 @@ async fn install_item(app: AppHandle, state: State<'_, AppState>, id: String) ->
         );
     });
     Ok(())
+}
+
+#[derive(serde::Deserialize)]
+// `rename_all` renames the variants (file, link); `rename_all_fields` the fields inside them (pageUrl).
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+enum AddSource {
+    /// A file (archive, single file) or folder on this computer.
+    File { path: PathBuf, page_url: Option<String> },
+    /// A direct download link. `page_url` is where it came from (e.g. the ModDB page), for the record.
+    Link { url: String, page_url: Option<String> },
+    /// The file the built-in browser is receiving (or has received): installed as soon as it is complete.
+    Browser { page_url: Option<String> },
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AddRequest {
+    source: AddSource,
+    name: String,
+    version: String,
+    kind: catalog::Kind,
+    /// The mod a patch / addon / executable belongs to.
+    parent: Option<String>,
+}
+
+/// Add something the user picked or linked themselves (not from the catalog). Returns the item's id;
+/// progress and the result arrive as `install-progress` / `install-finished` like any install.
+#[tauri::command]
+async fn add_item(app: AppHandle, state: State<'_, AppState>, request: AddRequest) -> Result<String> {
+    let (install, catalog, extras) = {
+        let inner = state.inner.lock().await;
+        (require_install(&inner)?, inner.catalog.clone().unwrap_or_default(), inner.extras.clone())
+    };
+    let version = request.version.trim().to_string();
+    if version.is_empty() || version == "." || version == ".." {
+        return Err(Error::msg("Enter a version, for example 1.0"));
+    }
+    let version_folder = target::sanitize_component(&version);
+
+    let (source, mut record) = match &request.source {
+        AddSource::File { path, page_url } => {
+            if !path.exists() {
+                return Err(Error::msg("That file or folder no longer exists"));
+            }
+            let page_url = page_url.clone().filter(|p| !p.trim().is_empty());
+            // a file taken from a web page (built-in browser or the user's own) versus one that was already on disk
+            let mut r = record::SourceRecord::now(if page_url.is_some() { "page" } else { "file" });
+            r.page_url = page_url;
+            (install::Source::Local { path: path.clone() }, r)
+        }
+        AddSource::Link { url, page_url } => {
+            let parsed = reqwest::Url::parse(url.trim()).map_err(|_| Error::msg("That does not look like a web address"))?;
+            if !matches!(parsed.scheme(), "http" | "https") {
+                return Err(Error::msg("Only http and https links can be downloaded"));
+            }
+            let mut r = record::SourceRecord::now("link");
+            r.url = Some(url.trim().to_string());
+            r.page_url = page_url.clone();
+            (install::Source::Archive { url: url.trim().to_string() }, r)
+        }
+        AddSource::Browser { page_url } => {
+            if matches!(*state.browser_session.lock().unwrap(), BrowserSession::Idle) {
+                return Err(Error::msg("There is no download from the browser to install. Open the page and click its download button first."));
+            }
+            let mut r = record::SourceRecord::now("page");
+            r.page_url = page_url.clone().filter(|p| !p.trim().is_empty());
+            // the real file is filled in by `wait_for_browser_download` once it has arrived
+            (install::Source::Local { path: PathBuf::new() }, r)
+        }
+    };
+    if let AddSource::File { path, .. } = &request.source {
+        record.archive_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).filter(|_| path.is_file());
+    }
+
+    let disk = scan_disk(install.dir.clone()).await?;
+    let (id, root) = target::new_item(&install.dir, &catalog, &extras, &disk, request.kind, &request.name, request.parent.as_deref())?;
+    let dest = root.join(&version_folder);
+    if dest.exists() {
+        return Err(Error::msg(format!("{} {} is already installed. Remove it first, or choose another version.", request.name.trim(), version)));
+    }
+    let key = root.strip_prefix(library::mods_root(&install.dir)).unwrap_or(&root).to_string_lossy().replace(['/', '\\'], "_");
+    let staging = layout::tmp(&install.dir).join(target::sanitize_component(&format!("{key} {version_folder}")));
+    let job = install::Job { dest, staging, source, previous: None };
+    let delete_after = match &request.source {
+        // only files inside the launcher's own staging folder are ever deleted, never the user's
+        AddSource::File { path, .. } if path.starts_with(layout::tmp(&install.dir)) => Some(path.clone()),
+        _ => None,
+    };
+    let wait_for_browser = matches!(request.source, AddSource::Browser { .. });
+    start_install(&app, &state, InstallRun { id: id.clone(), job, version, record, cleanup: None, delete_after, wait_for_browser })?;
+    Ok(id)
 }
 
 #[tauri::command]
@@ -462,7 +667,186 @@ async fn uninstall_version(state: State<'_, AppState>, id: String, version: Stri
     let disk = scan_disk(install.dir.clone()).await?;
     let loc = target::locate(&install.dir, &catalog, &extras, &disk, &id)?;
     let dir = target::version_dir(&install.dir, &loc, &version)?;
-    blocking(move || Ok(std::fs::remove_dir_all(dir)?)).await
+    blocking(move || {
+        std::fs::remove_dir_all(&dir)?;
+        record::remove(&dir);
+        Ok(())
+    })
+    .await
+}
+
+const BROWSER: &str = "browser";
+
+/// What happens in the built-in browser window, as seen by the main window.
+#[derive(Serialize, Clone)]
+#[serde(tag = "state", rename_all = "camelCase", rename_all_fields = "camelCase")]
+enum BrowserEvent {
+    /// The user clicked a download; the file is being saved to the launcher's own folder.
+    Started { file_name: String },
+    Progress { file_name: String, bytes: u64 },
+    Finished { file_name: String, path: PathBuf },
+    Failed { message: String },
+    /// No data arrived for a long time: the attempt was cancelled and the window closed.
+    Stalled { message: String },
+    /// The window went away (finished, cancelled or closed by the user).
+    Closed,
+}
+
+type ActiveDownload = std::sync::Arc<std::sync::Mutex<Option<(PathBuf, std::sync::Arc<AtomicBool>)>>>;
+
+/// Open `url` in a launcher-owned browser window. The user picks the file and clicks its download
+/// button; the launcher takes that download (nothing is fetched or scraped automatically) and
+/// reports it with `browser-event`. The page cannot call any launcher command: only the main window
+/// has permissions, and pop-ups and non-web addresses are blocked.
+#[tauri::command]
+async fn open_browser(app: AppHandle, state: State<'_, AppState>, url: String) -> Result<()> {
+    use tauri::webview::{DownloadEvent, NewWindowResponse};
+    let parsed = tauri::Url::parse(url.trim()).map_err(|_| Error::msg("That does not look like a web address"))?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(Error::msg("Only http and https pages can be opened"));
+    }
+    let install = require_install(&*state.inner.lock().await)?;
+    {
+        let mut session = state.browser_session.lock().unwrap();
+        if matches!(*session, BrowserSession::Downloading { .. }) {
+            return Err(Error::msg("A download from the browser is still in progress. Wait for it, or cancel it in Downloads, before opening another page."));
+        }
+        *session = BrowserSession::Idle;
+    }
+    let dir = browser::dir(&install.dir);
+    browser::clear(&dir);
+    std::fs::create_dir_all(&dir)?;
+    if let Some(old) = app.get_webview_window(BROWSER) {
+        let _ = old.destroy();
+    }
+
+    let active: ActiveDownload = Default::default();
+    let stall_after = std::env::var("GENLAUNCHER_STALL_SECS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .map(std::time::Duration::from_secs)
+        .unwrap_or(std::time::Duration::from_secs(60));
+    let hook_app = app.clone();
+    let hook_active = active.clone();
+    let window = tauri::WebviewWindowBuilder::new(&app, BROWSER, tauri::WebviewUrl::External(parsed))
+        .title("GenLauncher: find the version you want and click its download button")
+        .inner_size(1100.0, 800.0)
+        .on_navigation(browser::allowed_navigation)
+        .on_new_window(|_url, _features| NewWindowResponse::Deny)
+        .on_download(move |_webview, event| {
+            match event {
+                DownloadEvent::Requested { destination, .. } => {
+                    let mut slot = hook_active.lock().unwrap();
+                    if slot.is_some() {
+                        return false; // one download at a time
+                    }
+                    let target = browser::destination(&dir, destination);
+                    *destination = target.clone();
+                    let file_name = target.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                    let stop = std::sync::Arc::new(AtomicBool::new(false));
+                    *slot = Some((target.clone(), stop.clone()));
+                    *hook_app.state::<AppState>().browser_session.lock().unwrap() = BrowserSession::Downloading { target: target.clone() };
+                    let _ = hook_app.emit("browser-event", BrowserEvent::Started { file_name: file_name.clone() });
+                    // Get the page out of the way now that the launcher shows the progress. It is hidden, not
+                    // closed: destroying the window would cancel the download, and the page's session is what
+                    // makes the download link work.
+                    let hide_app = hook_app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Some(w) = hide_app.get_webview_window(BROWSER) {
+                            let _ = w.hide();
+                        }
+                    });
+                    let app = hook_app.clone();
+                    let poll_active = hook_active.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let mut last_growth = (0u64, std::time::Instant::now());
+                        while !stop.load(Ordering::SeqCst) {
+                            let size = std::fs::metadata(&target).map(|m| m.len()).ok();
+                            if let Some(bytes) = size {
+                                let _ = app.emit("browser-event", BrowserEvent::Progress { file_name: file_name.clone(), bytes });
+                                if bytes != last_growth.0 {
+                                    last_growth = (bytes, std::time::Instant::now());
+                                }
+                            }
+                            // The page is hidden while this runs, so a download that silently stops (connection
+                            // cut, server gone) must not leave the user waiting for ever.
+                            if last_growth.1.elapsed() > stall_after {
+                                if poll_active.lock().unwrap().take().is_some() {
+                                    stop.store(true, Ordering::SeqCst);
+                                    let _ = std::fs::remove_file(&target);
+                                    let message = format!("The download stopped receiving data for {} seconds, so it was cancelled. Open the page again and retry.", stall_after.as_secs());
+                                    *app.state::<AppState>().browser_session.lock().unwrap() = BrowserSession::Failed { message: message.clone() };
+                                    let _ = app.emit("browser-event", BrowserEvent::Stalled { message });
+                                    if let Some(w) = app.get_webview_window(BROWSER) {
+                                        let _ = w.destroy();
+                                    }
+                                }
+                                break;
+                            }
+                            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                        }
+                    });
+                }
+                DownloadEvent::Finished { path, success, .. } => {
+                    let finished = hook_active.lock().unwrap().take();
+                    if let Some((target, stop)) = finished {
+                        stop.store(true, Ordering::SeqCst);
+                        let path = path.unwrap_or(target);
+                        if success {
+                            let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                            *hook_app.state::<AppState>().browser_session.lock().unwrap() = BrowserSession::Done { path: path.clone() };
+                            let _ = hook_app.emit("browser-event", BrowserEvent::Finished { file_name, path });
+                        } else {
+                            let _ = std::fs::remove_file(&path);
+                            let message = "The download did not finish. Open the page again and retry.".to_string();
+                            *hook_app.state::<AppState>().browser_session.lock().unwrap() = BrowserSession::Failed { message: message.clone() };
+                            let _ = hook_app.emit("browser-event", BrowserEvent::Failed { message });
+                        }
+                        // either way the page has done its job (hidden since the download began): close it
+                        let app = hook_app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            if let Some(w) = app.get_webview_window(BROWSER) {
+                                let _ = w.destroy();
+                            }
+                        });
+                    }
+                }
+                _ => {}
+            }
+            true
+        })
+        .build()
+        .map_err(|e| Error::msg(format!("Could not open the browser window: {e}")))?;
+
+    let closed_app = app.clone();
+    window.on_window_event(move |e| {
+        if matches!(e, tauri::WindowEvent::Destroyed) {
+            if let Some((partial, stop)) = active.lock().unwrap().take() {
+                stop.store(true, Ordering::SeqCst); // cancelled in the middle of a download
+                let _ = std::fs::remove_file(partial);
+                *closed_app.state::<AppState>().browser_session.lock().unwrap() =
+                    BrowserSession::Failed { message: "The download was cancelled.".into() };
+            }
+            let _ = closed_app.emit("browser-event", BrowserEvent::Closed);
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+async fn close_browser(app: AppHandle, state: State<'_, AppState>) -> Result<()> {
+    if let Some(w) = app.get_webview_window(BROWSER) {
+        let _ = w.destroy(); // also stops a download in progress
+    }
+    // a file that arrived but was never confirmed must not be left behind (they can be large)
+    let mut session = state.browser_session.lock().unwrap();
+    if let BrowserSession::Done { path } = &*session {
+        let _ = std::fs::remove_file(path);
+    }
+    if !matches!(*session, BrowserSession::Downloading { .. }) {
+        *session = BrowserSession::Idle;
+    }
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -471,13 +855,19 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let config_path = app.path().app_config_dir()?.join("app.json");
+            // GENLAUNCHER_CONFIG_DIR lets tests and side-by-side builds keep their own settings
+            let config_dir = match std::env::var_os("GENLAUNCHER_CONFIG_DIR") {
+                Some(d) => PathBuf::from(d),
+                None => app.path().app_config_dir()?,
+            };
+            let config_path = config_dir.join("app.json");
             let config: AppConfig = store::load(&config_path);
             app.manage(AppState {
                 inner: Mutex::new(Inner { config_path, config, install: None, catalog: None, extras: HashMap::new() }),
                 fetcher: Fetcher::new()?,
                 launching: AtomicBool::new(false),
                 downloads: Default::default(),
+                browser_session: Default::default(),
                 download_client: reqwest::Client::builder()
                     .user_agent(concat!("GenLauncher/", env!("CARGO_PKG_VERSION")))
                     .connect_timeout(std::time::Duration::from_secs(15))
@@ -488,16 +878,70 @@ pub fn run() {
         // Closing the launcher while the game runs would leave the game folder modified.
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() != "main" {
+                    return;
+                }
                 if window.state::<AppState>().launching.load(Ordering::SeqCst) {
                     api.prevent_close();
                     let _ = window.emit("close-blocked", ());
+                } else if let Some(browser) = window.app_handle().get_webview_window(BROWSER) {
+                    let _ = browser.destroy(); // the app exits when its last window closes
                 }
             }
         })
         .invoke_handler(tauri::generate_handler![
-            bootstrap, select_install, catalog_load, load_extras, save_settings, launch_game, install_item, cancel_install, migrate_legacy,
-            uninstall_version
+            bootstrap, select_install, catalog_load, catalog_reload, load_extras, save_settings, launch_game, install_item, add_item, cancel_install, migrate_legacy,
+            uninstall_version, open_browser, close_browser
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The exact JSON `src/lib/backend.ts` sends; a renamed or misspelled field would otherwise be
+    /// dropped silently (serde ignores unknown fields) and only show up as missing data.
+    #[test]
+    fn add_request_json_matches_what_the_ui_sends() {
+        let file: AddRequest = serde_json::from_str(
+            r#"{"source":{"type":"file","path":"C:/tmp/Mod.zip","pageUrl":"https://www.moddb.com/mods/x"},"name":"X","version":"1.0","kind":"patch","parent":"contra"}"#,
+        )
+        .unwrap();
+        match file.source {
+            AddSource::File { path, page_url } => {
+                assert_eq!(path, PathBuf::from("C:/tmp/Mod.zip"));
+                assert_eq!(page_url.as_deref(), Some("https://www.moddb.com/mods/x"));
+            }
+            _ => panic!("expected a file source"),
+        }
+        assert_eq!(file.kind, catalog::Kind::Patch);
+        assert_eq!(file.parent.as_deref(), Some("contra"));
+
+        let link: AddRequest =
+            serde_json::from_str(r#"{"source":{"type":"link","url":"https://e.org/a.zip","pageUrl":null},"name":"A","version":"2","kind":"exe","parent":null}"#).unwrap();
+        assert!(matches!(link.source, AddSource::Link { ref url, page_url: None } if url == "https://e.org/a.zip"));
+        assert_eq!(link.kind, catalog::Kind::Exe);
+
+        let link_with_page: AddRequest =
+            serde_json::from_str(r#"{"source":{"type":"link","url":"https://e.org/a.zip","pageUrl":"https://e.org/page"},"name":"A","version":"2","kind":"mod"}"#).unwrap();
+        assert!(matches!(link_with_page.source, AddSource::Link { page_url: Some(ref p), .. } if p == "https://e.org/page"));
+
+        // "install whatever the built-in browser is downloading"
+        let browser: AddRequest =
+            serde_json::from_str(r#"{"source":{"type":"browser","pageUrl":"https://www.moddb.com/mods/x"},"name":"X","version":"1.0","kind":"mod","parent":null}"#).unwrap();
+        assert!(matches!(browser.source, AddSource::Browser { page_url: Some(ref p) } if p.contains("moddb")));
+    }
+
+    #[test]
+    fn browser_events_use_the_names_the_ui_listens_for() {
+        let v = |e: &BrowserEvent| serde_json::to_value(e).unwrap();
+        assert_eq!(v(&BrowserEvent::Started { file_name: "a.zip".into() }), serde_json::json!({"state":"started","fileName":"a.zip"}));
+        assert_eq!(v(&BrowserEvent::Progress { file_name: "a.zip".into(), bytes: 5 }), serde_json::json!({"state":"progress","fileName":"a.zip","bytes":5}));
+        assert_eq!(v(&BrowserEvent::Finished { file_name: "a.zip".into(), path: PathBuf::from("p") }), serde_json::json!({"state":"finished","fileName":"a.zip","path":"p"}));
+        assert_eq!(v(&BrowserEvent::Failed { message: "m".into() }), serde_json::json!({"state":"failed","message":"m"}));
+        assert_eq!(v(&BrowserEvent::Stalled { message: "m".into() }), serde_json::json!({"state":"stalled","message":"m"}));
+        assert_eq!(v(&BrowserEvent::Closed), serde_json::json!({"state":"closed"}));
+    }
 }

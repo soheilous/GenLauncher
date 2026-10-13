@@ -27,7 +27,7 @@ pub async fn fetch(fetcher: &Fetcher, manifest_url: &str) -> Result<Catalog> {
     Ok(Catalog { manifest, mods, fetched_at })
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
     Mod,

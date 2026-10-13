@@ -1,6 +1,7 @@
 <script lang="ts">
   import { app } from "$lib/app.svelte";
   import CoverArt from "./CoverArt.svelte";
+  import { formatBytes } from "$lib/guess";
   import { processCover } from "$lib/image";
   import type { ModKind } from "$lib/types";
   import Icon from "./Icon.svelte";
@@ -35,9 +36,10 @@
     preparing: "Preparing…", downloading: "Downloading", verifying: "Checking files…", extracting: "Extracting…", finishing: "Finishing…",
   };
   /** "Downloading 42%" while the size is known, otherwise just the step. */
-  function status(it: { progress?: number; phase?: string }) {
+  function status(it: { progress?: number; phase?: string; bytes?: number }) {
     const label = PHASES[it.phase ?? ""] ?? "Working…";
-    return it.phase === "downloading" && it.progress ? `${label} ${Math.round(it.progress * 100)}%` : label;
+    if (it.phase === "downloading" && it.progress) return `${label} ${Math.round(it.progress * 100)}%`;
+    return it.bytes ? `${label} · ${formatBytes(it.bytes)}` : label;
   }
   function hasUpdate(it: { versions: { v: string; installed: boolean }[]; latest: string }) {
     return it.versions.some((v) => v.installed) && !it.versions.some((v) => v.v === it.latest && v.installed);
@@ -97,7 +99,7 @@
     {#if mod.progress !== undefined}
       <div class="install">
         <div class="meter" class:unknown={!mod.progress}><i style:width="{Math.max(mod.progress, 0.02) * 100}%"></i></div>
-        <div class="install-row"><span>{status(mod)}</span>
+        <div class="install-row"><span>{app.pending[mod.id] ? `Adding ${app.pending[mod.id].version} · ` : ""}{status(mod)}</span>
           <button class="btn" onclick={() => app.cancel(mod)}><Icon name="x" size={13} /> Cancel</button></div>
       </div>
     {:else if canInstall}
@@ -136,6 +138,9 @@
       {:else}
         <p class="empty">{app.loadingExtras ? "Loading…" : "Nothing here for this mod."}</p>
       {/each}
+      <button class="add-extra" onclick={() => app.openAdd(tab, mod.id)}>
+        <Icon name="plus" size={14} /> Add {tab === "exe" ? "an executable" : "a " + tab} from a file or link
+      </button>
     </div>
   </div>
 </section>
@@ -168,6 +173,10 @@
   .meter.unknown i { width: 35% !important; animation: slide 1.1s ease-in-out infinite alternate; }
   @keyframes slide { from { transform: translateX(0); } to { transform: translateX(185%); } }
   button.chip { cursor: pointer; }
+  .add-extra { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 14px; color: var(--text-dim); font-size: 13px;
+    border: 1px dashed var(--stroke-hi); transition: color .15s, border-color .15s, background .15s; }
+  .add-extra:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+  .add-extra:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--stroke); border-radius: 999px; }
   .tabs button { flex: 1; padding: 6px 4px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text-dim); transition: background .2s, color .2s; }
   .tabs button.on { background: var(--surface-hi); color: var(--text); }

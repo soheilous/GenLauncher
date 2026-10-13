@@ -353,3 +353,82 @@ async fn private_storage_needs_the_keys_the_mod_provides() {
     run(&client(), &job(tmp.path().join("b"), source(keys), None), &Cancel::new(), report, &fast()).await.unwrap();
     assert_eq!(read(&tmp.path().join("b/a.gib")), b"private content");
 }
+
+fn make_zip(path: &Path, entries: &[(&str, &[u8])]) {
+    let mut z = zip::ZipWriter::new(fs::File::create(path).unwrap());
+    let o = zip::write::SimpleFileOptions::default();
+    for (name, data) in entries {
+        z.start_file(*name, o).unwrap();
+        z.write_all(data).unwrap();
+    }
+    z.finish().unwrap();
+}
+
+#[tokio::test]
+async fn local_archive_is_installed_and_the_original_is_left_alone() {
+    use sha2::{Digest, Sha256};
+    let tmp = tempfile::tempdir().unwrap();
+    let archive = tmp.path().join("My Mod v1.2.zip");
+    make_zip(&archive, &[("Art.big", b"archive"), ("Data/INI/a.ini", b"ini")]);
+    let dest = tmp.path().join("GLM/Mine/1.2");
+    let (rec, report) = Recorder::new();
+    let outcome = run(&client(), &job(dest.clone(), Source::Local { path: archive.clone() }, None), &Cancel::new(), report, &fast()).await.unwrap();
+
+    assert_eq!(read(&dest.join("Art.gib")), b"archive");
+    assert_eq!(read(&dest.join("Data/INI/a.ini")), b"ini");
+    assert!(archive.is_file(), "the user's own file must stay where it was");
+    assert_eq!(outcome.archive_name.as_deref(), Some("My Mod v1.2.zip"));
+    assert_eq!(outcome.sha256, Some(hex::encode(Sha256::digest(fs::read(&archive).unwrap()))));
+    assert!(!staging_of(&dest).exists());
+    let phases: Vec<Phase> = rec.0.lock().unwrap().iter().map(|p| p.phase).collect();
+    assert!(!phases.contains(&Phase::Downloading) && phases.contains(&Phase::Extracting), "{phases:?}");
+}
+
+#[tokio::test]
+async fn local_folder_is_copied_with_archives_stored_as_gib() {
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("my files");
+    put(&src.join("Cool.BIG"), b"big");
+    put(&src.join("Data/Maps/m.map"), b"map");
+    let dest = tmp.path().join("GLM/Mine/1");
+    let (_r, report) = Recorder::new();
+    let outcome = run(&client(), &job(dest.clone(), Source::Local { path: src.clone() }, None), &Cancel::new(), report, &fast()).await.unwrap();
+    assert_eq!(read(&dest.join("Cool.gib")), b"big");
+    assert_eq!(read(&dest.join("Data/Maps/m.map")), b"map");
+    assert_eq!(read(&src.join("Cool.BIG")), b"big", "the original folder is untouched (copied, not moved or linked)");
+    assert_eq!(outcome, genlauncher2_lib::install::Outcome::default());
+}
+
+#[tokio::test]
+async fn local_single_big_file_and_bad_input() {
+    let tmp = tempfile::tempdir().unwrap();
+    let (_r, report) = Recorder::new();
+    let single = tmp.path().join("Solo.big");
+    fs::write(&single, b"one archive").unwrap();
+    let dest = tmp.path().join("GLM/Solo/1");
+    run(&client(), &job(dest.clone(), Source::Local { path: single }, None), &Cancel::new(), report.clone(), &fast()).await.unwrap();
+    assert_eq!(read(&dest.join("Solo.gib")), b"one archive");
+
+    let empty = tmp.path().join("empty folder");
+    fs::create_dir_all(&empty).unwrap();
+    let e = run(&client(), &job(tmp.path().join("GLM/E/1"), Source::Local { path: empty }, None), &Cancel::new(), report.clone(), &fast()).await.unwrap_err();
+    assert!(e.to_string().contains("no files"), "{e}");
+
+    let notarchive = tmp.path().join("notes.zip");
+    fs::write(&notarchive, b"this is not really a zip").unwrap();
+    let e = run(&client(), &job(tmp.path().join("GLM/N/1"), Source::Local { path: notarchive }, None), &Cancel::new(), report, &fast()).await.unwrap_err();
+    assert!(e.to_string().contains("not a zip"), "{e}");
+    assert!(!tmp.path().join("GLM/N/1").exists());
+}
+
+#[tokio::test]
+async fn program_installers_are_refused_with_a_helpful_message() {
+    let tmp = tempfile::tempdir().unwrap();
+    let exe = tmp.path().join("SetupMod.exe");
+    fs::write(&exe, b"MZ not a mod").unwrap();
+    let (_r, report) = Recorder::new();
+    let e = run(&client(), &job(tmp.path().join("GLM/X/1"), Source::Local { path: exe.clone() }, None), &Cancel::new(), report, &fast()).await.unwrap_err();
+    assert!(e.to_string().contains("program installer") && e.to_string().contains("zip, 7z"), "{e}");
+    assert!(exe.is_file(), "never delete what we refuse");
+    assert!(!tmp.path().join("GLM/X/1").exists());
+}

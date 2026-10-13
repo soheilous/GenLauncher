@@ -1,10 +1,11 @@
 import {
-  backend, cancelInstall, confirmDialog, installItem, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cancelInstall, confirmDialog, installItem, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
-  type LaunchTarget,
+  type AddRequest, type LaunchTarget,
 } from "./backend";
+import { slugify } from "./guess";
 import { mockItems } from "./mock";
-import type { Bootstrap, Game, GameInstall, Item, LegacySummary, Settings } from "./types";
+import type { Bootstrap, Game, GameInstall, Item, LegacySummary, ModKind, Settings } from "./types";
 
 export type View = "library" | "discover" | "downloads";
 export type LaunchState = "idle" | "preparing" | "running";
@@ -34,6 +35,8 @@ function save(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ }
 }
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+/** A stable accent hue for something without art yet. */
+const hueOf = (s: string) => [...s].reduce((h, c) => (h * 33 + c.charCodeAt(0)) % 360, 7);
 
 class AppState {
   // --- library ---
@@ -135,6 +138,13 @@ class AppState {
   /** Installs run in the Rust core; this mirrors their progress onto whichever items are on screen. */
   installProgress = $state<Record<string, InstallProgress>>({});
 
+  /** The version being installed for an item that was added by hand (it can differ from the item's `latest`). */
+  pending = $state<Record<string, { version: string }>>({});
+  /** What to show as the version of an item that is installing: the one being added, else its latest. */
+  versionLabel(item: Pick<Item, "id" | "latest">) {
+    return this.pending[item.id]?.version ?? item.latest;
+  }
+
   phaseLabel(item: Pick<Item, "phase">) {
     return ({ preparing: "Preparing", downloading: "Downloading", verifying: "Checking files", extracting: "Extracting", finishing: "Finishing" } as Record<string, string>)[item.phase ?? ""] ?? "Working";
   }
@@ -144,13 +154,19 @@ class AppState {
       const p = this.installProgress[item.id];
       item.progress = p ? (p.total > 0 ? Math.min(1, p.done / p.total) : 0) : undefined;
       item.phase = p?.phase;
+      item.bytes = p && p.total === 0 && p.done > 0 ? p.done : undefined;
     }
   }
 
   private async installFinished(r: InstallFinished) {
     delete this.installProgress[r.id];
+    delete this.pending[r.id];
     this.applyProgress();
     const name = this.items.find((i) => i.id === r.id)?.name ?? "Item";
+    if (!r.ok) {
+      // a placeholder shown for something the user added (it has no versions yet) must not linger
+      this.items = this.items.filter((i) => !(i.id === r.id && i.versions.length === 0));
+    }
     if (r.cancelled) {
       this.say(`${name}: installation cancelled. Progress is kept if you try again.`);
       return;
@@ -163,10 +179,64 @@ class AppState {
     await this.refreshLibrary();
   }
 
+  // --- "Add mod": things the user picked or linked themselves ---
+  addDialog = $state<{ kind: ModKind; parent: string | null } | null>(null);
+
+  openAdd(kind: ModKind = "mod", parent: string | null = null) {
+    this.addDialog = { kind, parent };
+  }
+  closeAdd() {
+    this.addDialog = null;
+  }
+
+  /** Start installing what the dialog collected. Resolves true when it was accepted. */
+  async add(req: AddRequest): Promise<boolean> {
+    const name = req.name.trim();
+    if (!isTauri) {
+      // browser preview: pretend it worked so the flow can be seen
+      const id = req.kind === "mod" ? slugify(name) : `${req.parent}/${req.kind}/${slugify(name)}`;
+      const version = req.version.trim();
+      const existing = this.items.find((i) => i.id === id);
+      if (existing) {
+        existing.versions.unshift({ v: version, installed: true }); // another version of the same item
+        existing.latest = version;
+      } else {
+        this.items.push({ id, kind: req.kind, name, summary: "", hue: hueOf(name), versions: [{ v: version, installed: true }], latest: version, parent: req.kind === "mod" ? null : req.parent });
+      }
+      this.say(`${name} ${version} added (preview)`);
+      return true;
+    }
+    try {
+      const id = await addItem(req);
+      this.installProgress[id] = { id, phase: "preparing", done: 0, total: 0 };
+      this.pending[id] = { version: req.version.trim() };
+      if (!this.items.some((i) => i.id === id)) {
+        // shown while it installs; replaced by the real item when the library is re-read
+        this.items.push({ id, kind: req.kind, name, summary: "", hue: hueOf(name), versions: [], latest: req.version.trim(), parent: req.kind === "mod" ? null : req.parent });
+      }
+      this.applyProgress();
+      this.view = "downloads";
+      return true;
+    } catch (e) {
+      this.say(errText(e));
+      return false;
+    }
+  }
+
   /** Re-read the library from disk (after an install or removal) keeping the current mod selected. */
   async refreshLibrary() {
     this.extrasLoaded.clear();
-    await this.loadCatalog();
+    if (!isTauri) return;
+    try {
+      // disk only: the catalog was fetched at startup, no need to download it again
+      this.items = await backend.catalogReload();
+      this.applyCovers();
+      this.applyProgress();
+      this.applyTheme();
+      await this.ensureExtras(this.activeModId);
+    } catch {
+      await this.loadCatalog(); // e.g. the catalog was never loaded: do the full load
+    }
   }
 
   private applySettings(s: Settings) {

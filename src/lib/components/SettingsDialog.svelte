@@ -7,10 +7,11 @@
   $effect(() => { if (app.settingsOpen) dialog?.focus(); });
 </script>
 
+<svelte:window onkeydown={(e) => { if (app.settingsOpen && e.key === "Escape") app.settingsOpen = false; }} />
+
 {#if app.settingsOpen}
   <div class="scrim" role="presentation" onclick={() => (app.settingsOpen = false)}></div>
-  <div class="glass dlg" role="dialog" aria-modal="true" aria-label="Settings" tabindex="-1" bind:this={dialog}
-    onkeydown={(e) => e.key === "Escape" && (app.settingsOpen = false)}>
+  <div class="glass dlg" role="dialog" aria-modal="true" aria-label="Settings" tabindex="-1" bind:this={dialog}>
     <header>
       <h2>Settings</h2>
       <button class="btn" aria-label="Close" onclick={() => (app.settingsOpen = false)}><Icon name="x" size={16} /></button>

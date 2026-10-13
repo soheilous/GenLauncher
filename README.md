@@ -71,8 +71,10 @@ Without Tauri (plain `npm run dev` in a browser) the UI runs on mock data, which
 
 ## Status
 
-Done: library, launching with journaled restore, installing/updating/removing, migration from 1.x, light/dark Material
+Done: library, launching with journaled restore, installing/updating/removing, adding mods from a file, a folder, a direct link or any web page (ModDB included) through a built-in browser window that takes the download, with the source remembered next to each install, migration from 1.x, light/dark Material
 UI with per-mod covers and accent colors.
+
+Next: a community index of mod pages for Discover, "check for update" from the saved page.
 
 Not yet: in-app graphics options editor, GenTool and Vulkan handling, World Builder download, self-update,
 localisation (translations are in `reference/`), Linux/Wine prefix selection, and download access for mod storage that is

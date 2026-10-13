@@ -24,6 +24,8 @@ use crate::sigv4::Creds;
 pub enum Source {
     /// One archive (zip / 7z / rar) or file behind a link.
     Archive { url: String },
+    /// A file or folder the user picked on their own computer (nothing is downloaded).
+    Local { path: PathBuf },
     /// A folder in the public mod storage: individual files, verified by checksum.
     S3 { list_base: String, file_base: String, bucket: String, folder: String, creds: Option<Creds> },
 }
@@ -135,28 +137,111 @@ fn link_or_copy(from: &Path, to: &Path) -> std::io::Result<()> {
     fs::hard_link(from, to).or_else(|_| fs::copy(from, to).map(|_| ()))
 }
 
-pub async fn run(client: &reqwest::Client, job: &Job, cancel: &Cancel, report: Report, opts: &Options) -> Result<()> {
+/// What the installed content came from, for the record kept next to it.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Outcome {
+    /// File name of the archive that was installed (none for per-file S3 installs and folders).
+    pub archive_name: Option<String>,
+    /// SHA-256 of that archive.
+    pub sha256: Option<String>,
+}
+
+pub fn sha256_file(path: &Path) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+    let mut f = fs::File::open(path)?;
+    let mut h = Sha256::new();
+    let mut buf = vec![0u8; 1 << 20];
+    loop {
+        let n = f.read(&mut buf)?;
+        if n == 0 {
+            return Ok(hex::encode(h.finalize()));
+        }
+        h.update(&buf[..n]);
+    }
+}
+
+pub async fn run(client: &reqwest::Client, job: &Job, cancel: &Cancel, report: Report, opts: &Options) -> Result<Outcome> {
     let meter = Meter::new(report);
     meter.set_phase(Phase::Preparing);
     let temp = job.staging.clone();
     let content = temp.join("content");
     fs::create_dir_all(&temp)?;
 
-    match &job.source {
+    let outcome = match &job.source {
         Source::Archive { url } => archive(client, url, &temp, &content, cancel, &meter, opts).await?,
+        Source::Local { path } => {
+            let _ = fs::remove_dir_all(&content);
+            meter.set_phase(Phase::Extracting);
+            unpack(path.clone(), content.clone(), cancel.clone()).await?
+        }
         Source::S3 { list_base, file_base, bucket, folder, creds } => {
             fs::create_dir_all(&content)?;
-            s3_files(client, list_base, file_base, bucket, folder, creds.as_ref(), job.previous.as_deref(), &content, cancel, &meter, opts).await?
+            s3_files(client, list_base, file_base, bucket, folder, creds.as_ref(), job.previous.as_deref(), &content, cancel, &meter, opts).await?;
+            Outcome::default()
         }
-    }
+    };
     cancel.check()?;
     if !dir_has_files(&content) {
-        return Err(Error::msg("the download contained no files"));
+        return Err(Error::msg("there were no files to install"));
     }
     meter.set_phase(Phase::Finishing);
     finalize(&temp, &content, &job.dest)?;
     meter.emit(true);
+    Ok(outcome)
+}
+
+/// Copy a folder the user picked into `dst` (never hard-links: their original stays theirs).
+fn copy_folder(src: &Path, dst: &Path, rel: &Path, cancel: &Cancel) -> Result<()> {
+    for e in fs::read_dir(src)? {
+        cancel.check()?;
+        let e = e?;
+        let path = e.path();
+        let rel = rel.join(e.file_name());
+        let ft = e.file_type()?;
+        if ft.is_dir() {
+            copy_folder(&path, dst, &rel, cancel)?;
+        } else if ft.is_file() {
+            // safe_target also rejects odd names and stores archives as .gib
+            let target = extract::safe_target(dst, &rel.to_string_lossy())?;
+            if let Some(p) = target.parent() {
+                fs::create_dir_all(p)?;
+            }
+            fs::copy(&path, &target)?;
+        }
+    }
     Ok(())
+}
+
+/// Turn a downloaded or user-chosen file (archive, single file) or folder into installed content.
+async fn unpack(src: PathBuf, dst: PathBuf, cancel: Cancel) -> Result<Outcome> {
+    tokio::task::spawn_blocking(move || -> Result<Outcome> {
+        if src.is_dir() {
+            fs::create_dir_all(&dst)?;
+            copy_folder(&src, &dst, Path::new(""), &cancel)?;
+            return Ok(Outcome::default());
+        }
+        let name = src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        if crate::browser::is_program_installer(&name) {
+            return Err(Error::msg(format!(
+                "{name} is a program installer, not a mod archive. GenLauncher only installs zip, 7z and rar files (or a single .big file); download a different file from the page."
+            )));
+        }
+        let outcome = Outcome { archive_name: Some(name.clone()), sha256: Some(sha256_file(&src)?) };
+        if extract::is_archive_name(&name) || extract::sniff(&src).is_ok() {
+            if let Err(e) = extract::extract(&src, &dst, &|| cancel.is_cancelled()) {
+                let _ = fs::remove_dir_all(&dst); // never leave half an extraction behind
+                return Err(e);
+            }
+        } else {
+            // a plain file (e.g. a single .big): keep it, archives are stored as .gib
+            let target = extract::safe_target(&dst, &name)?;
+            link_or_copy(&src, &target)?;
+        }
+        Ok(outcome)
+    })
+    .await
+    .map_err(|e| Error::msg(e.to_string()))?
 }
 
 /// Swap the finished content in; the previous folder (reinstall) is only removed afterwards.
@@ -185,7 +270,7 @@ fn finalize(temp: &Path, content: &Path, dest: &Path) -> Result<()> {
     Ok(())
 }
 
-async fn archive(client: &reqwest::Client, url: &str, temp: &Path, content: &Path, cancel: &Cancel, meter: &Arc<Meter>, opts: &Options) -> Result<()> {
+async fn archive(client: &reqwest::Client, url: &str, temp: &Path, content: &Path, cancel: &Cancel, meter: &Arc<Meter>, opts: &Options) -> Result<Outcome> {
     meter.set_phase(Phase::Downloading);
     let marker = temp.join(".archive-name");
     let existing = fs::read_to_string(&marker).ok().map(|n| temp.join(n.trim())).filter(|p| p.is_file());
@@ -208,24 +293,7 @@ async fn archive(client: &reqwest::Client, url: &str, temp: &Path, content: &Pat
     let _ = fs::remove_dir_all(content);
     meter.set_total(0);
     meter.set_phase(Phase::Extracting);
-    let (src, dst, c) = (file.clone(), content.to_path_buf(), cancel.clone());
-    let name = file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    tokio::task::spawn_blocking(move || -> Result<()> {
-        if extract::is_archive_name(&name) || extract::sniff(&src).is_ok() {
-            if let Err(e) = extract::extract(&src, &dst, &|| c.is_cancelled()) {
-                let _ = fs::remove_dir_all(&dst); // never leave half an extraction behind
-                return Err(e);
-            }
-        } else {
-            // a plain file (e.g. a single .big): keep it, archives are stored as .gib
-            let target = extract::safe_target(&dst, &name)?;
-            link_or_copy(&src, &target)?;
-        }
-        Ok(())
-    })
-    .await
-    .map_err(|e| Error::msg(e.to_string()))??;
-    Ok(())
+    unpack(file, content.to_path_buf(), cancel.clone()).await
 }
 
 const PARALLEL_FILES: usize = 4;
