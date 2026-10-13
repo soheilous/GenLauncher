@@ -1,0 +1,287 @@
+//! Where an item (identified by its UI id) lives or will live on disk, and where it comes from.
+//! Folder layout is the one GenLauncher 1.x used so both launchers see the same installs.
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+
+use crate::catalog::{self, Catalog, ExtraInfos, Kind, ORIGINAL_GAME, ORIGINAL_GAME_ID, slug};
+use crate::error::{Error, Result};
+use crate::install::{Job, Source};
+use crate::library::{self, InstalledMod};
+use crate::manifest::VersionInfo;
+use crate::sigv4::Creds;
+use crate::version;
+
+#[derive(Debug, Clone)]
+pub struct Located {
+    pub kind: Kind,
+    pub display: String,
+    /// Folder that contains this item's version folders.
+    pub root: PathBuf,
+    /// Versions currently on disk, newest first.
+    pub installed: Vec<String>,
+    pub info: Option<VersionInfo>,
+}
+
+/// A folder name that is valid on Windows and Linux.
+pub fn sanitize_component(s: &str) -> String {
+    let cleaned: String = s.chars().map(|c| if matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || c.is_control() { '_' } else { c }).collect();
+    let cleaned = cleaned.trim().trim_matches('.').trim().to_string();
+    if cleaned.is_empty() { "_".into() } else { cleaned }
+}
+
+fn eq(a: &str, b: &str) -> bool {
+    a.eq_ignore_ascii_case(b)
+}
+
+struct ModLoc<'a> {
+    folder: String,
+    display: String,
+    info: Option<&'a VersionInfo>,
+    disk: Option<&'a InstalledMod>,
+}
+
+fn locate_mod<'a>(catalog: &'a Catalog, disk: &'a [InstalledMod], id: &str) -> Result<ModLoc<'a>> {
+    if id == ORIGINAL_GAME_ID {
+        return Ok(ModLoc { folder: ORIGINAL_GAME.into(), display: ORIGINAL_GAME.into(), info: None, disk: disk.iter().find(|d| eq(&d.name, ORIGINAL_GAME)) });
+    }
+    if let Some(i) = catalog.manifest.mod_datas.iter().position(|m| slug(&m.name) == id) {
+        let entry = &catalog.manifest.mod_datas[i];
+        let info = catalog.mods.get(i).and_then(|m| m.as_ref());
+        let display = info.map(|i| i.name.as_str()).filter(|n| !n.is_empty()).unwrap_or(&entry.name).to_string();
+        let on_disk = disk.iter().find(|d| eq(&d.name, &display) || eq(&d.name, &entry.name));
+        let folder = on_disk.map(|d| d.name.clone()).unwrap_or_else(|| sanitize_component(&display));
+        return Ok(ModLoc { folder, display, info, disk: on_disk });
+    }
+    disk.iter()
+        .find(|d| slug(&d.name) == id)
+        .map(|d| ModLoc { folder: d.name.clone(), display: d.name.clone(), info: None, disk: Some(d) })
+        .ok_or_else(|| Error::msg("unknown item"))
+}
+
+pub fn locate(
+    game_dir: &Path,
+    catalog: &Catalog,
+    extras: &HashMap<String, ExtraInfos>,
+    disk: &[InstalledMod],
+    id: &str,
+) -> Result<Located> {
+    let parts: Vec<&str> = id.split('/').collect();
+    let glm = library::mods_root(game_dir);
+
+    if parts.len() == 1 {
+        let m = locate_mod(catalog, disk, id)?;
+        return Ok(Located {
+            kind: Kind::Mod,
+            display: m.display,
+            root: glm.join(&m.folder),
+            installed: m.disk.map(|d| d.versions.clone()).unwrap_or_default(),
+            info: m.info.cloned(),
+        });
+    }
+    if parts.len() != 3 {
+        return Err(Error::msg("unknown item"));
+    }
+
+    let (mod_id, kind) = (parts[0], match parts[1] {
+        "patch" => Kind::Patch,
+        "addon" => Kind::Addon,
+        "exe" => Kind::Exe,
+        _ => return Err(Error::msg("unknown item")),
+    });
+    let parent = locate_mod(catalog, disk, mod_id)?;
+    let infos = extras.get(mod_id);
+    let list = infos.map(|e| match kind {
+        Kind::Patch => &e.patches,
+        Kind::Addon => &e.addons,
+        _ => &e.exes,
+    });
+    let info = list.and_then(|l| l.iter().find(|i| catalog::extra_id(mod_id, kind, &i.name) == id));
+
+    // 1.x filed an extra under the folder named by DependenceName: a mod, or the patch an addon needs.
+    let owner_name = info.and_then(|i| i.dependence_name.as_deref()).filter(|d| !d.is_empty());
+    let owner_disk = owner_name.and_then(|dep| disk.iter().find(|d| eq(&d.name, dep)));
+    let owner_folder = match (owner_name, owner_disk) {
+        (_, Some(d)) => d.name.clone(),
+        (Some(dep), None) => sanitize_component(dep),
+        (None, None) => parent.folder.clone(),
+    };
+
+    let sub = match kind {
+        Kind::Patch => library::PATCHES_DIR,
+        Kind::Addon => library::ADDONS_DIR,
+        _ => library::EXES_DIR,
+    };
+    let pick = |d: &InstalledMod| match kind {
+        Kind::Patch => d.patches.clone(),
+        Kind::Addon => d.addons.clone(),
+        _ => d.exes.clone(),
+    };
+    // existing folder name + versions: look in the owner folder first, then the mod's own
+    let existing = |name_matches: &dyn Fn(&str) -> bool| {
+        [owner_disk, parent.disk].into_iter().flatten().find_map(|d| pick(d).into_iter().find(|e| name_matches(&e.name)).map(|e| (d.name.clone(), e)))
+    };
+    let found = match info {
+        Some(i) => existing(&|n| eq(n, &i.name)),
+        None => existing(&|n| catalog::extra_id(mod_id, kind, n) == id),
+    };
+    let (folder_owner, name, installed) = match (&found, info) {
+        (Some((owner, e)), _) => (owner.clone(), e.name.clone(), e.versions.clone()),
+        (None, Some(i)) => (owner_folder, sanitize_component(&i.name), Vec::new()),
+        (None, None) => return Err(Error::msg("unknown item")),
+    };
+    Ok(Located {
+        kind,
+        display: info.map(|i| i.name.clone()).unwrap_or_else(|| name.clone()),
+        root: glm.join(&folder_owner).join(sub).join(&name),
+        installed,
+        info: info.cloned(),
+    })
+}
+
+/// What it takes to install the latest version of `loc`.
+pub fn install_job(game_dir: &Path, loc: &Located) -> Result<(Job, String)> {
+    let info = loc.info.as_ref().ok_or_else(|| Error::msg("This item is not in the mod catalog, so it cannot be downloaded"))?;
+    let ver = info.version.clone().filter(|v| !v.trim().is_empty()).ok_or_else(|| Error::msg("The catalog does not say which version to download"))?;
+    let dest = loc.root.join(sanitize_component(&ver));
+
+    let source = match (&info.s3_host, &info.s3_bucket, &info.s3_folder, &info.download_link) {
+        (Some(h), Some(b), Some(f), _) if !h.is_empty() && !b.is_empty() && !f.is_empty() => {
+            let creds = match (&info.s3_access_key, &info.s3_secret_key) {
+                (Some(a), Some(s)) if !a.is_empty() && !s.is_empty() => Some(Creds { access_key: a.clone(), secret_key: s.clone() }),
+                _ => None,
+            };
+            Source::s3(h, b, f, creds)
+        }
+        (_, _, _, Some(url)) if !url.trim().is_empty() => Source::Archive { url: url.clone() },
+        _ => return Err(Error::msg(format!("{} has no download link in the catalog", loc.display))),
+    };
+
+    // newest other installed version: unchanged files are reused from it
+    let mut others: Vec<String> = loc.installed.iter().filter(|v| !eq(v, &ver)).cloned().collect();
+    version::sort_desc(&mut others);
+    let previous = others.first().map(|v| loc.root.join(v));
+    // staging is keyed by the item's folder so two items with the same name never share one
+    let key = loc.root.strip_prefix(library::mods_root(game_dir)).unwrap_or(&loc.root).to_string_lossy().replace(['/', '\\'], "_");
+    let staging = crate::layout::tmp(game_dir).join(sanitize_component(&format!("{key} {ver}")));
+    Ok((Job { dest, staging, source, previous }, ver))
+}
+
+/// Folder of one installed version, only if it really is below `.genlauncher/mods/` and exists.
+pub fn version_dir(game_dir: &Path, loc: &Located, version: &str) -> Result<PathBuf> {
+    let v = loc.installed.iter().find(|v| eq(v, version)).ok_or_else(|| Error::msg("that version is not installed"))?;
+    // the version must be exactly one plain folder name, never `..`, `a/b` or an absolute path
+    let single = {
+        let mut c = Path::new(v).components();
+        matches!((c.next(), c.next()), (Some(std::path::Component::Normal(_)), None))
+    };
+    let dir = loc.root.join(v);
+    let glm = library::mods_root(game_dir);
+    let inside = match (dir.canonicalize(), glm.canonicalize()) {
+        (Ok(d), Ok(g)) => d.starts_with(&g) && d != g,
+        _ => false,
+    };
+    if !single || !inside || !dir.is_dir() {
+        return Err(Error::msg("refusing to touch a folder outside the mod library"));
+    }
+    Ok(dir)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::library::Extra;
+    use crate::manifest::{ModEntry};
+
+    fn catalog_with(name: &str, info: VersionInfo) -> Catalog {
+        let mut c = Catalog::default();
+        c.manifest.mod_datas = vec![ModEntry { name: name.into(), link: "x".into(), ..Default::default() }];
+        c.mods = vec![Some(info)];
+        c
+    }
+
+    fn info(name: &str, version: &str) -> VersionInfo {
+        VersionInfo { name: name.into(), version: Some(version.into()), ..Default::default() }
+    }
+
+    #[test]
+    fn mod_installs_next_to_existing_versions_and_reuses_the_newest_other_one() {
+        let mut i = info("Rise of the Reds", "1.88");
+        i.s3_host = Some("gen.insave.ovh:9000".into());
+        i.s3_bucket = Some("rotr".into());
+        i.s3_folder = Some("rotr-individual-files".into());
+        let cat = catalog_with("Rise Of The Reds", i);
+        let disk = vec![InstalledMod { name: "Rise of the Reds".into(), versions: vec!["1.87".into(), "1.80".into()], ..Default::default() }];
+        let loc = locate(Path::new("G"), &cat, &HashMap::new(), &disk, "rise-of-the-reds").unwrap();
+        assert_eq!(loc.kind, Kind::Mod);
+        let (job, ver) = install_job(Path::new("G"), &loc).unwrap();
+        assert_eq!(ver, "1.88");
+        let dest = job.dest.to_string_lossy().replace('\\', "/");
+        assert!(dest.ends_with(".genlauncher/mods/Rise of the Reds/1.88"), "{dest}");
+        let staging = job.staging.to_string_lossy().replace('\\', "/");
+        assert!(staging.contains(".genlauncher/tmp/") && staging.ends_with("Rise of the Reds 1.88"), "{staging}");
+        assert!(job.previous.unwrap().to_string_lossy().ends_with("1.87"));
+        assert!(matches!(job.source, Source::S3 { .. }));
+    }
+
+    #[test]
+    fn new_mod_gets_a_safe_folder_name_and_archive_source() {
+        let mut i = info("C&C: Evil/Mod?", "2");
+        i.download_link = Some("https://x/y.zip".into());
+        let cat = catalog_with("C&C: Evil/Mod?", i);
+        let loc = locate(Path::new("G"), &cat, &HashMap::new(), &[], "c-c-evil-mod").unwrap();
+        let (job, _) = install_job(Path::new("G"), &loc).unwrap();
+        assert!(job.dest.to_string_lossy().contains("C&C_ Evil_Mod_"), "{:?}", job.dest);
+        assert!(matches!(job.source, Source::Archive { .. }));
+        assert!(job.previous.is_none());
+    }
+
+    #[test]
+    fn extras_follow_the_old_folder_layout() {
+        let cat = catalog_with("Contra", info("Contra", "10"));
+        let mut hotfix = info("Hotfix", "4");
+        hotfix.download_link = Some("https://x/h.zip".into());
+        let mut maps = info("Maps", "2");
+        maps.download_link = Some("https://x/m.zip".into());
+        maps.dependence_name = Some("Hotfix".into()); // addon that needs the patch: filed under the patch's folder
+        let mut extras = HashMap::new();
+        extras.insert("contra".to_string(), ExtraInfos { patches: vec![hotfix], addons: vec![maps], exes: vec![] });
+        let disk = vec![InstalledMod {
+            name: "Contra".into(),
+            versions: vec!["10".into()],
+            patches: vec![Extra { name: "Hotfix".into(), versions: vec!["3".into()] }],
+            ..Default::default()
+        }];
+
+        let p = locate(Path::new("G"), &cat, &extras, &disk, "contra/patch/hotfix").unwrap();
+        assert_eq!(p.installed, ["3"]);
+        let (job, v) = install_job(Path::new("G"), &p).unwrap();
+        assert_eq!(v, "4");
+        assert!(job.dest.to_string_lossy().replace('\\', "/").ends_with(".genlauncher/mods/Contra/patches/Hotfix/4"), "{:?}", job.dest);
+
+        let a = locate(Path::new("G"), &cat, &extras, &disk, "contra/addon/maps").unwrap();
+        assert!(a.root.to_string_lossy().replace('\\', "/").ends_with(".genlauncher/mods/Hotfix/addons/Maps"), "{:?}", a.root);
+    }
+
+    #[test]
+    fn errors_are_clear() {
+        let cat = catalog_with("Contra", info("Contra", "10")); // no link at all
+        let loc = locate(Path::new("G"), &cat, &HashMap::new(), &[], "contra").unwrap();
+        assert!(install_job(Path::new("G"), &loc).unwrap_err().to_string().contains("no download link"));
+        assert!(locate(Path::new("G"), &cat, &HashMap::new(), &[], "nope").is_err());
+        assert!(locate(Path::new("G"), &cat, &HashMap::new(), &[], "contra/hack/x").is_err());
+    }
+
+    #[test]
+    fn uninstall_refuses_paths_outside_glm() {
+        let d = tempfile::tempdir().unwrap();
+        let g = d.path();
+        std::fs::create_dir_all(g.join(".genlauncher/mods/Mod/1.0")).unwrap();
+        let loc = Located { kind: Kind::Mod, display: "Mod".into(), root: g.join(".genlauncher/mods/Mod"), installed: vec!["1.0".into(), "..".into()], info: None };
+        assert!(version_dir(g, &loc, "1.0").is_ok());
+        assert!(version_dir(g, &loc, "9.9").is_err());
+        let evil = Located { root: g.join("Data"), ..loc };
+        assert!(version_dir(g, &evil, "1.0").is_err());
+        assert!(version_dir(g, &Located { installed: vec!["..".into()], root: g.join(".genlauncher/mods/Mod"), kind: Kind::Mod, display: "x".into(), info: None }, "..").is_err());
+    }
+}
