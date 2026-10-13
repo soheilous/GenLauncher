@@ -24,10 +24,19 @@ impl Game {
         }
     }
 
-    pub fn manifest_url(self) -> &'static str {
+    /// Where the mod index for this game lives (this repository).
+    pub fn index_url(self) -> &'static str {
         match self {
-            Game::Zh => "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataZH4.yaml",
-            Game::Generals => "https://raw.githubusercontent.com/p0ls3r/GenLauncherModsData/master/ReposModificationDataGenerals3.yaml",
+            Game::Zh => "https://raw.githubusercontent.com/soheilous/GenLauncher/main/index/zero-hour.json",
+            Game::Generals => "https://raw.githubusercontent.com/soheilous/GenLauncher/main/index/generals.json",
+        }
+    }
+
+    /// The index as it was when this build was made, for when the repository cannot be reached.
+    pub fn bundled_index(self) -> &'static str {
+        match self {
+            Game::Zh => include_str!("../../index/zero-hour.json"),
+            Game::Generals => include_str!("../../index/generals.json"),
         }
     }
 

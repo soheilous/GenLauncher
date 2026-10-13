@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "game": "generals",
+  "updated": "2026-10-14",
+  "mods": [
+    {
+      "name": "Project Tomahawk Storm",
+      "version": "1.2 Beta Patch 1 rv1",
+      "page": "https://www.moddb.com/mods/project-tomahawkstorm",
+      "image": "https://i.imgur.com/7THtD2d.png",
+      "discord": "https://discord.gg/7NsTfDD",
+      "news": "https://www.moddb.com/mods/project-tomahawkstorm/news/pts-v12-release-quick-bulletin",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "Generals Enhanced",
+      "version": "0.3",
+      "page": "https://www.moddb.com/mods/cc-generals-enhanced",
+      "image": "https://i.imgur.com/ZbT6spE.png",
+      "discord": "https://discord.gg/7NsTfDD",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "ProGen 1.9",
+      "version": "1.9",
+      "page": "https://www.moddb.com/mods/progen",
+      "image": "https://i.imgur.com/YijuALT.jpg",
+      "discord": "https://discord.gg/7NsTfDD",
+      "news": "https://www.moddb.com/mods/progen/news/progen-is-back",
+      "support": "https://ko-fi.com/nolifestudios",
+      "network": "https://www.moddb.com/company/no-life-studios/tutorials/how-to-play-nls-mods-online",
+      "patches": [],
+      "addons": []
+    }
+  ],
+  "originalGame": {
+    "patches": [],
+    "addons": []
+  },
+  "executables": []
+}

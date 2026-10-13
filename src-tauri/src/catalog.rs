@@ -5,26 +5,33 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::Result;
 use crate::library::{Extra, InstalledMod};
-use crate::manifest::{ExeEntry, Fetcher, Manifest, ModEntry, ModType, VersionInfo};
+use crate::index::{Entry, Index, ModEntry};
 use crate::version;
 
 pub const ORIGINAL_GAME: &str = "Original Game";
 pub const ORIGINAL_GAME_ID: &str = "original-game";
 
-/// Manifest plus the latest-version record of every mod (index-aligned with `manifest.mod_datas`).
+/// The mod index (see `index.rs`) and when this copy was fetched.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Catalog {
-    pub manifest: Manifest,
-    pub mods: Vec<Option<VersionInfo>>,
+    pub index: Index,
     pub fetched_at: u64,
 }
 
-pub async fn fetch(fetcher: &Fetcher, manifest_url: &str) -> Result<Catalog> {
-    let manifest = fetcher.manifest(manifest_url).await?;
-    let urls: Vec<String> = manifest.mod_datas.iter().map(|m| m.link.clone()).collect();
-    let mods = fetcher.version_infos(&urls).await;
-    let fetched_at = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-    Ok(Catalog { manifest, mods, fetched_at })
+fn now() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
+/// Download the index from the project's repository.
+pub async fn fetch(http: &reqwest::Client, url: &str) -> Result<Catalog> {
+    let text = http.get(url).send().await?.error_for_status()?.text().await?;
+    Ok(Catalog { index: crate::index::parse(&text)?, fetched_at: now() })
+}
+
+/// The copy of the index that ships inside the app: used when the repository cannot be reached and nothing was cached.
+pub fn bundled(game: crate::game::Game) -> Catalog {
+    Catalog { index: crate::index::parse(game.bundled_index()).unwrap_or_default(), fetched_at: 0 }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -123,7 +130,7 @@ fn name_hue(name: &str) -> u16 {
     (h % 360) as u16
 }
 
-fn hue_for(info: Option<&VersionInfo>, name: &str) -> u16 {
+fn hue_for(info: Option<&Entry>, name: &str) -> u16 {
     info.and_then(|i| i.colors.as_ref())
         .and_then(|c| c.active.as_deref().and_then(hue_from_color).or_else(|| c.border.as_deref().and_then(hue_from_color)))
         .unwrap_or_else(|| name_hue(name))
@@ -145,7 +152,7 @@ fn versions_dto(installed: &[String], latest: Option<&str>) -> (Vec<VersionDto>,
     (dto, newest)
 }
 
-fn links_of(info: Option<&VersionInfo>) -> Links {
+fn links_of(info: Option<&Entry>) -> Links {
     info.map_or_else(Links::default, |i| Links {
         moddb: i.moddb_link.clone(),
         discord: i.discord_link.clone(),
@@ -164,28 +171,29 @@ pub fn mod_items(catalog: &Catalog, disk: &[InstalledMod]) -> Vec<Item> {
     let mut items = Vec::new();
     let mut matched: Vec<&str> = Vec::new();
 
-    for (entry, info) in catalog.manifest.mod_datas.iter().zip(catalog.mods.iter()) {
-        let display = info.as_ref().map(|i| i.name.as_str()).filter(|n| !n.is_empty()).unwrap_or(&entry.name);
-        let on_disk = find_installed(disk, &[display, &entry.name]);
+    for m in &catalog.index.mods {
+        let info = Some(&m.entry);
+        let display = m.entry.name.as_str();
+        let on_disk = find_installed(disk, &[display]);
         if let Some(d) = on_disk {
             matched.push(&d.name);
         }
         let installed = on_disk.map(|d| d.versions.clone()).unwrap_or_default();
-        let latest = info.as_ref().and_then(|i| i.version.as_deref());
+        let latest = m.entry.version.as_deref();
         let (versions, latest) = versions_dto(&installed, latest);
         items.push(Item {
-            id: slug(&entry.name),
+            id: slug(display),
             kind: Kind::Mod,
             name: display.to_string(),
-            summary: String::new(), // the repo has no description field; NetworkInfo is a link, exposed under links.network
-            hue: hue_for(info.as_ref(), display),
+            summary: String::new(), // the index has no description field; `network` is a link, exposed under links.network
+            hue: hue_for(info, display),
             versions,
             latest,
             parent: None,
             depends_on: None,
-            links: links_of(info.as_ref()),
-            cover: info.as_ref().and_then(|i| i.image_link.clone()),
-            deprecated: info.as_ref().is_some_and(|i| i.deprecated),
+            links: links_of(info),
+            cover: m.entry.image_link.clone(),
+            deprecated: m.entry.deprecated,
         });
     }
 
@@ -233,7 +241,7 @@ fn extras_of(d: &InstalledMod, kind: Kind) -> &[Extra] {
 }
 
 /// `disks`: every on-disk list the item may live in (its mod, and the folder named by `DependenceName`).
-fn extra_item(mod_id: &str, kind: Kind, info: &VersionInfo, disks: &[&[Extra]]) -> Item {
+fn extra_item(mod_id: &str, kind: Kind, info: &Entry, disks: &[&[Extra]]) -> Item {
     let mut installed: Vec<String> = Vec::new();
     for list in disks {
         for x in list.iter().filter(|x| x.name.eq_ignore_ascii_case(&info.name)) {
@@ -261,46 +269,35 @@ fn extra_item(mod_id: &str, kind: Kind, info: &VersionInfo, disks: &[&[Extra]]) 
     }
 }
 
-/// Fetched records for one mod's patches/addons/executables.
+/// The index's records for one mod's patches/addons/executables.
 #[derive(Debug, Clone, Default)]
 pub struct ExtraInfos {
-    pub patches: Vec<VersionInfo>,
-    pub addons: Vec<VersionInfo>,
-    pub exes: Vec<VersionInfo>,
+    pub patches: Vec<Entry>,
+    pub addons: Vec<Entry>,
+    pub exes: Vec<Entry>,
 }
 
 fn same_name(a: &str, b: &str) -> bool {
     a.eq_ignore_ascii_case(b)
 }
 
-/// Which manifest lists and executables belong to `mod_name` (or the original game when `None`).
-pub fn extra_urls<'a>(manifest: &'a Manifest, entry: Option<&'a ModEntry>) -> (Vec<String>, Vec<String>, Vec<&'a ExeEntry>) {
+/// The patches, addons and executables the index lists for `entry` (or for the original game when `None`).
+pub fn extras_for(index: &Index, entry: Option<&ModEntry>) -> ExtraInfos {
     let (patches, addons) = match entry {
         Some(e) => (e.patches.clone(), e.addons.clone()),
-        None => (manifest.original_game_patches.clone(), manifest.original_game_addons.clone()),
+        None => (index.original_game.patches.clone(), index.original_game.addons.clone()),
     };
-    let exes = manifest
+    let exes = index
         .executables
         .iter()
-        .filter(|x| match (&x.dependency, entry) {
-            (Some(dep), Some(e)) if !dep.is_empty() && !same_name(dep, ORIGINAL_GAME) => same_name(dep, &e.name),
-            // no dependency (or "Original Game"): usable with any mod, like in 1.x
+        .filter(|x| match (&x.for_mod, entry) {
+            (Some(dep), Some(e)) if !dep.is_empty() && !same_name(dep, ORIGINAL_GAME) => same_name(dep, &e.entry.name),
+            // no mod named (or "Original Game"): usable with any mod, like in 1.x
             _ => true,
         })
+        .map(|x| x.entry.clone())
         .collect();
-    (patches, addons, exes)
-}
-
-pub async fn fetch_extras(fetcher: &Fetcher, manifest: &Manifest, entry: Option<&ModEntry>) -> ExtraInfos {
-    let (p, a, e) = extra_urls(manifest, entry);
-    let exe_urls: Vec<String> = e.iter().map(|x| x.link.clone()).collect();
-    let (patches, addons, exes) =
-        futures::join!(fetcher.version_infos(&p), fetcher.version_infos(&a), fetcher.version_infos(&exe_urls));
-    ExtraInfos {
-        patches: patches.into_iter().flatten().collect(),
-        addons: addons.into_iter().flatten().collect(),
-        exes: exes.into_iter().flatten().collect(),
-    }
+    ExtraInfos { patches, addons, exes }
 }
 
 /// Items for a mod's tabs. `disk` is the on-disk record of that mod (if any).
@@ -321,7 +318,7 @@ pub fn extra_items(mod_id: &str, infos: &ExtraInfos, disk: Option<&InstalledMod>
         // Manually added extras that are not in the catalog.
         for x in own {
             if !list.iter().any(|i| same_name(&i.name, &x.name)) {
-                let synthetic = VersionInfo { kind: ModType::Mod, name: x.name.clone(), ..Default::default() };
+                let synthetic = Entry { name: x.name.clone(), ..Default::default() };
                 out.push(extra_item(mod_id, kind, &synthetic, &[own]));
             }
         }
@@ -332,14 +329,14 @@ pub fn extra_items(mod_id: &str, infos: &ExtraInfos, disk: Option<&InstalledMod>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::Colors;
+    use crate::index::Colors;
 
     fn entry(name: &str) -> ModEntry {
-        ModEntry { name: name.into(), link: format!("https://x/{name}.yaml"), ..Default::default() }
+        ModEntry { entry: info(name, "1"), ..Default::default() }
     }
 
-    fn info(name: &str, version: &str) -> VersionInfo {
-        VersionInfo { name: name.into(), version: Some(version.into()), ..Default::default() }
+    fn info(name: &str, version: &str) -> Entry {
+        Entry { name: name.into(), version: Some(version.into()), ..Default::default() }
     }
 
     fn disk_mod(name: &str, versions: &[&str]) -> InstalledMod {
@@ -350,8 +347,7 @@ mod tests {
     #[test]
     fn item_json_matches_ui_contract() {
         let mut c = Catalog::default();
-        c.manifest.mod_datas = vec![entry("Contra")];
-        c.mods = vec![Some(info("Contra", "1.0"))];
+        c.index.mods = vec![ModEntry { entry: info("Contra", "1.0"), ..Default::default() }];
         let items = mod_items(&c, &[]);
         let json = serde_json::to_value(&items[0]).unwrap();
         let mut keys: Vec<_> = json.as_object().unwrap().keys().cloned().collect();
@@ -382,10 +378,9 @@ mod tests {
     #[test]
     fn merges_catalog_with_disk() {
         let mut c = Catalog::default();
-        c.manifest.mod_datas = vec![entry("Contra"), entry("Shockwave")];
-        c.mods = vec![
-            Some(VersionInfo { colors: Some(Colors { active: Some("#00ff00".into()), ..Default::default() }), ..info("Contra", "009 Final") }),
-            None, // dead link in the catalog must not drop the entry
+        c.index.mods = vec![
+            ModEntry { entry: Entry { colors: Some(Colors { active: Some("#00ff00".into()), ..Default::default() }), ..info("Contra", "009 Final") }, ..Default::default() },
+            entry("Shockwave"),
         ];
         let disk = vec![disk_mod("contra", &["009 Beta 3"]), disk_mod("My Local Mod", &["1.0"])];
         let items = mod_items(&c, &disk);
@@ -424,15 +419,32 @@ mod tests {
 
     #[test]
     fn exe_scoping_follows_dependency() {
-        let mut m = Manifest::default();
-        m.executables = vec![
-            ExeEntry { name: "global".into(), link: "g".into(), dependency: None },
-            ExeEntry { name: "contra-only".into(), link: "c".into(), dependency: Some("Contra".into()) },
-            ExeEntry { name: "other".into(), link: "o".into(), dependency: Some("Shockwave".into()) },
+        use crate::index::ExeEntry;
+        let mut idx = Index::default();
+        idx.executables = vec![
+            ExeEntry { entry: info("global", "1"), for_mod: None },
+            ExeEntry { entry: info("contra-only", "1"), for_mod: Some("Contra".into()) },
+            ExeEntry { entry: info("other", "1"), for_mod: Some("Shockwave".into()) },
+            ExeEntry { entry: info("stock", "1"), for_mod: Some("Original Game".into()) },
         ];
-        let e = entry("Contra");
-        let (_, _, exes) = extra_urls(&m, Some(&e));
-        let names: Vec<_> = exes.iter().map(|x| x.name.as_str()).collect();
-        assert_eq!(names, ["global", "contra-only"]);
+        let names = |e: Option<&ModEntry>| extras_for(&idx, e).exes.iter().map(|x| x.name.clone()).collect::<Vec<_>>();
+        assert_eq!(names(Some(&entry("Contra"))), ["global", "contra-only", "stock"]);
+        assert_eq!(names(None), ["global", "contra-only", "other", "stock"]);
+    }
+
+    /// The copies that ship inside the app must be readable, and they hold pointers only.
+    #[test]
+    fn bundled_indexes_are_pointers_only() {
+        for game in [crate::game::Game::Zh, crate::game::Game::Generals] {
+            let text = game.bundled_index();
+            let c = bundled(game);
+            assert_eq!(c.index.game, game.key());
+            assert!(!c.index.mods.is_empty());
+            assert!(c.index.mods.iter().all(|m| !m.entry.name.trim().is_empty()));
+            let lower = text.to_lowercase();
+            for banned in ["insave.ovh", "s3host", "downloadlink", "secretkey"] {
+                assert!(!lower.contains(banned), "{banned} must not be in the index");
+            }
+        }
     }
 }

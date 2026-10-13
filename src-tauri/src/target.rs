@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use crate::catalog::{self, Catalog, ExtraInfos, Kind, ORIGINAL_GAME, ORIGINAL_GAME_ID, slug};
 use crate::error::{Error, Result};
 use crate::library::{self, InstalledMod};
-use crate::manifest::VersionInfo;
+use crate::index::Entry;
 
 #[derive(Debug, Clone)]
 pub struct Located {
@@ -17,7 +17,7 @@ pub struct Located {
     pub root: PathBuf,
     /// Versions currently on disk, newest first.
     pub installed: Vec<String>,
-    pub info: Option<VersionInfo>,
+    pub info: Option<Entry>,
 }
 
 /// A folder name that is valid on Windows and Linux.
@@ -34,7 +34,7 @@ fn eq(a: &str, b: &str) -> bool {
 struct ModLoc<'a> {
     folder: String,
     display: String,
-    info: Option<&'a VersionInfo>,
+    info: Option<&'a Entry>,
     disk: Option<&'a InstalledMod>,
 }
 
@@ -42,13 +42,11 @@ fn locate_mod<'a>(catalog: &'a Catalog, disk: &'a [InstalledMod], id: &str) -> R
     if id == ORIGINAL_GAME_ID {
         return Ok(ModLoc { folder: ORIGINAL_GAME.into(), display: ORIGINAL_GAME.into(), info: None, disk: disk.iter().find(|d| eq(&d.name, ORIGINAL_GAME)) });
     }
-    if let Some(i) = catalog.manifest.mod_datas.iter().position(|m| slug(&m.name) == id) {
-        let entry = &catalog.manifest.mod_datas[i];
-        let info = catalog.mods.get(i).and_then(|m| m.as_ref());
-        let display = info.map(|i| i.name.as_str()).filter(|n| !n.is_empty()).unwrap_or(&entry.name).to_string();
-        let on_disk = disk.iter().find(|d| eq(&d.name, &display) || eq(&d.name, &entry.name));
+    if let Some(m) = catalog.index.mods.iter().find(|m| slug(&m.entry.name) == id) {
+        let display = m.entry.name.clone();
+        let on_disk = disk.iter().find(|d| eq(&d.name, &display));
         let folder = on_disk.map(|d| d.name.clone()).unwrap_or_else(|| sanitize_component(&display));
-        return Ok(ModLoc { folder, display, info, disk: on_disk });
+        return Ok(ModLoc { folder, display, info: Some(&m.entry), disk: on_disk });
     }
     disk.iter()
         .find(|d| slug(&d.name) == id)
@@ -202,26 +200,24 @@ pub fn version_dir(game_dir: &Path, loc: &Located, version: &str) -> Result<Path
 mod tests {
     use super::*;
     use crate::library::Extra;
-    use crate::manifest::{ModEntry};
+    use crate::index::ModEntry;
 
-    fn catalog_with(name: &str, info: VersionInfo) -> Catalog {
+    fn catalog_with(name: &str, info: Entry) -> Catalog {
         let mut c = Catalog::default();
-        c.manifest.mod_datas = vec![ModEntry { name: name.into(), link: "x".into(), ..Default::default() }];
-        c.mods = vec![Some(info)];
+        let _ = name;
+        c.index.mods = vec![ModEntry { entry: info, ..Default::default() }];
         c
     }
 
-    fn info(name: &str, version: &str) -> VersionInfo {
-        VersionInfo { name: name.into(), version: Some(version.into()), ..Default::default() }
+    fn info(name: &str, version: &str) -> Entry {
+        Entry { name: name.into(), version: Some(version.into()), ..Default::default() }
     }
 
     #[test]
     fn extras_follow_the_old_folder_layout() {
         let cat = catalog_with("Contra", info("Contra", "10"));
-        let mut hotfix = info("Hotfix", "4");
-        hotfix.download_link = Some("https://x/h.zip".into());
+        let hotfix = info("Hotfix", "4");
         let mut maps = info("Maps", "2");
-        maps.download_link = Some("https://x/m.zip".into());
         maps.dependence_name = Some("Hotfix".into()); // addon that needs the patch: filed under the patch's folder
         let mut extras = HashMap::new();
         extras.insert("contra".to_string(), ExtraInfos { patches: vec![hotfix], addons: vec![maps], exes: vec![] });

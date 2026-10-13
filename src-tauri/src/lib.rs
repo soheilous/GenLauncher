@@ -12,7 +12,7 @@ pub mod launch;
 pub mod install;
 pub mod library;
 pub mod links;
-pub mod manifest;
+pub mod index;
 pub mod migrate;
 pub mod plan;
 pub mod record;
@@ -32,7 +32,7 @@ use catalog::{Catalog, ExtraInfos, Item};
 use error::{Error, Result};
 use game::GameInstall;
 use launch::Target;
-use manifest::{Fetcher, VersionInfo};
+use index::Entry;
 use store::{AppConfig, Settings};
 
 struct Inner {
@@ -46,7 +46,8 @@ struct Inner {
 
 struct AppState {
     inner: Mutex<Inner>,
-    fetcher: Fetcher,
+    /// For the mod index (small text files).
+    http: reqwest::Client,
     /// True from the start of a launch until the game folder is restored again.
     launching: AtomicBool,
     /// Installs in progress, by item id.
@@ -101,8 +102,7 @@ struct LegacySummary {
 struct CatalogResponse {
     items: Vec<Item>,
     online: bool,
-    launcher_version: Option<String>,
-    /// Why the live catalog could not be used (the cached copy is shown instead).
+    /// Why the live index could not be used (the cached or bundled copy is shown instead).
     error: Option<String>,
 }
 
@@ -214,25 +214,29 @@ async fn catalog_load(state: State<'_, AppState>) -> Result<CatalogResponse> {
     let install = require_install(&*state.inner.lock().await)?;
     let cache_path = catalog_cache_path(&install);
 
-    let (catalog, online, error) = match catalog::fetch(&state.fetcher, install.game.manifest_url()).await {
+    let (catalog, online, error) = match catalog::fetch(&state.http, install.game.index_url()).await {
         Ok(c) => {
             if let Err(e) = store::save(&cache_path, &c) {
                 log::warn!("could not cache catalog: {e}");
             }
             (c, true, None)
         }
-        Err(e) => (store::load::<Catalog>(&cache_path), false, Some(e.to_string())),
+        Err(e) => {
+            // offline: the copy cached last time, or the one that shipped with this build
+            let cached = store::load::<Catalog>(&cache_path);
+            let c = if cached.index.mods.is_empty() { catalog::bundled(install.game) } else { cached };
+            (c, false, Some(e.to_string()))
+        }
     };
 
     let disk = scan_disk(install.dir.clone()).await?;
     let mut items = catalog::mod_items(&catalog, &disk);
     attach_pages(&install.dir, &mut items, &disk);
-    let launcher_version = catalog.manifest.launcher_version.clone();
     state.inner.lock().await.catalog = Some(catalog);
-    Ok(CatalogResponse { items, online, launcher_version, error })
+    Ok(CatalogResponse { items, online, error })
 }
 
-/// Patches, addons and executables of one mod (fetched on demand, like 1.x did).
+/// Patches, addons and executables of one mod, from the index.
 #[tauri::command]
 async fn load_extras(state: State<'_, AppState>, mod_id: String) -> Result<Vec<Item>> {
     let (install, catalog) = {
@@ -240,7 +244,7 @@ async fn load_extras(state: State<'_, AppState>, mod_id: String) -> Result<Vec<I
         (require_install(&inner)?, inner.catalog.clone().ok_or_else(|| Error::msg("Catalog not loaded"))?)
     };
     let disk = scan_disk(install.dir.clone()).await?;
-    let entry = catalog.manifest.mod_datas.iter().find(|m| catalog::slug(&m.name) == mod_id);
+    let entry = catalog.index.mods.iter().find(|m| catalog::slug(&m.entry.name) == mod_id);
 
     if entry.is_none() && mod_id != catalog::ORIGINAL_GAME_ID {
         // Local-only mod: nothing remote, only what is on disk.
@@ -248,22 +252,12 @@ async fn load_extras(state: State<'_, AppState>, mod_id: String) -> Result<Vec<I
         return Ok(catalog::extra_items(&mod_id, &Default::default(), d, &disk));
     }
 
-    // Reuse what was fetched earlier in this session: re-reading the screen after an install or removal
-    // only needs the disk, not another round of downloads.
-    let cached = state.inner.lock().await.extras.get(&mod_id).cloned();
-    let infos = match cached {
-        Some(c) => c,
-        None => catalog::fetch_extras(&state.fetcher, &catalog.manifest, entry).await,
-    };
-    let wanted = entry.map(|e| e.name.as_str()).unwrap_or(catalog::ORIGINAL_GAME);
+    let infos = catalog::extras_for(&catalog.index, entry);
+    let wanted = entry.map(|e| e.entry.name.as_str()).unwrap_or(catalog::ORIGINAL_GAME);
     let d = disk.iter().find(|d| d.name.eq_ignore_ascii_case(wanted));
     let items = catalog::extra_items(&mod_id, &infos, d, &disk);
-    // an empty result may just be a failed fetch (offline): do not remember it
-    let found_any = !(infos.patches.is_empty() && infos.addons.is_empty() && infos.exes.is_empty());
-    let expects_any = entry.is_none_or(|e| !e.patches.is_empty() || !e.addons.is_empty()) || !catalog.manifest.executables.is_empty();
-    if found_any || !expects_any {
-        state.inner.lock().await.extras.insert(mod_id, infos);
-    }
+    // a launch needs the executable flags of the active mod's extras
+    state.inner.lock().await.extras.insert(mod_id, infos);
     Ok(items)
 }
 
@@ -287,7 +281,7 @@ async fn save_settings(state: State<'_, AppState>, settings: Settings) -> Result
     store::save(&settings_path(&install), &settings)
 }
 
-fn exe_infos_for(settings: &Settings, extras: &HashMap<String, ExtraInfos>) -> HashMap<String, VersionInfo> {
+fn exe_infos_for(settings: &Settings, extras: &HashMap<String, ExtraInfos>) -> HashMap<String, Entry> {
     let mod_id = settings.active_mod.as_deref().filter(|m| !m.is_empty()).unwrap_or(catalog::ORIGINAL_GAME_ID);
     extras
         .get(mod_id)
@@ -881,7 +875,11 @@ pub fn run() {
             let config: AppConfig = store::load(&config_path);
             app.manage(AppState {
                 inner: Mutex::new(Inner { config_path, config, install: None, catalog: None, extras: HashMap::new() }),
-                fetcher: Fetcher::new()?,
+                http: reqwest::Client::builder()
+                    .user_agent(concat!("GenLauncher/", env!("CARGO_PKG_VERSION")))
+                    .connect_timeout(std::time::Duration::from_secs(10))
+                    .timeout(std::time::Duration::from_secs(30))
+                    .build()?,
                 launching: AtomicBool::new(false),
                 downloads: Default::default(),
                 browser_session: Default::default(),

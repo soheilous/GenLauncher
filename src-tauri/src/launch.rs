@@ -8,7 +8,7 @@ use crate::catalog::{ORIGINAL_GAME_ID, extra_id, slug, Kind};
 use crate::error::{Error, Result};
 use crate::game::find_ci;
 use crate::library::{self, InstalledMod};
-use crate::manifest::VersionInfo;
+use crate::index::Entry;
 use crate::plan::{Layer, LayerKind};
 use crate::store::Settings;
 
@@ -32,7 +32,7 @@ pub fn resolve(
     game_dir: &Path,
     settings: &Settings,
     disk: &[InstalledMod],
-    exe_infos: &HashMap<String, VersionInfo>,
+    exe_infos: &HashMap<String, Entry>,
     target: Target,
 ) -> Result<Resolved> {
     let mod_id = settings.active_mod.as_deref().filter(|m| !m.is_empty()).unwrap_or(ORIGINAL_GAME_ID);
@@ -247,8 +247,8 @@ mod tests {
     #[test]
     fn replacing_exe_sets_the_executable_and_helpers_start_alongside() {
         let mut infos = HashMap::new();
-        infos.insert("contra/exe/big-exe".to_string(), VersionInfo { executable_file_name: Some("contra.exe".into()), replaces_game_exe: true, ..Default::default() });
-        infos.insert("contra/exe/tool".to_string(), VersionInfo { executable_file_name: Some("tool.exe".into()), ..Default::default() });
+        infos.insert("contra/exe/big-exe".to_string(), Entry { executable_file_name: Some("contra.exe".into()), replaces_game_exe: true, ..Default::default() });
+        infos.insert("contra/exe/tool".to_string(), Entry { executable_file_name: Some("tool.exe".into()), ..Default::default() });
         let s = settings("contra", &["contra/exe/big-exe", "contra/exe/tool"]);
         let r = resolve(&PathBuf::from("G"), &s, &disk(), &infos, Target::Game).unwrap();
         assert_eq!(r.exe, "contra.exe");
@@ -257,7 +257,7 @@ mod tests {
         let wb = resolve(&PathBuf::from("G"), &s, &disk(), &infos, Target::WorldBuilder).unwrap();
         assert_eq!(wb.exe, "WorldBuilder.exe");
         // two replacements conflict
-        infos.insert("contra/exe/tool".to_string(), VersionInfo { executable_file_name: Some("t.exe".into()), replaces_game_exe: true, ..Default::default() });
+        infos.insert("contra/exe/tool".to_string(), Entry { executable_file_name: Some("t.exe".into()), replaces_game_exe: true, ..Default::default() });
         assert!(resolve(&PathBuf::from("G"), &s, &disk(), &infos, Target::Game).unwrap_err().to_string().contains("More than one"));
     }
 

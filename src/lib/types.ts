@@ -85,6 +85,5 @@ export interface Bootstrap {
 export interface CatalogResponse {
   items: Item[];
   online: boolean;
-  launcherVersion: string | null;
   error: string | null;
 }

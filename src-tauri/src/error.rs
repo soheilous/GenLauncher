@@ -6,8 +6,6 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("network error: {0}")]
     Net(#[from] reqwest::Error),
-    #[error("invalid yaml: {0}")]
-    Yaml(#[from] serde_yaml_ng::Error),
     #[error("invalid json: {0}")]
     Json(#[from] serde_json::Error),
     #[error("{0}")]

@@ -24,7 +24,6 @@ tauri-plugin-dialog = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "sync", "time", "io-util", "net"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "gzip"] }
 futures = "0.3"
-serde_yaml_ng = "0.10"
 thiserror = "2"
 log = "0.4"
 md-5 = "0.10"

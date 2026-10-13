@@ -5,7 +5,7 @@ mods, patches, addons and alternate executables, then press Play. Your game fold
 even if the launcher or the PC dies mid-game.
 
 Rewrite of the original GenLauncher (WPF, .NET Framework) as a small native app: **Tauri 2** (Rust core) with a
-**SvelteKit** UI. Same mod catalog, so the existing mod repository keeps working. Windows first, Linux (Wine/Proton) planned.
+**SvelteKit** UI. Mods are listed in this repository's own [mod index](index/README.md). Windows first, Linux (Wine/Proton) planned.
 
 ## How it works
 
@@ -58,7 +58,7 @@ Without Tauri (plain `npm run dev` in a browser) the UI runs on mock data, which
 |---|---|
 | `src-tauri/src/layout.rs` | the on-disk structure above |
 | `game.rs`, `game_files.rs` | find and recognise game installs; the stock archive lists |
-| `manifest.rs`, `catalog.rs`, `target.rs` | the mod repository format; merging it with what is on disk |
+| `index.rs`, `catalog.rs`, `target.rs` | the mod index format; merging it with what is on disk |
 | `library.rs`, `store.rs`, `version.rs` | installed-mod scan, JSON state with atomic writes, version ordering |
 | `plan.rs`, `journal.rs`, `launch.rs`, `big.rs` | launching, crash-safe changes, camera-height patch |
 | `download.rs`, `install.rs`, `extract.rs`, `links.rs` | downloading and installing |
@@ -72,7 +72,7 @@ Without Tauri (plain `npm run dev` in a browser) the UI runs on mock data, which
 Done: library, launching with journaled restore, installing/updating/removing, adding mods from a file, a folder, a direct link or any web page (ModDB included) through a built-in browser window that takes the download, with the source remembered next to each install, migration from 1.x, light/dark Material
 UI with per-mod covers and accent colors.
 
-Next: a community index of mod pages for Discover, "check for update" from the saved page.
+Next: "check for update" from the saved page, and growing the index with the community.
 
 Not yet: in-app graphics options editor, GenTool and Vulkan handling, World Builder download, self-update,
 localisation (translations are in `reference/`) and Linux/Wine prefix selection.
@@ -83,4 +83,21 @@ The launcher hosts no mods and downloads none by itself. Mods are added from a f
 link, or a web page (ModDB, Nexus Mods, a mod's own site) opened in the launcher's built-in browser, where you pick the
 version and click the site's own download button. Files therefore always come from the people who published them.
 "Install" on a Discover entry does the same: it opens that mod's page. Each installed version remembers the page it was
-downloaded from. The old launcher's S3 mod storage is not used and no key of the previous author is shipped.
+downloaded from.
+
+### The mod index
+
+Discover, and the patches / addons / executables listed under each mod, come from [`index/`](index/README.md): one JSON
+file per game, kept in this repository and read by the launcher from GitHub (a copy is built into every release, and the
+last one fetched is cached, so it works offline). It holds pointers only (names, latest version, the page a mod is
+published on, cover images), never a download link or a file. Anyone can add or fix an entry with a pull request.
+
+## Credits
+
+- **p0ls3r** and the contributors of the original [GenLauncher](https://github.com/p0ls3r/GenLauncher) created the launcher
+  this project continues, and gathered the mod list in
+  [p0ls3r/GenLauncherModsData](https://github.com/p0ls3r/GenLauncherModsData). The first version of our
+  [mod index](index/README.md) was converted from that list (names, versions, pages, covers and colors; download links and
+  storage details were left out on purpose). Thank you for years of work for the C&C community.
+- The authors of every mod listed: the mods and their pages are theirs.
+- Command & Conquer is a trademark of Electronic Arts. This is a fan project and is not affiliated with EA.

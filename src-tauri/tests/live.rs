@@ -1,6 +1,6 @@
 //! Network + real-install checks. Read-only. Run with: cargo test --test live -- --ignored --nocapture
 
-use genlauncher2_lib::{catalog, game, library, manifest::Fetcher};
+use genlauncher2_lib::{catalog, game, library};
 
 #[tokio::test]
 #[ignore]
@@ -9,12 +9,11 @@ async fn real_zero_hour_catalog_and_install() {
     println!("installs: {installs:#?}");
     let zh = installs.iter().find(|i| i.game == game::Game::Zh).expect("no Zero Hour install found");
 
-    let fetcher = Fetcher::new().unwrap();
+    let http = reqwest::Client::new();
     let started = std::time::Instant::now();
-    let cat = catalog::fetch(&fetcher, zh.game.manifest_url()).await.expect("catalog fetch");
-    println!("catalog: {} mods ({} resolved) in {:?}", cat.manifest.mod_datas.len(), cat.mods.iter().flatten().count(), started.elapsed());
-    assert!(cat.manifest.mod_datas.len() > 5);
-    assert!(cat.mods.iter().flatten().count() > cat.manifest.mod_datas.len() / 2, "most mod links should resolve");
+    let cat = catalog::fetch(&http, zh.game.index_url()).await.expect("index fetch");
+    println!("index: {} mods in {:?}", cat.index.mods.len(), started.elapsed());
+    assert!(cat.index.mods.len() > 5);
 
     let disk = library::scan(&zh.dir);
     println!("on disk: {:?}", disk.iter().map(|d| (&d.name, &d.versions)).collect::<Vec<_>>());
@@ -25,14 +24,6 @@ async fn real_zero_hour_catalog_and_install() {
     for d in &disk {
         assert!(items.iter().any(|i| i.versions.iter().any(|v| v.installed) && i.name.eq_ignore_ascii_case(&d.name) || catalog::slug(&i.name) == catalog::slug(&d.name)),
             "disk mod {} missing from library", d.name);
-    }
-
-    // Extras for the first installed mod that has a catalog entry.
-    if let Some(entry) = cat.manifest.mod_datas.iter().find(|e| disk.iter().any(|d| d.name.eq_ignore_ascii_case(&e.name))) {
-        let infos = catalog::fetch_extras(&fetcher, &cat.manifest, Some(entry)).await;
-        let extras = catalog::extra_items(&catalog::slug(&entry.name), &infos, disk.iter().find(|d| d.name.eq_ignore_ascii_case(&entry.name)), &disk);
-        println!("{}: {} patches, {} addons, {} exes", entry.name, infos.patches.len(), infos.addons.len(), infos.exes.len());
-        println!("{:#?}", extras.iter().take(4).map(|x| (&x.id, &x.latest)).collect::<Vec<_>>());
     }
 }
 

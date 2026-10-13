@@ -1,0 +1,727 @@
+{
+  "format": 1,
+  "game": "zh",
+  "updated": "2026-10-14",
+  "mods": [
+    {
+      "name": "Rise of the Reds",
+      "version": "1.87 Public Build 2.0",
+      "page": "https://www.moddb.com/mods/rise-of-the-reds",
+      "image": "https://i.imgur.com/FNgEp6t.png",
+      "discord": "https://discord.gg/REcbv37",
+      "news": "https://www.moddb.com/mods/rise-of-the-reds/articles",
+      "patches": [
+        {
+          "name": "Hanpatch",
+          "version": "32.2",
+          "page": "https://www.moddb.com/mods/rise-of-the-reds-hanpatch",
+          "discord": "https://discord.gg/REcbv37",
+          "news": "https://docs.google.com/document/d/1ZMlVFDPf4SDD5Y6vYatOCtaudBBl32gdWg-YrswvnGo",
+          "dependsOn": "Rise of the Reds"
+        },
+        {
+          "name": "Balance Patch",
+          "version": "2.999.06.5",
+          "news": "https://docs.google.com/document/d/1iN2Zbl7i46RHSk-X9ewuYlaN8GrM_W0t2FHsP3KhMf0",
+          "dependsOn": "rise of the reds",
+          "deprecated": true
+        },
+        {
+          "name": "Babushka's Revenge",
+          "version": "1.1",
+          "page": "https://www.moddb.com/mods/rise-of-the-reds-babushkas-ultimate-balance-mod",
+          "news": "https://www.moddb.com/mods/rise-of-the-reds-babushkas-ultimate-balance-mod",
+          "dependsOn": "Rise of the Reds"
+        },
+        {
+          "name": "Anti Thesis Patch",
+          "version": "0.7 HOTFIX V2",
+          "page": "https://www.moddb.com/mods/rise-of-the-reds-anti-thesis-patch",
+          "news": "https://www.moddb.com/mods/rise-of-the-reds-anti-thesis-patch",
+          "dependsOn": "Rise Of The Reds"
+        },
+        {
+          "name": "Empire Pacific Alliance",
+          "version": "Beta 0.9.13+2",
+          "news": "https://www.moddb.com/mods/rotrempire-pacific-alliance-submod/articles",
+          "dependsOn": "Rise Of The Reds"
+        }
+      ],
+      "addons": [
+        {
+          "name": "Control Bar Pro (Rotr)",
+          "version": "1.0.1",
+          "page": "https://www.moddb.com/mods/rise-of-the-reds/addons/controlbarpro-rotr",
+          "dependsOn": "RISE OF THE REDS"
+        },
+        {
+          "name": "Hanpatch Easter Egg Units",
+          "version": "v1",
+          "page": "https://www.moddb.com/mods/rise-of-the-reds-hanpatch",
+          "discord": "https://discord.gg/REcbv37",
+          "news": "https://docs.google.com/document/d/1ZMlVFDPf4SDD5Y6vYatOCtaudBBl32gdWg-YrswvnGo",
+          "dependsOn": "Hanpatch"
+        },
+        {
+          "name": "RotR Navy",
+          "version": "2.0.3",
+          "page": "https://www.moddb.com/mods/rise-of-the-reds/addons/rise-of-the-reds-navy-20",
+          "dependsOn": "RISE OF THE REDS"
+        },
+        {
+          "name": "Vanilla Campaigns Remastered",
+          "version": "1.871",
+          "news": "https://docs.google.com/document/d/1NdmwfmHvc0PSfq5pi18LSctKQJzzPYf0/edit?usp=sharing&ouid=115439914228425694031&rtpof=true&sd=true",
+          "dependsOn": "Hanpatch"
+        },
+        {
+          "name": "EPA No MechFactions",
+          "version": "I.01",
+          "page": "https://www.moddb.com/mods/rotrempire-pacific-alliance-submod",
+          "news": "https://github.com/GerardoDMBX/EmpirePacificAllianceNoMech",
+          "dependsOn": "Empire Pacific Alliance"
+        },
+        {
+          "name": "Unoficial Music facctions",
+          "version": "03",
+          "dependsOn": "Empire Pacific Alliance"
+        }
+      ]
+    },
+    {
+      "name": "Contra",
+      "version": "10.0.2 Beta 2 Patch 1",
+      "page": "https://www.moddb.com/mods/contra",
+      "image": "https://i.imgur.com/BpDlJUt.png",
+      "discord": "https://discord.gg/015E6KXXHmdWFXCtt",
+      "news": "https://www.moddb.com/mods/contra/articles",
+      "support": "https://www.paypal.com/paypalme/Contramod",
+      "network": "https://github.com/ContraMod/Launcher/blob/master/Online%20Instructions.md",
+      "colors": {
+        "active": "#ffd700",
+        "border": "#f7e75a",
+        "backgroundImage": "https://i.imgur.com/IAPoiOt.png"
+      },
+      "patches": [
+        {
+          "name": "Russian language and Leikeze hotkeys",
+          "version": "10.0.2 Beta 2 Patch 1",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "Russian language and Legacy hotkeys",
+          "version": "10.0.2 Beta 2 Patch 1",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "English language and Leikeze hotkeys",
+          "version": "10.0.2 Beta 2 Patch 1",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        }
+      ],
+      "addons": [
+        {
+          "name": "HD Cameos",
+          "version": "10.0.2 Beta 2 Patch 1",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "Control Bar Pro",
+          "version": "10.0.2 Beta 2 Patch 1",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "Control Bar Standard ZH",
+          "version": "10.0.1 Beta 2",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "Enhanced Soundtrack",
+          "version": "10.0.2 Beta 2 Patch 1",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "The Score Soundtrack",
+          "version": "10.0.2 Beta 2 Patch 1",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "Funny General Portraits",
+          "version": "10.0.1 Beta 2",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "Native Unit Voices",
+          "version": "10.0.2 Beta 2",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "Disable Fog Effects",
+          "version": "10.0.2 Beta 2 Patch 1",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "Disable Water Effects",
+          "version": "10.0.1 Beta 2",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        },
+        {
+          "name": "Disable Extra Building Props",
+          "version": "10.0.1 Beta 2",
+          "image": "https://cdn.discordapp.com/attachments/410500983198580740/886922818460209152/contra-logo.png",
+          "dependsOn": "Contra"
+        }
+      ]
+    },
+    {
+      "name": "The End of Days",
+      "version": "0.98.6 Patch 11",
+      "page": "https://www.moddb.com/mods/the-end-of-days",
+      "image": "https://i.imgur.com/x5M8Kvg.png",
+      "discord": "https://discord.com/invite/aCtu7UG",
+      "news": "https://docs.google.com/document/d/1O7xeMCq5nxaaDea3MuV2fzwX7A10hNg65DGt0nLTN6Y/edit?usp=sharing",
+      "network": "https://docs.google.com/document/d/1yxiXdO37mOrWvaXDYdo3bEVPjIIU4lNyF0hhtFKGmPM/edit",
+      "colors": {
+        "active": "#c53838",
+        "border": "#6c3636",
+        "backgroundImage": "https://i.imgur.com/m8MgquM.png"
+      },
+      "patches": [],
+      "addons": [
+        {
+          "name": "TEOD Russian Language",
+          "version": "1.3.2 (ODB-002)"
+        }
+      ]
+    },
+    {
+      "name": "NProject Mod",
+      "version": "2.11",
+      "page": "https://www.moddb.com/mods/nproject-mod",
+      "image": "https://i.imgur.com/XVhG6uQ.jpg",
+      "discord": "https://discord.gg/7NsTfDD",
+      "news": "https://www.moddb.com/mods/nproject-mod/news/nproject-mod-211-released",
+      "support": "https://ko-fi.com/nolifestudios",
+      "network": "https://www.moddb.com/company/no-life-studios/tutorials/how-to-play-nls-mods-online",
+      "colors": {
+        "active": "#baff0c",
+        "border": "#c80000",
+        "backgroundImage": "https://i.imgur.com/xnTxZK4.png"
+      },
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "Zero Hour Reborn",
+      "version": "V7 Alpha v0.3",
+      "page": "https://www.moddb.com/mods/zero-hour-reborn1",
+      "image": "https://i.imgur.com/6JnaVEW.jpg",
+      "discord": "https://discord.gg/7NsTfDD",
+      "news": "https://www.moddb.com/mods/zero-hour-reborn1/news/reborn-v7-alpha-v03",
+      "support": "https://ko-fi.com/nolifestudios",
+      "network": "https://www.moddb.com/company/no-life-studios/tutorials/how-to-play-nls-mods-online",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "C&C Untitled",
+      "version": "V3.85 Standalone",
+      "page": "https://www.moddb.com/mods/cnc-untitled",
+      "image": "https://i.imgur.com/GAlKKxj.jpg",
+      "discord": "https://discord.gg/7NsTfDD",
+      "news": "https://www.moddb.com/mods/cnc-untitled/news/cc-untitled-v385-standalone-release",
+      "support": "https://ko-fi.com/nolifestudios",
+      "network": "https://www.moddb.com/company/no-life-studios/tutorials/how-to-play-nls-mods-online",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "Operation Firestorm",
+      "version": "Alpha 0.3.17.2",
+      "page": "https://www.moddb.com/mods/operation-firestorm",
+      "image": "https://raw.githubusercontent.com/Andreas-W/ofs/main/OFS_GenlauncherBanner.png",
+      "discord": "https://discord.gg/7NsTfDD",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "C&C Shockwave",
+      "version": "1.201 GenLauncher Fix 1",
+      "page": "https://www.moddb.com/mods/cc-shockwave",
+      "image": "https://i.imgur.com/qpew4dL.png",
+      "discord": "https://discord.gg/REcbv37",
+      "news": "https://www.moddb.com/mods/cc-shockwave/articles",
+      "patches": [
+        {
+          "name": "C&C Shockwave Public Beta",
+          "version": "1.25 Beta 8",
+          "page": "https://www.moddb.com/mods/cc-shockwave",
+          "image": "https://i.imgur.com/qpew4dL.png",
+          "discord": "https://discord.gg/REcbv37",
+          "news": "https://www.moddb.com/mods/cc-shockwave/articles",
+          "dependsOn": "C&C Shockwave"
+        }
+      ],
+      "addons": [
+        {
+          "name": "Control Bar Pro (Shockwave)",
+          "version": "1.0.0",
+          "page": "https://www.moddb.com/mods/cc-shockwave/addons/controlbarpro-shw",
+          "dependsOn": "C&C SHOCKWAVE"
+        },
+        {
+          "name": "ShockWave Cursor Pack HD",
+          "version": "1.3",
+          "news": "https://discord.gg/7AFR2xPbyN",
+          "dependsOn": "C&C ShockWave"
+        },
+        {
+          "name": "ShockWave Russifier",
+          "version": "1.25",
+          "news": "https://discord.gg/7AFR2xPbyN",
+          "dependsOn": "C&C ShockWave"
+        },
+        {
+          "name": "Shockwave Single Player Experience",
+          "version": "2.1.3",
+          "dependsOn": "C&C ShockWave"
+        }
+      ]
+    },
+    {
+      "name": "Shockwave Chaos Mod",
+      "version": "49",
+      "page": "https://www.moddb.com/mods/cc-shockwave-chaos",
+      "image": "https://i.imgur.com/0pO2FMU.png",
+      "discord": "https://discord.gg/7NsTfDD",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "The Power of the west",
+      "version": "1.7.5.0",
+      "page": "https://www.moddb.com/mods/the-power-of-the-west",
+      "image": "https://media.moddb.com/cache/images/groups/1/29/28971/thumb_620x2000/GenLauncher.jpg",
+      "discord": "https://discord.gg/r3c87Q8",
+      "news": "https://drive.google.com/file/d/1MV4YaMOangl-OUjyUHQM8jzVHNnfM3Cr/view?usp=sharing",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "World War 2",
+      "version": "0.28",
+      "page": "https://www.moddb.com/mods/ww2",
+      "image": "http://cncww2.ru/download/genlauncher/launcher_500x100_orig.jpg",
+      "discord": "https://discord.com/invite/mFZVBuZ",
+      "news": "http://cncww2.ru/news/latest",
+      "support": "https://www.donationalerts.com/r/generals_world_war_2",
+      "network": "https://www.moddb.com/mods/ww2/tutorials/how-to-play-at-world-war-ii-in-generals-on-line",
+      "colors": {
+        "active": "#990000",
+        "border": "#354221",
+        "backgroundImage": "https://cdn.discordapp.com/attachments/500003252625080330/1031318358496387092/GlBg.png"
+      },
+      "patches": [
+        {
+          "name": "Russian language for C&C WW2 mod",
+          "version": "0.28",
+          "page": "https://www.moddb.com/mods/ww2",
+          "image": "https://cdn.discordapp.com/attachments/500003252625080330/1051066194586775552/launcher_500x100_orig.jpg",
+          "discord": "https://discord.com/invite/mFZVBuZ",
+          "news": "http://cncww2.ru/news/latest",
+          "network": "https://vk.com/@cncww2-igra-po-lokalnoi-seti-cherez-radmin-vpn",
+          "dependsOn": "World War 2"
+        },
+        {
+          "name": "French language for C&C WW2 mod",
+          "version": "0.27.6",
+          "page": "https://www.moddb.com/mods/ww2",
+          "image": "http://cncww2.ru/download/genlauncher/launcher_500x100_0276.jpg",
+          "discord": "https://discord.com/invite/mFZVBuZ",
+          "news": "https://www.moddb.com/mods/ww2/news/the-full-patchnote-from-v-026-to-027",
+          "network": "https://vk.com/@cncww2-igra-po-lokalnoi-seti-cherez-radmin-vpn",
+          "dependsOn": "World War 2"
+        }
+      ],
+      "addons": [
+        {
+          "name": "Network error fix path for C&C WW2 mod",
+          "version": "0.28",
+          "page": "https://www.moddb.com/mods/ww2",
+          "image": "http://cncww2.ru/download/genlauncher/launcher_500x100_0276.jpg",
+          "discord": "https://discord.com/invite/mFZVBuZ",
+          "news": "http://cncww2.ru/news/latest",
+          "network": "https://vk.com/@cncww2-igra-po-lokalnoi-seti-cherez-radmin-vpn",
+          "dependsOn": "World War 2",
+          "deprecated": true
+        }
+      ]
+    },
+    {
+      "name": "C&C Tiberian Dawn Redux",
+      "version": "1.5.5 GenLauncherFix 2.4",
+      "page": "https://www.moddb.com/mods/command-conquer-tiberian-dawn-redux",
+      "image": "https://media.moddb.com/images/members/1/236/235607/genlauncherbanner.2.2.png",
+      "discord": "https://discord.gg/FjFhmCQRx9",
+      "news": "https://www.moddb.com/mods/command-conquer-tiberian-dawn-redux/articles",
+      "support": "https://cash.app/$jtmyers88",
+      "network": "https://www.moddb.com/mods/command-conquer-tiberian-dawn-redux/tutorials/online-gameplay-for-cc-tiberian-dawnred-alert-redux",
+      "colors": {
+        "active": "#ffde00",
+        "border": "#3da300",
+        "backgroundImage": "https://media.moddb.com/images/members/1/236/235607/GlBg.3.png"
+      },
+      "patches": [
+        {
+          "name": "Infestation Valley Shellmap",
+          "version": "1.9",
+          "dependsOn": "C&C Tiberian Dawn Redux"
+        },
+        {
+          "name": "Nod Ambush Shellmap",
+          "version": "1.9",
+          "dependsOn": "C&C Tiberian Dawn Redux"
+        }
+      ],
+      "addons": [
+        {
+          "name": "TD Redux Control Bar Pro",
+          "version": "1.03",
+          "dependsOn": "C&C Tiberian Dawn Redux"
+        },
+        {
+          "name": "Tiberian Dawn Redux Campaign Movies",
+          "version": "1.54",
+          "dependsOn": "C&C Tiberian Dawn Redux"
+        },
+        {
+          "name": "C&C 64 Music Remixes",
+          "version": "1.3",
+          "dependsOn": "C&C Tiberian Dawn Redux"
+        },
+        {
+          "name": "C&C Tiberian Dawn Redux Soundtrack Remixes",
+          "version": "1.05",
+          "dependsOn": "C&C Tiberian Dawn Redux"
+        },
+        {
+          "name": "C&C 2 Tiberian Sun Music Mod",
+          "version": "1.2",
+          "dependsOn": "C&C Tiberian Dawn Redux"
+        },
+        {
+          "name": "C&C 3 Tiberium Wars Music Mod",
+          "version": "1.2",
+          "dependsOn": "C&C Tiberian Dawn Redux"
+        },
+        {
+          "name": "Tiberian Dawn To Tiberium Wars Voice Mod",
+          "version": "1.04",
+          "dependsOn": "C&C Tiberian Dawn Redux"
+        }
+      ]
+    },
+    {
+      "name": "C&C Generals Continue",
+      "version": "3.52",
+      "page": "https://www.moddb.com/mods/generalszero-hour-continue",
+      "image": "https://i.imgur.com/k58urlZ.jpeg",
+      "discord": "https://discord.gg/8rbKcvnZx9",
+      "news": "https://www.moddb.com/mods/generalszero-hour-continue/news/continue-v35russian-faction-introduce",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "Condition Zero",
+      "version": "0.915.1",
+      "page": "https://www.moddb.com/mods/command-and-conquer-condition-zero",
+      "image": "https://i.imgur.com/hYl87tV.jpg",
+      "discord": "https://discord.gg/7NsTfDD",
+      "news": "https://www.moddb.com/mods/command-and-conquer-condition-zero/downloads/condition-zero-version-09",
+      "support": "https://ko-fi.com/nolifestudios",
+      "network": "https://www.moddb.com/company/no-life-studios/tutorials/how-to-play-nls-mods-online",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "Project Raptor",
+      "version": "V10 Alpha 0.3",
+      "page": "https://www.moddb.com/mods/project-raptor",
+      "image": "https://i.imgur.com/Zb0nNCG.jpg",
+      "discord": "https://discord.gg/7NsTfDD",
+      "news": "https://www.moddb.com/mods/project-raptor/news/project-raptor-v10-alpha-v03",
+      "support": "https://ko-fi.com/nolifestudios",
+      "network": "https://www.moddb.com/company/no-life-studios/tutorials/how-to-play-nls-mods-online",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "C&C Generals Version 2.0",
+      "version": "1.10 GenLauncherFix 4",
+      "page": "https://www.moddb.com/mods/command-conquer-generals-version-20",
+      "image": "https://media.moddb.com/images/members/1/236/235607/gens20genlauncherbanner.png",
+      "discord": "https://discord.com/channels/886293575128739860/938734627261141012",
+      "news": "https://www.moddb.com/mods/command-conquer-generals-version-20/articles",
+      "support": "https://cash.app/$jtmyers88",
+      "patches": [
+        {
+          "name": "Zero Hour Shell Map Remastered",
+          "version": "1.05 GenLauncherFix 3",
+          "dependsOn": "C&C Generals Version 2.0"
+        }
+      ],
+      "addons": []
+    },
+    {
+      "name": "Zero Hour Escalated",
+      "version": "7.1.2",
+      "page": "https://www.moddb.com/mods/zero-hour-escalated",
+      "image": "https://i.imgur.com/brs1QGw.png",
+      "discord": "https://discord.com/invite/q6yh9p5ctu",
+      "news": "https://www.moddb.com/mods/zero-hour-escalated/articles",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "C&C Power Play",
+      "version": "1.7.3",
+      "page": "https://www.moddb.com/mods/cc-power-play",
+      "image": "https://i.imgur.com/olfCEme.png",
+      "news": "https://www.moddb.com/mods/cc-power-play/articles",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "Revolution Project",
+      "version": "3.06",
+      "page": "https://www.moddb.com/mods/cc-generals-revolution",
+      "image": "https://i.imgur.com/TOL7nyD.png",
+      "discord": "https://discord.gg/k7sveg7Y5t",
+      "news": "https://docs.google.com/document/d/156mBIZDxidYHsrBxZpHpSD625KZD5mAE/edit?usp=sharing&ouid=107533281371781586658&rtpof=true&sd=true",
+      "patches": [
+        {
+          "name": "Russian Text",
+          "version": "3.05 Russian Language",
+          "page": "https://www.moddb.com/mods/cc-generals-revolution/downloads/russian-language-text",
+          "news": "https://www.moddb.com/mods/cc-generals-revolution/downloads/russian-language-text",
+          "dependsOn": "Revolution Project"
+        }
+      ],
+      "addons": [
+        {
+          "name": "Controlbar HD",
+          "version": "3.06 Controlbar HD",
+          "news": "https://www.moddb.com/games/cc-generals-zero-hour/addons/control-bar-pro-zero-hour-hd-control-bar-pro-generals-hd",
+          "dependsOn": "Revolution Project"
+        }
+      ]
+    },
+    {
+      "name": "Giant Robot Edition",
+      "version": "1.002",
+      "page": "https://www.moddb.com/mods/generals-giant-robot-edition",
+      "image": "https://i.ibb.co/P6nGWRz/modbanner500100.png",
+      "discord": "https://discord.gg/nls-official-place-for-everyone-491851861171765250",
+      "news": "https://www.moddb.com/mods/generals-giant-robot-edition",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "Cold War Crisis",
+      "version": "1.5",
+      "page": "https://www.moddb.com/mods/cold-war-crisis",
+      "image": "https://media.moddb.com/images/mods/1/4/3267/cwc_genlauncher_image.png",
+      "discord": "https://discord.com",
+      "news": "https://www.moddb.com/mods/cold-war-crisis",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "C&C Red Alert Redux",
+      "version": "1.05 GenLauncherFix 7.1",
+      "page": "https://www.moddb.com/mods/command-conquer-red-alert-redux",
+      "image": "https://media.moddb.com/images/members/1/236/235607/genlauncherbanner.4.png",
+      "discord": "https://discord.com/invite/FjFhmCQRx9",
+      "news": "https://www.moddb.com/mods/command-conquer-red-alert-redux/articles",
+      "support": "https://cash.app/$jtmyers88",
+      "network": "https://www.moddb.com/mods/command-conquer-red-alert-redux/tutorials/online-gameplay-for-cc-tiberian-dawnred-alert-redux",
+      "colors": {
+        "active": "#ffde00",
+        "border": "#b22626",
+        "backgroundImage": "https://media.moddb.com/images/members/1/236/235607/GlBg2.png"
+      },
+      "patches": [
+        {
+          "name": "Allied Themed Shellmap",
+          "version": "1.03",
+          "dependsOn": "C&C Red Alert Redux"
+        },
+        {
+          "name": "Soviet Themed Shellmap",
+          "version": "1.03",
+          "dependsOn": "C&C Red Alert Redux"
+        }
+      ],
+      "addons": [
+        {
+          "name": "Realistic Camo House Color Mod",
+          "version": "1.09",
+          "dependsOn": "C&C Red Alert Redux"
+        },
+        {
+          "name": "Red Alert Classic Skin Mod",
+          "version": "1.16",
+          "dependsOn": "C&C Red Alert Redux"
+        },
+        {
+          "name": "RA Redux Control Bar Pro",
+          "version": "1.01",
+          "dependsOn": "C&C Red Alert Redux"
+        }
+      ]
+    },
+    {
+      "name": "Zero Hour Enhanced",
+      "version": "1.0.0a GenLauncherFix 1",
+      "page": "https://www.moddb.com/mods/cc-generals-zero-hour-enhanced",
+      "image": "https://media.moddb.com/images/members/1/244/243031/profile/zhe_genlauncher_image.png",
+      "discord": "https://discord.gg/7NsTfDD",
+      "news": "https://www.moddb.com/mods/cc-generals-zero-hour-enhanced",
+      "support": "https://ko-fi.com/vectoriv",
+      "colors": {
+        "active": "#ffffff",
+        "border": "#808080",
+        "backgroundImage": "https://media.moddb.com/images/members/1/244/243031/profile/genlauncher_background.png"
+      },
+      "patches": [],
+      "addons": [
+        {
+          "name": "ZHE - HD Cameo",
+          "version": "1.0.0",
+          "dependsOn": "Zero Hour Enhanced"
+        },
+        {
+          "name": "ZHE - Infantry Icon 50%",
+          "version": "1.0.0",
+          "dependsOn": "Zero Hour Enhanced"
+        },
+        {
+          "name": "ZHE - Infantry Icon 75%",
+          "version": "1.0.0",
+          "dependsOn": "Zero Hour Enhanced"
+        },
+        {
+          "name": "ZHE - HD Faction Textures",
+          "version": "1.0.0",
+          "dependsOn": "Zero Hour Enhanced"
+        },
+        {
+          "name": "ZHE - HD Civilian Textures",
+          "version": "1.0.0",
+          "dependsOn": "Zero Hour Enhanced"
+        },
+        {
+          "name": "ZHE - QHD UI",
+          "version": "1.0.0",
+          "dependsOn": "Zero Hour Enhanced"
+        },
+        {
+          "name": "ZHE - FHD UI",
+          "version": "1.0.0",
+          "dependsOn": "Zero Hour Enhanced"
+        },
+        {
+          "name": "ZHE - Animated Vanilla Water",
+          "version": "1.0.0",
+          "dependsOn": "Zero Hour Enhanced"
+        },
+        {
+          "name": "ZHE - Medium Water Reflection",
+          "version": "1.0.0",
+          "dependsOn": "Zero Hour Enhanced"
+        },
+        {
+          "name": "ZHE - No DoF Filter",
+          "version": "1.0.0",
+          "dependsOn": "Zero Hour Enhanced"
+        }
+      ]
+    },
+    {
+      "name": "ProGen 2.6 Directors Cut",
+      "version": "2.6",
+      "page": "https://www.moddb.com/mods/progen",
+      "image": "https://i.imgur.com/bwh2nBv.jpg",
+      "discord": "https://discord.gg/7NsTfDD",
+      "news": "https://www.moddb.com/mods/progen/news/progen-is-back",
+      "support": "https://ko-fi.com/nolifestudios",
+      "network": "https://www.moddb.com/company/no-life-studios/tutorials/how-to-play-nls-mods-online",
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "forGenerals",
+      "version": "1.0.18.04",
+      "page": "https://www.moddb.com/mods/forgenerals",
+      "image": "https://media.moddb.com/images/members/5/4832/4831340/profile/forGenerals_banner_500x100.jpg",
+      "discord": "https://discord.gg/5RMy7MES",
+      "news": "https://www.moddb.com/mods/forgenerals/news/mod-description1",
+      "support": "https://ko-fi.com/forgenerals",
+      "network": "https://www.moddb.com/company/no-life-studios/tutorials/how-to-play-nls-mods-online",
+      "dependsOn": "for Generals",
+      "colors": {
+        "active": "#387cc5",
+        "border": "#7e96a7",
+        "backgroundImage": "https://media.moddb.com/images/members/5/4832/4831340/profile/Genlauncher_Background_forGenera.png"
+      },
+      "patches": [],
+      "addons": []
+    },
+    {
+      "name": "Patch 1.2 Project",
+      "version": "1.2.04",
+      "page": "https://www.moddb.com/mods/generals-zero-hour-patch-12",
+      "image": "https://www.dropbox.com/scl/fi/7gnu6em2u1rh4n3mjae7v/header-500-100.jpg?rlkey=1vixpsxx0e3glhulukx8j1x4j&st=efogqzxg&raw=1",
+      "news": "https://www.moddb.com/mods/generals-zero-hour-patch-12/news/patch-12-patch-notes",
+      "patches": [],
+      "addons": []
+    }
+  ],
+  "originalGame": {
+    "patches": [],
+    "addons": []
+  },
+  "executables": [
+    {
+      "name": "ModdedExe",
+      "version": "1.0.0",
+      "dependsOn": "Original Game",
+      "executableFileName": "modded.exe",
+      "replacesGameExe": true
+    },
+    {
+      "name": "Generals Online",
+      "version": "1.0.0",
+      "dependsOn": "Original Game",
+      "executableFileName": "GeneralsOnlineZH.exe",
+      "replacesGameExe": true
+    },
+    {
+      "name": "Gentools",
+      "version": "8.9",
+      "dependsOn": "Original Game"
+    }
+  ]
+}
