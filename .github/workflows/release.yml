@@ -1,0 +1,38 @@
+name: Release
+
+# Pushing a tag such as v0.1.0 builds the Windows setup program and attaches it to a draft release for review.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # optional: lets this build offer "Sign in with Google" (see README)
+          GENLAUNCHER_GOOGLE_CLIENT_SECRET: ${{ secrets.GENLAUNCHER_GOOGLE_CLIENT_SECRET }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: GenLauncher ${{ github.ref_name }}
+          releaseBody: |
+            Windows setup program (no administrator rights needed). The installer is not code-signed yet, so Windows
+            SmartScreen may ask you to confirm ("More info" > "Run anyway").
+          releaseDraft: true
+          prerelease: true
+          args: --bundles nsis

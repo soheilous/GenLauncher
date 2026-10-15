@@ -80,6 +80,11 @@
     kind = app.addDialog.kind;
     parent = app.addDialog.parent ?? app.activeMod.id;
     queueMicrotask(() => dialog?.focus());
+    if (preset?.file) {
+      // dropped onto the window: skip the choosing step
+      toDetails(guessFromFileName(preset.file), { type: "file", path: preset.file, pageUrl: null });
+      return;
+    }
     if (preset?.pageUrl) {
       // the catalog knows this mod's page: open it right away so the user only has to pick the version and download
       tab = "link";

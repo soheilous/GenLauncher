@@ -25,13 +25,31 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis"
+    ],
+    "publisher": "GenLauncher",
+    "copyright": "Copyright (c) 2026 soheilous and GenLauncher contributors. MIT License.",
+    "category": "Game",
+    "shortDescription": "A mod launcher for Command & Conquer: Generals and Zero Hour",
+    "longDescription": "Install, switch between and start mods, patches, add-ons and executables for Command & Conquer: Generals and Zero Hour. Your game folder is restored when the game closes.",
+    "license": "../LICENSE",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English"
+        ],
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico"
+      }
+    }
   }
 }

@@ -187,3 +187,14 @@ export const cloudBackupCreate = (ui: unknown, label?: string) => invoke<CloudBa
 export const cloudBackupList = () => invoke<CloudBackup[]>("cloud_backup_list");
 export const cloudBackupDelete = (id: string) => invoke<void>("cloud_backup_delete", { id });
 export const cloudBackupRestore = (id: string, currentUi: unknown) => invoke<{ games: string[]; ui: unknown }>("cloud_backup_restore", { id, currentUi });
+
+// ---- files dropped onto the window ----
+
+/** Tells which files or folders are dragged over the window (`over`) and which were dropped (`drop`). */
+export async function onFileDrop(cb: (e: { type: "enter" | "over" | "drop" | "leave"; paths: string[] }) => void): Promise<() => void> {
+  const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+  return getCurrentWebview().onDragDropEvent((e) => {
+    const p = e.payload;
+    cb({ type: p.type, paths: "paths" in p ? p.paths : [] });
+  });
+}

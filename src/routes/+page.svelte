@@ -154,6 +154,7 @@
 
   <SettingsDialog />
   <AddDialog />
+  {#if app.dragging}<div class="dropveil" aria-hidden="true"><div class="glass"><Icon name="download" size={28} /><strong>Drop to add a mod</strong><span>zip, 7z, rar, a .big file or a folder</span></div></div>{/if}
   <OptionsDialog />
   {#if app.toast}<div class="toast glass" role="status">{app.toast}</div>{/if}
 </div>
@@ -198,6 +199,9 @@
   .note .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .note .body p { overflow-wrap: anywhere; user-select: text; }
   .note small { color: var(--text-faint); }
+  .dropveil { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: var(--scrim); backdrop-filter: blur(6px); pointer-events: none; }
+  .dropveil .glass { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 34px 54px; border: 2px dashed var(--accent); background: var(--surface-solid); color: var(--text); border-radius: var(--r-lg); }
+  .dropveil span { color: var(--text-dim); }
   .toast { position: fixed; bottom: 108px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 999px; z-index: 30; animation: rise .3s var(--ease); background: var(--surface-solid); }
   @keyframes rise { from { opacity: 0; transform: translate(-50%, 10px); } }
   @media (max-width: 1000px) { :global(.detail) { display: none; } }

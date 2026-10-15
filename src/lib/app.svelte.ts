@@ -1,5 +1,5 @@
 import {
-  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
@@ -15,6 +15,8 @@ export interface AddPreset {
   pageUrl: string | null;
   /** Another version of something already installed: no "same name" confirmation needed. */
   update: boolean;
+  /** A file or folder already chosen (dropped onto the window). */
+  file?: string;
 }
 
 export type View = "library" | "discover" | "downloads" | "notifications";
@@ -147,6 +149,26 @@ class AppState {
       this.applyProgress();
     });
     void onInstallFinished((r) => void this.installFinished(r));
+    void onFileDrop((e) => {
+      if (e.type === "enter" || e.type === "over") this.dragging = this.phase === "ready" && !this.addDialog && !this.optionsOpen;
+      else this.dragging = false;
+      if (e.type === "drop" && e.paths.length && this.phase === "ready" && !this.addDialog && !this.optionsOpen) this.addDropped(e.paths);
+    });
+  }
+
+  /** True while something is being dragged over the window. */
+  dragging = $state(false);
+
+  /** A file or folder dropped onto the window: open the Add dialog with it chosen. */
+  private addDropped(paths: string[]) {
+    const first = paths[0];
+    if (/\.(png|jpe?g|webp|gif|bmp|ico)$/i.test(first)) {
+      this.say("That is an image. To change a mod's cover, use the Change cover button on its panel.");
+      return;
+    }
+    if (paths.length > 1) this.say("One at a time: adding the first of the dropped files.");
+    this.view = "library";
+    this.openAdd("mod", null, { name: "", pageUrl: null, update: false, file: first });
   }
 
   /** Installs run in the Rust core; this mirrors their progress onto whichever items are on screen. */
