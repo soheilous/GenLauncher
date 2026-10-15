@@ -19,6 +19,21 @@ jobs:
       # structure only on changes; links too on the weekly run
       - run: node tools/check-index.mjs ${{ github.event_name != 'schedule' && '--offline' || '' }}
 
+  website:
+    name: Website
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+
   app:
     name: Launcher
     runs-on: windows-latest

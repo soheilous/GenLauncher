@@ -1,0 +1,23 @@
+{
+  "name": "genlauncher-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The GenLauncher website: landing page, mod index browser, guide, privacy and terms.",
+  "scripts": {
+    "sync": "node scripts/sync.mjs",
+    "dev": "npm run sync && vite dev",
+    "build": "npm run sync && vite build",
+    "preview": "vite preview",
+    "check": "npm run sync && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^7.0.0",
+    "@sveltejs/kit": "^2.65.1",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "svelte": "^5.56.3",
+    "svelte-check": "^4.6.0",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16"
+  }
+}

@@ -59,6 +59,13 @@ Backups to Google Drive use the OAuth client in `src-tauri/src/google.rs`. Googl
 before running (`npm run tauri dev`) or building a release. Without it the rest of the launcher works and signing in
 says it is not set up. See [PRIVACY.md](PRIVACY.md) and [TERMS.md](TERMS.md).
 
+### Website
+
+`website/` is the project's site (landing page, searchable mod index, guide, privacy and terms), a static SvelteKit project
+of its own: `cd website && npm install && npm run dev`. It reads the mod index and the legal pages from this repository
+at build time. Deploying on Vercel: import the repository, set **Root Directory** to `website` and keep the detected
+SvelteKit preset; nothing else is needed.
+
 ### Layout of the code
 
 | Path | Purpose |
