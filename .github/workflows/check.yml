@@ -49,3 +49,15 @@ jobs:
           node-version: 22
       # stale texts and {values} that do not match the English text fail; a missing translation only falls back to English
       - run: node tools/check-i18n.mjs
+
+  demo:
+    name: Website demo is current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # the interactive demo on the website is built from the interface; a commit that changed one must carry the other
+      # (the pre-commit hook does it: run `npm run build:demo` if this fails)
+      - run: node tools/build-demo.mjs --check
