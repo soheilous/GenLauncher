@@ -1,8 +1,8 @@
 import {
-  addItem, backend, cancelInstall, exportConfig, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
-  type AddRequest, type LaunchTarget,
+  type AddRequest, type Backup, type LaunchTarget,
 } from "./backend";
 import { slugify } from "./guess";
 import { mockItems } from "./mock";
@@ -479,14 +479,54 @@ class AppState {
   }
 
   /** Replace this launcher's settings with those from a file (asks first), then restart the screen. */
+  backups = $state<Backup[]>([]);
+
+  async refreshBackups() {
+    if (!isTauri) return;
+    try { this.backups = await backupList(); } catch { /* the list is only a convenience */ }
+  }
+
+  async backUpNow(includeCovers: boolean) {
+    if (!isTauri) { this.say("Backups work in the desktop app."); return; }
+    try {
+      await this.flush();
+      await backupCreate(this.uiBundle(includeCovers));
+      this.say("Backup saved", "success");
+      await this.refreshBackups();
+    } catch (e) {
+      this.say(errText(e), "error");
+    }
+  }
+
+  async deleteBackup(b: Backup) {
+    try { await backupDelete(b.name); await this.refreshBackups(); } catch (e) { this.say(errText(e), "error"); }
+  }
+
+  /** Go back to a backup (asks first). The current settings are backed up before they are replaced. */
+  async restoreBackup(b: Backup) {
+    const when = new Date(b.at * 1000).toLocaleString();
+    const msg = `Go back to the settings saved on ${when}?\nYour current settings are backed up first, so you can undo this. Mods and game files are not touched.`;
+    if (!(await confirmDialog(msg, "Restore backup", "Restore", "Cancel"))) return;
+    try {
+      await this.flush();
+      const r = await backupRestore(b.name, this.uiBundle(false));
+      this.applyUiBundle(r.ui);
+      this.notify(`Settings restored from the backup of ${when}.`, "success");
+      location.reload();
+    } catch (e) {
+      this.say(errText(e), "error");
+    }
+  }
+
   async importConfiguration() {
     if (!isTauri) { this.say("Importing works in the desktop app."); return; }
     try {
       const path = await pickConfigFile();
       if (!path) return;
-      const msg = "Replace your current settings with the ones in this file?\nMods and game files are not touched.";
+      const msg = "Replace your current settings with the ones in this file?\nYour current settings are saved as a backup first. Mods and game files are not touched.";
       if (!(await confirmDialog(msg, "Import configuration", "Import", "Cancel"))) return;
-      const r = await importConfig(path);
+      await this.flush();
+      const r = await importConfig(path, this.uiBundle(false));
       this.applyUiBundle(r.ui);
       const names = r.games.map((g) => (g === "zh" ? "Zero Hour" : "Generals")).join(", ") || "look only";
       this.notify(`Configuration imported (${names}).`, "success");

@@ -5,7 +5,10 @@
 
   let dialog: HTMLDivElement | undefined = $state();
   let withCovers = $state(true);
-  $effect(() => { if (app.settingsOpen) dialog?.focus(); });
+  $effect(() => { if (app.settingsOpen) { dialog?.focus(); void app.refreshBackups(); } });
+
+  const LABELS: Record<string, string> = { manual: "Backup", "before-import": "Before an import", "before-restore": "Before a restore" };
+  const when = (at: number) => new Date(at * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 </script>
 
 <svelte:window onkeydown={(e) => { if (app.settingsOpen && e.key === "Escape") app.settingsOpen = false; }} />
@@ -53,6 +56,16 @@
         <button class="btn" onclick={() => app.importConfiguration()}><Icon name="folder" size={14} /> Import…</button>
       </div>
     </div>
+    <div class="line"><span>Versioned backups (the newest 20 are kept)</span>
+      <button class="btn" onclick={() => app.backUpNow(withCovers)}><Icon name="plus" size={14} /> Back up now</button></div>
+    {#each app.backups.slice(0, 6) as b (b.name)}
+      <div class="line bk"><span>{when(b.at)} <small>{LABELS[b.label] ?? b.label}</small></span>
+        <div class="pair">
+          <button class="btn" onclick={() => app.restoreBackup(b)}><Icon name="undo" size={14} /> Restore</button>
+          <button class="btn" aria-label="Delete this backup" title="Delete this backup" onclick={() => app.deleteBackup(b)}><Icon name="trash" size={14} /></button>
+        </div></div>
+    {/each}
+    {#if app.backups.length > 6}<p class="note">{app.backups.length - 6} older backups are kept too.</p>{/if}
     <p class="note">A configuration file holds your choices only (active mod, enabled patches, options, theme). Mod files are never included.</p>
   </div>
 {/if}
@@ -69,6 +82,7 @@
   .seg button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 13px; color: var(--text-dim); }
   .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
   .pair { display: flex; gap: 8px; }
+  .bk small { margin-left: 8px; color: var(--text-faint); }
   .slider { display: flex; align-items: center; gap: 12px; }
   input[type="range"] { accent-color: var(--accent); width: 170px; }
   output { min-width: 56px; text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }

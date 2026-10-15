@@ -1,5 +1,6 @@
 pub mod big;
 pub mod browser;
+pub mod backups;
 pub mod catalog;
 pub mod config;
 pub mod download;
@@ -336,9 +337,24 @@ async fn config_export(state: State<'_, AppState>, path: String, ui: serde_json:
     Ok(written)
 }
 
-/// Replace the settings of the installed games with those in the file at `path`.
+async fn backups_dir(state: &AppState) -> Result<PathBuf> {
+    let inner = state.inner.lock().await;
+    let dir = inner.config_path.parent().ok_or_else(|| Error::msg("The settings folder is unknown"))?;
+    Ok(backups::dir(dir))
+}
+
+/// Keep the current configuration as a backup (what an import or restore is about to replace).
+async fn back_up_current(state: &AppState, ui: serde_json::Value, label: &str) -> Result<backups::Backup> {
+    let cfg = collect_config(state, ui).await?;
+    let dir = backups_dir(state).await?;
+    let label = label.to_string();
+    blocking(move || backups::create(&dir, &cfg, &label)).await
+}
+
+/// Replace the settings of the installed games with those in the file at `path`. The current settings are
+/// kept as a backup first. `current_ui` is the look the UI has now, for that backup.
 #[tauri::command]
-async fn config_import(state: State<'_, AppState>, path: String) -> Result<ImportedConfig> {
+async fn config_import(state: State<'_, AppState>, path: String, current_ui: serde_json::Value) -> Result<ImportedConfig> {
     let text = blocking(move || {
         if std::fs::metadata(&path)?.len() > config::MAX_BYTES {
             return Err(Error::msg("That file is too large to be a GenLauncher configuration"));
@@ -347,6 +363,44 @@ async fn config_import(state: State<'_, AppState>, path: String) -> Result<Impor
     })
     .await?;
     let cfg = config::ConfigFile::parse(&text)?;
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game before importing a configuration"));
+    }
+    back_up_current(&state, current_ui, "before-import").await?;
+    let games = apply_config(&state, &cfg).await?;
+    Ok(ImportedConfig { games, ui: cfg.ui })
+}
+
+/// Save the current configuration as a backup.
+#[tauri::command]
+async fn backup_create(state: State<'_, AppState>, ui: serde_json::Value) -> Result<backups::Backup> {
+    back_up_current(&state, ui, "manual").await
+}
+
+#[tauri::command]
+async fn backup_list(state: State<'_, AppState>) -> Result<Vec<backups::Backup>> {
+    let dir = backups_dir(&state).await?;
+    blocking(move || Ok(backups::list(&dir))).await
+}
+
+#[tauri::command]
+async fn backup_delete(state: State<'_, AppState>, name: String) -> Result<()> {
+    let dir = backups_dir(&state).await?;
+    blocking(move || backups::delete(&dir, &name)).await
+}
+
+/// Go back to a backup. What is replaced is backed up first, so a restore can be undone the same way.
+#[tauri::command]
+async fn backup_restore(state: State<'_, AppState>, name: String, current_ui: serde_json::Value) -> Result<ImportedConfig> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game before restoring a backup"));
+    }
+    let dir = backups_dir(&state).await?;
+    let cfg = {
+        let dir = dir.clone();
+        blocking(move || backups::read(&dir, &name)).await?
+    };
+    back_up_current(&state, current_ui, "before-restore").await?;
     let games = apply_config(&state, &cfg).await?;
     Ok(ImportedConfig { games, ui: cfg.ui })
 }
@@ -1013,7 +1067,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
+            bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
             uninstall_version, open_browser, close_browser, open_item_folder
         ])
         .run(tauri::generate_context!())

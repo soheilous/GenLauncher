@@ -144,7 +144,13 @@ export const openItemFolder = (id: string, version?: string | null) => invoke<vo
 // ---- configuration files ----
 
 export const exportConfig = (path: string, ui: unknown) => invoke<string[]>("config_export", { path, ui });
-export const importConfig = (path: string) => invoke<{ games: string[]; ui: unknown }>("config_import", { path });
+export const importConfig = (path: string, currentUi: unknown) => invoke<{ games: string[]; ui: unknown }>("config_import", { path, currentUi });
+
+export interface Backup { name: string; at: number; label: string; bytes: number }
+export const backupCreate = (ui: unknown) => invoke<Backup>("backup_create", { ui });
+export const backupList = () => invoke<Backup[]>("backup_list");
+export const backupDelete = (name: string) => invoke<void>("backup_delete", { name });
+export const backupRestore = (name: string, currentUi: unknown) => invoke<{ games: string[]; ui: unknown }>("backup_restore", { name, currentUi });
 
 export async function pickConfigSavePath(): Promise<string | null> {
   const { save } = await import("@tauri-apps/plugin-dialog");
