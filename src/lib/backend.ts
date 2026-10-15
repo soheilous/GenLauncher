@@ -176,3 +176,14 @@ export interface Graphics {
 
 export const optionsLoad = () => invoke<{ path: string; exists: boolean; graphics: Graphics }>("options_load");
 export const optionsSave = (graphics: Graphics) => invoke<void>("options_save", { graphics });
+
+// ---- Google sign-in and Drive backups ----
+
+export interface CloudBackup { id: string; name: string; at: number; label: string; bytes: number }
+export const googleStatus = () => invoke<{ email: string } | null>("google_status");
+export const googleSignIn = () => invoke<{ email: string }>("google_sign_in");
+export const googleSignOut = () => invoke<void>("google_sign_out");
+export const cloudBackupCreate = (ui: unknown, label?: string) => invoke<CloudBackup>("cloud_backup_create", { ui, label });
+export const cloudBackupList = () => invoke<CloudBackup[]>("cloud_backup_list");
+export const cloudBackupDelete = (id: string) => invoke<void>("cloud_backup_delete", { id });
+export const cloudBackupRestore = (id: string, currentUi: unknown) => invoke<{ games: string[]; ui: unknown }>("cloud_backup_restore", { id, currentUi });

@@ -52,6 +52,13 @@ cargo test --test live -- --ignored --nocapture <test name>
 
 Without Tauri (plain `npm run dev` in a browser) the UI runs on mock data, which is what the visual tests use.
 
+### Google sign-in (optional feature)
+
+Backups to Google Drive use the OAuth client in `src-tauri/src/google.rs`. Google's token endpoint also wants the client
+"secret" of a desktop client (not confidential, but not stored in this repository): set `GENLAUNCHER_GOOGLE_CLIENT_SECRET`
+before running (`npm run tauri dev`) or building a release. Without it the rest of the launcher works and signing in
+says it is not set up. See [PRIVACY.md](PRIVACY.md).
+
 ### Layout of the code
 
 | Path | Purpose |

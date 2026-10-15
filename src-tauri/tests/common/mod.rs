@@ -14,6 +14,8 @@ pub struct Req {
     /// Path and query, e.g. `/bucket/?list-type=2`.
     pub target: String,
     pub headers: HashMap<String, String>,
+    /// The request body (as text), when there is one.
+    pub body: String,
 }
 
 pub struct Resp {
@@ -33,6 +35,10 @@ impl Resp {
     }
     pub fn header(mut self, k: &str, v: impl Into<String>) -> Self {
         self.headers.push((k.into(), v.into()));
+        self
+    }
+    pub fn body_text(mut self, t: &str) -> Self {
+        self.body = t.as_bytes().to_vec();
         self
     }
     pub fn cut(mut self, n: usize) -> Self {
@@ -64,7 +70,18 @@ pub async fn serve(handler: Handler) -> SocketAddr {
                         Ok(n) => buf.extend_from_slice(&chunk[..n]),
                     }
                 }
-                let text = String::from_utf8_lossy(&buf).into_owned();
+                // the body: whatever follows the headers, up to Content-Length
+                let head_end = buf.windows(4).position(|w| w == b"\r\n\r\n").map_or(buf.len(), |p| p + 4);
+                let head_text = String::from_utf8_lossy(&buf[..head_end]).to_lowercase();
+                let want: usize = head_text.lines().find_map(|l| l.strip_prefix("content-length:")).and_then(|v| v.trim().parse().ok()).unwrap_or(0);
+                while buf.len() < head_end + want {
+                    match sock.read(&mut chunk).await {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => buf.extend_from_slice(&chunk[..n]),
+                    }
+                }
+                let body = String::from_utf8_lossy(&buf[head_end.min(buf.len())..]).into_owned();
+                let text = String::from_utf8_lossy(&buf[..head_end]).into_owned();
                 let mut lines = text.split("\r\n");
                 let mut first = lines.next().unwrap_or("").split(' ');
                 let method = first.next().unwrap_or("").to_string();
@@ -74,10 +91,12 @@ pub async fn serve(handler: Handler) -> SocketAddr {
                     .filter_map(|l| l.split_once(':'))
                     .map(|(k, v)| (k.trim().to_lowercase(), v.trim().to_string()))
                     .collect();
-                let resp = handler(&Req { method, target, headers });
+                let resp = handler(&Req { method, target, headers, body });
 
                 let reason = match resp.status {
                     200 => "OK",
+                    400 => "Bad Request",
+                    401 => "Unauthorized",
                     206 => "Partial Content",
                     404 => "Not Found",
                     416 => "Range Not Satisfiable",

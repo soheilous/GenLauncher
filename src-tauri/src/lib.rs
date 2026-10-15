@@ -7,6 +7,7 @@ pub mod download;
 pub mod error;
 pub mod extract;
 pub mod game;
+pub mod google;
 pub mod game_files;
 pub mod journal;
 pub mod layout;
@@ -51,6 +52,8 @@ struct AppState {
     inner: Mutex<Inner>,
     /// For the mod index (small text files).
     http: reqwest::Client,
+    /// A Google access token and when to stop trusting it.
+    google_access: Mutex<Option<(String, std::time::Instant)>>,
     /// True from the start of a launch until the game folder is restored again.
     launching: AtomicBool,
     /// Installs in progress, by item id.
@@ -367,6 +370,129 @@ async fn config_import(state: State<'_, AppState>, path: String, current_ui: ser
         return Err(Error::msg("Close the game before importing a configuration"));
     }
     back_up_current(&state, current_ui, "before-import").await?;
+    let games = apply_config(&state, &cfg).await?;
+    Ok(ImportedConfig { games, ui: cfg.ui })
+}
+
+// ---------- Google sign-in and Drive backups ----------
+
+async fn google_session_path(state: &AppState) -> Result<PathBuf> {
+    let inner = state.inner.lock().await;
+    Ok(inner.config_path.parent().ok_or_else(|| Error::msg("The settings folder is unknown"))?.join("google.json"))
+}
+
+/// A valid access token: the cached one, or a fresh one from the saved sign-in.
+async fn google_token(state: &AppState) -> Result<String> {
+    if let Some((t, until)) = state.google_access.lock().await.as_ref() {
+        if std::time::Instant::now() < *until {
+            return Ok(t.clone());
+        }
+    }
+    let path = google_session_path(state).await?;
+    let session: google::Session = store::load(&path);
+    if session.refresh_token.is_empty() {
+        return Err(Error::msg("Sign in to Google first"));
+    }
+    let secret = google::require_client_secret()?;
+    match google::refresh(&state.http, &google::Endpoints::google(), &secret, &session.refresh_token).await {
+        Ok(t) => {
+            let until = std::time::Instant::now() + std::time::Duration::from_secs(t.expires_in.saturating_sub(60).max(30));
+            *state.google_access.lock().await = Some((t.access_token.clone(), until));
+            Ok(t.access_token)
+        }
+        Err(Error::SignedOut) => {
+            let _ = std::fs::remove_file(&path);
+            *state.google_access.lock().await = None;
+            Err(Error::SignedOut)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+#[derive(Serialize)]
+struct Account {
+    email: String,
+}
+
+/// Who is signed in (read from this computer; no network).
+#[tauri::command]
+async fn google_status(state: State<'_, AppState>) -> Result<Option<Account>> {
+    let session: google::Session = store::load(&google_session_path(&state).await?);
+    Ok((!session.refresh_token.is_empty()).then_some(Account { email: session.email }))
+}
+
+/// Sign in with Google in the system browser. Returns when the person has finished (or gave up).
+#[tauri::command]
+async fn google_sign_in(app: AppHandle, state: State<'_, AppState>) -> Result<Account> {
+    use tauri_plugin_opener::OpenerExt;
+    let secret = google::require_client_secret()?;
+    let ep = google::Endpoints::google();
+    let verifier = google::random_string(64)?;
+    let nonce = google::random_string(32)?;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.map_err(|e| Error::msg(format!("Could not listen for Google's answer: {e}")))?;
+    let redirect = format!("http://127.0.0.1:{}", listener.local_addr()?.port());
+    let url = google::auth_url(&ep, &redirect, &nonce, &google::pkce_challenge(&verifier))?;
+    app.opener().open_url(url, None::<&str>).map_err(|e| Error::msg(format!("Could not open your browser: {e}")))?;
+
+    let code = google::wait_for_redirect(listener, &nonce, std::time::Duration::from_secs(300)).await?;
+    let tokens = google::exchange_code(&state.http, &ep, &secret, &code, &verifier, &redirect).await?;
+    let refresh_token = tokens.refresh_token.clone().ok_or_else(|| Error::msg("Google did not allow GenLauncher to stay signed in. Try again and accept every permission."))?;
+    let email = tokens.id_token.as_deref().and_then(google::email_from_id_token).unwrap_or_default();
+    store::save(&google_session_path(&state).await?, &google::Session { refresh_token, email: email.clone() })?;
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(tokens.expires_in.saturating_sub(60).max(30));
+    *state.google_access.lock().await = Some((tokens.access_token, until));
+    Ok(Account { email })
+}
+
+/// Forget the sign-in on this computer and tell Google to drop it. Backups already in Drive stay there.
+#[tauri::command]
+async fn google_sign_out(state: State<'_, AppState>) -> Result<()> {
+    let path = google_session_path(&state).await?;
+    let session: google::Session = store::load(&path);
+    *state.google_access.lock().await = None;
+    let _ = std::fs::remove_file(&path);
+    if !session.refresh_token.is_empty() {
+        google::revoke(&state.http, &google::Endpoints::google(), &session.refresh_token).await;
+    }
+    Ok(())
+}
+
+/// Save the current configuration to the hidden app folder in Google Drive.
+#[tauri::command]
+async fn cloud_backup_create(state: State<'_, AppState>, ui: serde_json::Value, label: Option<String>) -> Result<google::CloudBackup> {
+    let token = google_token(&state).await?;
+    let cfg = collect_config(&state, ui).await?;
+    let name = backups::file_name(cfg.exported_at, label.as_deref().unwrap_or("manual"));
+    let ep = google::Endpoints::google();
+    let made = google::upload(&state.http, &ep, &token, &name, &cfg.to_json()?).await?;
+    if let Err(e) = google::prune(&state.http, &ep, &token, backups::KEEP).await {
+        log::warn!("could not prune old cloud backups: {e}");
+    }
+    Ok(made)
+}
+
+#[tauri::command]
+async fn cloud_backup_list(state: State<'_, AppState>) -> Result<Vec<google::CloudBackup>> {
+    let token = google_token(&state).await?;
+    google::list(&state.http, &google::Endpoints::google(), &token).await
+}
+
+#[tauri::command]
+async fn cloud_backup_delete(state: State<'_, AppState>, id: String) -> Result<()> {
+    let token = google_token(&state).await?;
+    google::delete(&state.http, &google::Endpoints::google(), &token, &id).await
+}
+
+/// Go back to a backup in Drive. The current settings are backed up (on this computer) first.
+#[tauri::command]
+async fn cloud_backup_restore(state: State<'_, AppState>, id: String, current_ui: serde_json::Value) -> Result<ImportedConfig> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game before restoring a backup"));
+    }
+    let token = google_token(&state).await?;
+    let text = google::download(&state.http, &google::Endpoints::google(), &token, &id).await?;
+    let cfg = config::ConfigFile::parse(&text)?;
+    back_up_current(&state, current_ui, "before-restore").await?;
     let games = apply_config(&state, &cfg).await?;
     Ok(ImportedConfig { games, ui: cfg.ui })
 }
@@ -1037,6 +1163,7 @@ pub fn run() {
             let config: AppConfig = store::load(&config_path);
             app.manage(AppState {
                 inner: Mutex::new(Inner { config_path, config, install: None, catalog: None, extras: HashMap::new() }),
+                google_access: Mutex::new(None),
                 http: reqwest::Client::builder()
                     .user_agent(concat!("GenLauncher/", env!("CARGO_PKG_VERSION")))
                     .connect_timeout(std::time::Duration::from_secs(10))
@@ -1067,7 +1194,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
-            bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
+            bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, google_status, google_sign_in, google_sign_out, cloud_backup_create, cloud_backup_list, cloud_backup_delete, cloud_backup_restore, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
             uninstall_version, open_browser, close_browser, open_item_folder
         ])
         .run(tauri::generate_context!())

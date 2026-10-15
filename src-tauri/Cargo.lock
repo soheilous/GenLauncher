@@ -1395,7 +1395,9 @@ dependencies = [
 name = "genlauncher2"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "futures",
+ "getrandom 0.3.4",
  "hex",
  "log",
  "md-5",

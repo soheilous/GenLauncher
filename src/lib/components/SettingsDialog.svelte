@@ -5,7 +5,7 @@
 
   let dialog: HTMLDivElement | undefined = $state();
   let withCovers = $state(true);
-  $effect(() => { if (app.settingsOpen) { dialog?.focus(); void app.refreshBackups(); } });
+  $effect(() => { if (app.settingsOpen) { dialog?.focus(); void app.refreshBackups(); void app.refreshCloudBackups(); } });
 
   const LABELS: Record<string, string> = { manual: "Backup", "before-import": "Before an import", "before-restore": "Before a restore" };
   const when = (at: number) => new Date(at * 1000).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -66,6 +66,25 @@
         </div></div>
     {/each}
     {#if app.backups.length > 6}<p class="note">{app.backups.length - 6} older backups are kept too.</p>{/if}
+    <h3>Google Drive</h3>
+    {#if app.google}
+      <div class="line"><span>Signed in as <b>{app.google.email || "your Google account"}</b></span>
+        <button class="btn" onclick={() => app.signOutGoogle()}>Sign out</button></div>
+      <div class="line"><span>Back up automatically when settings change</span>
+        <Toggle label="Back up automatically" checked={app.autoCloud} onchange={(v) => app.setAutoCloud(v)} /></div>
+      <div class="line"><span>Saved in a hidden folder only GenLauncher can see</span>
+        <button class="btn" onclick={() => app.cloudBackUpNow("manual", withCovers)}><Icon name="plus" size={14} /> Back up now</button></div>
+      {#each app.cloudBackups.slice(0, 6) as b (b.id)}
+        <div class="line bk"><span>{when(b.at)} <small>{LABELS[b.label] ?? (b.label === "auto" ? "Automatic" : b.label)}</small></span>
+          <div class="pair">
+            <button class="btn" onclick={() => app.restoreCloudBackup(b)}><Icon name="undo" size={14} /> Restore</button>
+            <button class="btn" aria-label="Delete this backup" title="Delete this backup" onclick={() => app.deleteCloudBackup(b)}><Icon name="trash" size={14} /></button>
+          </div></div>
+      {/each}
+    {:else}
+      <div class="line"><span>Keep your settings in your own Google Drive and bring them to a new PC</span>
+        <button class="btn primary" disabled={app.googleBusy} onclick={() => app.signInGoogle()}>{app.googleBusy ? "Waiting for the browser…" : "Sign in with Google"}</button></div>
+    {/if}
     <p class="note">A configuration file holds your choices only (active mod, enabled patches, options, theme). Mod files are never included.</p>
   </div>
 {/if}

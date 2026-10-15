@@ -65,7 +65,7 @@ pub fn file_name(at: u64, label: &str) -> String {
 }
 
 /// Read `config-YYYYMMDD-HHMMSS-label.json`. Anything else in the folder is not ours.
-fn parse_name(name: &str) -> Option<(u64, String)> {
+pub fn parse_name(name: &str) -> Option<(u64, String)> {
     let rest = name.strip_prefix("config-")?.strip_suffix(".json")?;
     let (date, rest) = rest.split_once('-')?;
     let (time, label) = rest.split_once('-')?;

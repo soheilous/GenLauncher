@@ -1,8 +1,8 @@
 import {
-  addItem, backend, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
-  type AddRequest, type Backup, type LaunchTarget,
+  type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
 } from "./backend";
 import { slugify } from "./guess";
 import { mockItems } from "./mock";
@@ -349,6 +349,7 @@ class AppState {
       this.phase = "ready";
       this.applyTheme();
       void this.checkAnnouncements();
+      void this.refreshGoogle();
       await this.ensureExtras(this.activeModId);
     } catch (e) {
       this.say(`Could not load the library: ${errText(e)}`, "error");
@@ -432,6 +433,7 @@ class AppState {
     if (!isTauri) { save("settings", s); return; }
     try {
       await backend.saveSettings(s);
+      this.maybeAutoCloudBackup();
     } catch (e) {
       this.say(`Could not save settings: ${errText(e)}`, "error");
       throw e;
@@ -480,6 +482,109 @@ class AppState {
 
   /** Replace this launcher's settings with those from a file (asks first), then restart the screen. */
   backups = $state<Backup[]>([]);
+
+  // --- Google Drive ---
+  google = $state<{ email: string } | null>(null);
+  cloudBackups = $state<CloudBackup[]>([]);
+  googleBusy = $state(false);
+  autoCloud = $state(load("autoCloud", true));
+
+  private googleFailed(e: unknown) {
+    const msg = errText(e);
+    if (/sign-in has expired/i.test(msg)) this.google = null; // the saved sign-in no longer works
+    this.say(msg, "error");
+  }
+
+  async refreshGoogle() {
+    if (!isTauri) return;
+    try { this.google = await googleStatus(); } catch { this.google = null; }
+    if (this.google) void this.refreshCloudBackups();
+  }
+
+  async refreshCloudBackups() {
+    if (!isTauri || !this.google) return;
+    try { this.cloudBackups = await cloudBackupList(); } catch (e) { this.googleFailed(e); }
+  }
+
+  async signInGoogle() {
+    if (!isTauri) { this.say("Signing in works in the desktop app."); return; }
+    this.googleBusy = true;
+    try {
+      this.google = await googleSignIn();
+      this.notify(`Signed in to Google as ${this.google.email || "your account"}.`, "success");
+      await this.refreshCloudBackups();
+      const newest = this.cloudBackups[0];
+      if (newest) {
+        // probably a new computer, or a reinstall: offer to take the saved settings
+        const when = new Date(newest.at * 1000).toLocaleString();
+        if (await confirmDialog(`Your Google Drive has a settings backup from ${when}.\nRestore it? Your current settings are backed up first.`, "Restore from Google Drive", "Restore", "Keep mine")) {
+          await this.restoreCloudBackup(newest, false);
+        }
+      } else {
+        await this.cloudBackUpNow("signin", false);
+      }
+    } catch (e) {
+      this.googleFailed(e);
+    } finally {
+      this.googleBusy = false;
+    }
+  }
+
+  async signOutGoogle() {
+    try { await googleSignOut(); } catch { /* signed out locally anyway */ }
+    this.google = null;
+    this.cloudBackups = [];
+    this.say("Signed out of Google. Backups already in your Drive are kept.");
+  }
+
+  setAutoCloud(v: boolean) { this.autoCloud = v; save("autoCloud", v); }
+
+  async cloudBackUpNow(label = "manual", withCovers = false, announce = true) {
+    if (!this.google) return;
+    try {
+      await this.flush();
+      await cloudBackupCreate(this.uiBundle(withCovers), label);
+      save("cloudHash", this.settingsFingerprint());
+      save("cloudAt", Date.now());
+      if (announce) this.say("Backed up to Google Drive", "success");
+      await this.refreshCloudBackups();
+    } catch (e) {
+      this.googleFailed(e);
+    }
+  }
+
+  async deleteCloudBackup(b: CloudBackup) {
+    try { await cloudBackupDelete(b.id); await this.refreshCloudBackups(); } catch (e) { this.googleFailed(e); }
+  }
+
+  async restoreCloudBackup(b: CloudBackup, ask = true) {
+    const when = new Date(b.at * 1000).toLocaleString();
+    if (ask) {
+      const msg = `Go back to the settings saved on ${when}?\nYour current settings are backed up first, so you can undo this. Mods and game files are not touched.`;
+      if (!(await confirmDialog(msg, "Restore backup", "Restore", "Cancel"))) return;
+    }
+    try {
+      await this.flush();
+      const r = await cloudBackupRestore(b.id, this.uiBundle(false));
+      this.applyUiBundle(r.ui);
+      this.notify(`Settings restored from Google Drive (${when}).`, "success");
+      location.reload();
+    } catch (e) {
+      this.googleFailed(e);
+    }
+  }
+
+  private settingsFingerprint() {
+    return JSON.stringify({ s: this.currentSettings(), ui: this.uiBundle(false) });
+  }
+
+  /** After the settings changed: keep Drive up to date, at most every half hour and only when something is different. */
+  private maybeAutoCloudBackup() {
+    if (!this.google || !this.autoCloud || this.googleBusy) return;
+    if (Date.now() - load("cloudAt", 0) < 30 * 60 * 1000) return;
+    if (load("cloudHash", "") === this.settingsFingerprint()) return;
+    void this.cloudBackUpNow("auto", false, false);
+  }
 
   async refreshBackups() {
     if (!isTauri) return;

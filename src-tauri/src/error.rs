@@ -13,6 +13,9 @@ pub enum Error {
     /// A network hiccup worth retrying (timeout, reset connection, 5xx).
     #[error("connection problem: {0}")]
     Transient(String),
+    /// Google no longer accepts the saved sign-in (revoked, expired, or the password changed).
+    #[error("Your Google sign-in has expired. Sign in again.")]
+    SignedOut,
     /// The user cancelled; not a failure worth reporting.
     #[error("cancelled")]
     Cancelled,
