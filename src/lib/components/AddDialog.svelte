@@ -10,6 +10,7 @@
   } from "$lib/guess";
   import type { ModKind } from "$lib/types";
   import Icon from "./Icon.svelte";
+  import Select from "./Select.svelte";
 
   type Source =
     | { type: "file"; path: string; pageUrl: string | null }
@@ -142,6 +143,16 @@
     error = message;
   }
 
+  /** A dropped file does not say what it is, so the dialog asks (everywhere else the entry point already decides). */
+  const askType = $derived(!!app.addDialog?.preset?.askType);
+  const KINDS: { value: ModKind; label: string }[] = [
+    { value: "mod", label: "Mod" },
+    { value: "patch", label: "Patch" },
+    { value: "addon", label: "Add-on" },
+    { value: "exe", label: "Executable" },
+  ];
+  /** Patches, add-ons and executables belong to a mod that is installed (the stock game counts). */
+  const parentOptions = $derived(app.mods.filter((m) => m.versions.some((v) => v.installed)).map((m) => ({ value: m.id, label: m.name })));
   const parentName = $derived(app.mods.find((m) => m.id === parent)?.name ?? "");
   const title = $derived(
     kind === "mod" ? "Add a mod" : `Add ${kind === "exe" ? "an executable" : "a " + kind}${parentName ? " for " + parentName : ""}`
@@ -359,6 +370,20 @@
       {/if}
 
       <div class="form">
+        {#if askType}
+          <div class="field">
+            <span id="kind-label">What is it?</span>
+            <div class="tabs kinds" role="group" aria-labelledby="kind-label">
+              {#each KINDS as k}<button aria-pressed={kind === k.value} class:on={kind === k.value} onclick={() => (kind = k.value)}>{k.label}</button>{/each}
+            </div>
+          </div>
+          {#if kind !== "mod"}
+            <div class="field">
+              <span id="parent-label">Which mod is it for?</span>
+              <Select label="Which mod is it for?" options={parentOptions} value={parent} onchange={(v) => (parent = v)} />
+            </div>
+          {/if}
+        {/if}
         <label class="field">
           <span>Name</span>
           <input bind:value={name} spellcheck="false" onkeydown={(e) => e.key === "Enter" && submit()} />
@@ -423,6 +448,7 @@
   .choice:hover { background: var(--accent-soft); border-color: var(--accent); transform: translateY(-2px); }
   .choice:focus-visible, .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .choice small { color: var(--text-faint); }
+  .tabs.kinds { margin-bottom: 0; }
   .field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
   .field > span { font-size: 12px; color: var(--text-faint); }
   .field.narrow { max-width: 200px; }

@@ -17,6 +17,8 @@ export interface AddPreset {
   update: boolean;
   /** A file or folder already chosen (dropped onto the window). */
   file?: string;
+  /** Nothing says what it is (a dropped file), so the dialog asks: mod, patch, add-on or executable, and for which mod. */
+  askType?: boolean;
 }
 
 export type View = "library" | "discover" | "downloads" | "notifications";
@@ -168,7 +170,7 @@ class AppState {
     }
     if (paths.length > 1) this.say("One at a time: adding the first of the dropped files.");
     this.view = "library";
-    this.openAdd("mod", null, { name: "", pageUrl: null, update: false, file: first });
+    this.openAdd("mod", null, { name: "", pageUrl: null, update: false, file: first, askType: true });
   }
 
   /** Installs run in the Rust core; this mirrors their progress onto whichever items are on screen. */
@@ -869,6 +871,6 @@ export const app = new AppState();
 if (import.meta.env.DEV && typeof window !== "undefined") {
   window.addEventListener("genlauncher-test-drop", () => {
     const file = localStorage.getItem("test-drop");
-    if (file) app.openAdd("mod", null, { name: "", pageUrl: null, update: false, file });
+    if (file) app.openAdd("mod", null, { name: "", pageUrl: null, update: false, file, askType: true });
   });
 }
