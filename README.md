@@ -115,3 +115,7 @@ published on, cover images), never a download link or a file. Anyone can add or 
   storage details were left out on purpose). Thank you for years of work for the C&C community.
 - The authors of every mod listed: the mods and their pages are theirs.
 - Command & Conquer is a trademark of Electronic Arts. This is a fan project and is not affiliated with EA.
+
+## License
+
+[MIT](LICENSE) © soheilous and GenLauncher contributors. See [NOTICE.md](NOTICE.md) for third-party material and credits.
