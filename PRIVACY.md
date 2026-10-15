@@ -3,7 +3,7 @@
 GenLauncher runs on your computer and has no server of its own. It collects no analytics and sends nothing about you
 anywhere, except what is described here.
 
-**Mod index and messages.** The launcher downloads the public files in [`index/`](index/) from GitHub (the list of mods
+**Mod index and messages.** The launcher downloads the public files in [mod catalog](https://github.com/soheilous/generals-mod-catalog) from GitHub (the list of mods
 and the project's announcements). GitHub sees an ordinary web request.
 
 **Mods.** Mods are downloaded by you, from the pages of their authors, in the launcher's built-in browser or your own.

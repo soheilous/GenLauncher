@@ -1,5 +1,5 @@
 // Copies what the website shows from the rest of the repository into src/lib/generated/:
-//   - the mod index (../index/*.json)
+//   - the mod catalog (github.com/soheilous/generals-mod-catalog; the snapshot in ../src-tauri/bundled/ if GitHub is unreachable)
 //   - the privacy policy and terms of service (../PRIVACY.md, ../TERMS.md), turned into HTML
 // If the files outside website/ are not available (a build that only has this folder), they are fetched from GitHub.
 
@@ -12,6 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..", "..");
 const out = path.join(here, "..", "src", "lib", "generated");
 const RAW = "https://raw.githubusercontent.com/soheilous/GenLauncher/main/";
+const CATALOG = "https://raw.githubusercontent.com/soheilous/generals-mod-catalog/main/catalog/";
 fs.mkdirSync(out, { recursive: true });
 
 async function read(rel) {
@@ -20,6 +21,18 @@ async function read(rel) {
   const r = await fetch(RAW + rel);
   if (!r.ok) throw new Error(`${rel}: neither in the repository nor on GitHub (${r.status})`);
   return r.text();
+}
+
+/** The latest catalog file from its repository; the snapshot shipped with the launcher when that cannot be reached. */
+async function readCatalog(file) {
+  try {
+    const r = await fetch(CATALOG + file, { signal: AbortSignal.timeout(20000) });
+    if (r.ok) return await r.text();
+    console.warn(`catalog ${file}: HTTP ${r.status}, using the bundled snapshot`);
+  } catch (e) {
+    console.warn(`catalog ${file}: ${e.message}, using the bundled snapshot`);
+  }
+  return read("src-tauri/bundled/" + file);
 }
 
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -59,7 +72,7 @@ function markdown(md) {
   return html.join("\n");
 }
 
-const [zh, generals, privacy, terms] = await Promise.all([read("index/zero-hour.json"), read("index/generals.json"), read("PRIVACY.md"), read("TERMS.md")]);
+const [zh, generals, privacy, terms] = await Promise.all([readCatalog("zero-hour.json"), readCatalog("generals.json"), read("PRIVACY.md"), read("TERMS.md")]);
 /**
  * Mod cover images are kept on this site, so a card does not depend on imgur or Discord staying up.
  * Each image is downloaded once into static/covers/ (and committed); an existing file is never fetched again, and an

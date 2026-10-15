@@ -1,7 +1,7 @@
 <script lang="ts">
   import ModCard from "$lib/ModCard.svelte";
   import Faq from "$lib/Faq.svelte";
-  import { featured, stats, REPO } from "$lib/data";
+  import { CATALOG, featured, stats, REPO } from "$lib/data";
 
   const shots = [
     { id: "library", label: "Library", text: "Your mods, each with its own art and accent colour. Pick a version, switch patches and add-ons on or off, and press Play." },
@@ -80,7 +80,7 @@
 </section>
 
 <section class="wrap metrics" aria-label="In numbers">
-  <div><strong>{stats.mods}</strong><span>mods in the index</span></div>
+  <div><strong>{stats.mods}</strong><span>mods in the catalog</span></div>
   <div><strong>{stats.patches + stats.addons}</strong><span>patches &amp; add-ons</span></div>
   <div><strong>2</strong><span>games supported</span></div>
   <div><strong>0</strong><span>files hosted by us</span></div>
@@ -110,11 +110,11 @@
 </section>
 
 <section class="wrap block" aria-labelledby="mods-h">
-  <div class="head"><h2 id="mods-h">A growing mod index</h2><a href="/mods">See all {stats.mods} mods →</a></div>
+  <div class="head"><h2 id="mods-h">A growing mod catalog</h2><a href="/mods">See all {stats.mods} mods →</a></div>
   <div class="grid4">
     {#each featured as m (m.name)}<ModCard mod={m} />{/each}
   </div>
-  <p class="note">The index only points to each mod's page; every file comes from its author. Missing a mod or found a dead link? <a href="{REPO}/tree/main/index" rel="noopener">Improve the index on GitHub.</a></p>
+  <p class="note">The catalog only points to each mod's page; every file comes from its author. Missing a mod or found a dead link? <a href={CATALOG} rel="noopener">Improve the catalog on GitHub.</a></p>
 </section>
 
 <section class="wrap block get" id="get" aria-labelledby="get-h">

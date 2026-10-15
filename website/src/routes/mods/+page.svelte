@@ -1,6 +1,6 @@
 <script lang="ts">
   import ModCard from "$lib/ModCard.svelte";
-  import { GAMES, mods, stats, REPO, type GameKey } from "$lib/data";
+  import { CATALOG, GAMES, mods, stats, type GameKey } from "$lib/data";
 
   let query = $state("");
   let game = $state<"all" | GameKey>("all");
@@ -21,11 +21,11 @@
 
 <svelte:head>
   <title>Mods · GenLauncher</title>
-  <meta name="description" content="The GenLauncher mod index: {stats.mods} Generals and Zero Hour mods with their patches and add-ons, each linking to its author's own page." />
+  <meta name="description" content="The GenLauncher mod catalog: {stats.mods} Generals and Zero Hour mods with their patches and add-ons, each linking to its author's own page." />
 </svelte:head>
 
 <div class="wrap page">
-  <h1>Mod index</h1>
+  <h1>Mod catalog</h1>
   <p class="lead">{stats.mods} mods with {stats.patches} patches and {stats.addons} add-ons. This list only points to each mod's own page; every download comes from its author. Last updated {stats.updated}.</p>
 
   <div class="tools" role="search">
@@ -47,9 +47,9 @@
   <div class="grid">
     {#each shown as m (m.game + m.name)}<ModCard mod={m} />{/each}
   </div>
-  {#if shown.length === 0}<p class="empty">Nothing matches. Try another word, or <a href="{REPO}/tree/main/index" rel="noopener">add the mod to the index</a>.</p>{/if}
+  {#if shown.length === 0}<p class="empty">Nothing matches. Try another word, or <a href="{CATALOG}" rel="noopener">add the mod to the index</a>.</p>{/if}
 
-  <p class="note">Missing a mod, a patch, or a newer version? The index is a plain file in the repository: <a href="{REPO}/tree/main/index" rel="noopener">send a pull request</a>.</p>
+  <p class="note">Missing a mod, a patch, or a newer version? The catalog is a plain file in its own repository: <a href="{CATALOG}" rel="noopener">send a pull request</a>.</p>
 </div>
 
 <style>

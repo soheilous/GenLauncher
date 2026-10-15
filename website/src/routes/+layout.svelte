@@ -1,7 +1,7 @@
 <script lang="ts">
   import "../app.css";
   import { page } from "$app/state";
-  import { REPO } from "$lib/data";
+  import { CATALOG, REPO } from "$lib/data";
 
   let { children } = $props();
 
@@ -55,7 +55,7 @@
     </div>
     <div>
       <h3>Project</h3>
-      <a href={REPO} rel="noopener">Source on GitHub</a><a href="{REPO}/issues" rel="noopener">Report a problem</a><a href="{REPO}/tree/main/index" rel="noopener">Improve the mod index</a>
+      <a href={REPO} rel="noopener">Source on GitHub</a><a href="{REPO}/issues" rel="noopener">Report a problem</a><a href={CATALOG} rel="noopener">Improve the mod catalog</a>
     </div>
     <div>
       <h3>Legal</h3>

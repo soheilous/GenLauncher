@@ -5,7 +5,7 @@ mods, patches, addons and alternate executables, then press Play. Your game fold
 even if the launcher or the PC dies mid-game.
 
 Rewrite of the original GenLauncher (WPF, .NET Framework) as a small native app: **Tauri 2** (Rust core) with a
-**SvelteKit** UI. Mods are listed in this repository's own [mod index](index/README.md). Windows first, Linux (Wine/Proton) planned.
+**SvelteKit** UI. Mods are listed in the open [mod catalog](https://github.com/soheilous/generals-mod-catalog). Windows first, Linux (Wine/Proton) planned.
 
 ## How it works
 
@@ -101,17 +101,18 @@ downloaded from.
 
 ### The mod index
 
-Discover, and the patches / addons / executables listed under each mod, come from [`index/`](index/README.md): one JSON
-file per game, kept in this repository and read by the launcher from GitHub (a copy is built into every release, and the
-last one fetched is cached, so it works offline). It holds pointers only (names, latest version, the page a mod is
-published on, cover images), never a download link or a file. Anyone can add or fix an entry with a pull request; `node tools/check-index.mjs` checks the structure and that the pages still exist (it also runs weekly on GitHub).
+Discover, and the patches / addons / executables listed under each mod, come from the [mod catalog](https://github.com/soheilous/generals-mod-catalog): one JSON
+file per game in its own repository, read by the launcher from GitHub (a snapshot is built into every release in
+`src-tauri/bundled/`, refreshed with `node tools/sync-catalog.mjs`, and the last copy fetched is cached, so it works
+offline). It holds pointers only (names, latest version, the page a mod is published on, cover images), never a download
+link or a file. Anyone can add or fix an entry with a pull request there.
 
 ## Credits
 
 - **p0ls3r** and the contributors of the original [GenLauncher](https://github.com/p0ls3r/GenLauncher) created the launcher
   this project continues, and gathered the mod list in
   [p0ls3r/GenLauncherModsData](https://github.com/p0ls3r/GenLauncherModsData). The first version of our
-  [mod index](index/README.md) was converted from that list (names, versions, pages, covers and colors; download links and
+  [mod catalog](https://github.com/soheilous/generals-mod-catalog) was converted from that list (names, versions, pages, covers and colors; download links and
   storage details were left out on purpose). Thank you for years of work for the C&C community.
 - The authors of every mod listed: the mods and their pages are theirs.
 - Command & Conquer is a trademark of Electronic Arts. This is a fan project and is not affiliated with EA.

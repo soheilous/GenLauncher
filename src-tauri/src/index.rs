@@ -1,8 +1,9 @@
-//! The mod index: a list of mods and where to find them, kept in this repository (`index/*.json`).
+//! The mod catalog: a list of mods and where to find them, kept in its own repository
+//! (github.com/soheilous/generals-mod-catalog, `catalog/*.json`).
 //!
 //! It holds pointers only: names, the latest known version, the page a mod is published on, and some styling. It never
 //! contains a download link or a file: the launcher opens the page in its built-in browser and the user downloads the
-//! file from the people who published it. Anyone can improve the index with a pull request.
+//! file from the people who published it. Anyone can improve the catalog with a pull request.
 //!
 //! The first version of the index was converted from the mod list of GenLauncher 1.x by p0ls3r
 //! (github.com/p0ls3r/GenLauncherModsData); see the credits in the README.
@@ -105,7 +106,7 @@ pub struct Index {
     pub executables: Vec<ExeEntry>,
 }
 
-/// A message from the project, shown in the launcher's Notifications page (`index/announcements.json`).
+/// A message from the project, shown in the launcher's Notifications page (`catalog/announcements.json` in the catalog repository).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Announcement {
@@ -127,7 +128,7 @@ struct AnnouncementFile {
     items: Vec<Announcement>,
 }
 
-pub const ANNOUNCEMENTS_URL: &str = "https://raw.githubusercontent.com/soheilous/GenLauncher/main/index/announcements.json";
+pub const ANNOUNCEMENTS_URL: &str = "https://raw.githubusercontent.com/soheilous/generals-mod-catalog/main/catalog/announcements.json";
 
 pub fn parse_announcements(text: &str) -> crate::error::Result<Vec<Announcement>> {
     let f: AnnouncementFile = serde_json::from_str(text.trim_start_matches('\u{feff}'))?;

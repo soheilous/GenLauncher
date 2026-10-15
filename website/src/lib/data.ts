@@ -60,3 +60,4 @@ export const featured = mods
   .slice(0, 8);
 
 export const REPO = "https://github.com/soheilous/GenLauncher";
+export const CATALOG = "https://github.com/soheilous/generals-mod-catalog";

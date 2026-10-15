@@ -4,21 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    - cron: "0 6 * * 1" # Mondays: are the pages in the mod index still there?
 
 jobs:
-  index:
-    name: Mod index
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      # structure only on changes; links too on the weekly run
-      - run: node tools/check-index.mjs ${{ github.event_name != 'schedule' && '--offline' || '' }}
-
   website:
     name: Website
     runs-on: ubuntu-latest

@@ -24,19 +24,19 @@ impl Game {
         }
     }
 
-    /// Where the mod index for this game lives (this repository).
+    /// Where the mod catalog for this game lives (github.com/soheilous/generals-mod-catalog).
     pub fn index_url(self) -> &'static str {
         match self {
-            Game::Zh => "https://raw.githubusercontent.com/soheilous/GenLauncher/main/index/zero-hour.json",
-            Game::Generals => "https://raw.githubusercontent.com/soheilous/GenLauncher/main/index/generals.json",
+            Game::Zh => "https://raw.githubusercontent.com/soheilous/generals-mod-catalog/main/catalog/zero-hour.json",
+            Game::Generals => "https://raw.githubusercontent.com/soheilous/generals-mod-catalog/main/catalog/generals.json",
         }
     }
 
-    /// The index as it was when this build was made, for when the repository cannot be reached.
+    /// A snapshot of the catalog (`src-tauri/bundled/`, refreshed by `tools/sync-catalog.mjs`) as it was when this build was made, for when the repository cannot be reached.
     pub fn bundled_index(self) -> &'static str {
         match self {
-            Game::Zh => include_str!("../../index/zero-hour.json"),
-            Game::Generals => include_str!("../../index/generals.json"),
+            Game::Zh => include_str!("../bundled/zero-hour.json"),
+            Game::Generals => include_str!("../bundled/generals.json"),
         }
     }
 

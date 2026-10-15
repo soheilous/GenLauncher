@@ -101,7 +101,7 @@ export interface Notice {
   read: boolean;
 }
 
-/** A message from the project (index/announcements.json). */
+/** A message from the project (catalog/announcements.json in the catalog repository). */
 export interface Announcement {
   id: string;
   date: string;
