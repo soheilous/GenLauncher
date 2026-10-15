@@ -31,8 +31,16 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: GenLauncher ${{ github.ref_name }}
           releaseBody: |
-            Windows setup program (no administrator rights needed). The installer is not code-signed yet, so Windows
-            SmartScreen may ask you to confirm ("More info" > "Run anyway").
+            **GenLauncher preview** for Windows 10/11: a mod launcher for Command & Conquer: Generals and Zero Hour.
+            Download `GenLauncher_*_x64-setup.exe` below. It installs for the current user and needs no administrator rights.
+
+            - **Windows SmartScreen may warn** ("Windows protected your PC") because the installer is not code-signed yet.
+              Click **More info**, then **Run anyway**. Code signing is planned.
+            - The interface is available in 13 languages. The translations were written without native review, so
+              corrections are welcome (see the README, "Translations").
+            - Mods are never downloaded for you: GenLauncher opens each mod's own page and takes the file you download.
+
+            Source and issues: https://github.com/soheilous/GenLauncher
           releaseDraft: true
           prerelease: true
           args: --bundles nsis
