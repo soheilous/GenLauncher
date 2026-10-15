@@ -6,8 +6,9 @@
   "description": "The GenLauncher website: landing page, mod index browser, guide, privacy and terms.",
   "scripts": {
     "sync": "node scripts/sync.mjs",
-    "dev": "npm run sync && vite dev",
-    "build": "npm run sync && vite build",
+    "prepare": "svelte-kit sync || echo ''",
+    "dev": "npm run sync && svelte-kit sync && vite dev",
+    "build": "npm run sync && svelte-kit sync && vite build",
     "preview": "vite preview",
     "check": "npm run sync && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
   },
