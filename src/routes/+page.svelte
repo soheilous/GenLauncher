@@ -85,7 +85,7 @@
       {#if app.phase === "setup"}
         <div class="center">
           <div class="glass setup">
-            <div class="big-logo">G</div>
+            <img class="big-logo" src="/logo.svg" alt="" width="56" height="56" />
             <h2>Find your game</h2>
             <p>Select the folder that contains <b>generals.exe</b>: your Command &amp; Conquer Generals or Zero Hour install. GenLauncher keeps everything it needs in a <code>.genlauncher</code> folder inside it and never changes your original game files permanently.</p>
             {#each app.installs as i}
@@ -181,8 +181,7 @@
   .setup p { color: var(--text-dim); }
   .setup code { background: var(--surface-hi); padding: 1px 6px; border-radius: 6px; }
   .setup .btn { justify-content: center; word-break: break-all; }
-  .big-logo { width: 56px; height: 56px; border-radius: 18px; margin: 0 auto; display: grid; place-items: center; font-size: 28px; font-weight: 800; color: var(--accent-ink);
-    background: linear-gradient(135deg, var(--accent), hsl(calc(var(--accent-h) + 50) 80% 55%)); }
+  .big-logo { width: 56px; height: 56px; border-radius: 18px; margin: 0 auto; }
   .skeleton { height: 190px; border-radius: var(--r-md); animation: pulse 1.4s ease-in-out infinite; box-shadow: none; }
   @keyframes pulse { 50% { opacity: .45; } }
   .dl { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: var(--r-md); }

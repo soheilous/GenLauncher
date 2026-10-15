@@ -17,7 +17,7 @@
 
 <aside class="glass side" class:collapsed>
   <div class="brand">
-    <div class="logo">G</div>
+    <img class="logo" src="/logo.svg" alt="" width="36" height="36" />
     <div class="name"><strong>GenLauncher</strong><small>2.0 preview</small></div>
     <button class="collapse" onclick={() => app.toggleSidebar()} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
       aria-expanded={!collapsed} title="{collapsed ? 'Expand' : 'Collapse'} sidebar (Ctrl+B)">
@@ -63,8 +63,7 @@
   .brand { display: flex; gap: 10px; align-items: center; padding: 0 4px; min-height: 36px; position: relative; }
   .name { flex: 1; min-width: 0; white-space: nowrap; }
   .name small { display: block; color: var(--text-faint); font-size: 11px; }
-  .logo { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; color: var(--accent-ink); flex: none;
-    background: linear-gradient(135deg, var(--accent), hsl(calc(var(--accent-h) + 50) 80% 55%)); }
+  .logo { width: 36px; height: 36px; border-radius: 12px; flex: none; }
   .collapse { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--text-dim);
     background: var(--surface); border: 1px solid var(--stroke); transition: background .15s, color .15s; }
   .collapse:hover { background: var(--surface-hi); color: var(--text); }
