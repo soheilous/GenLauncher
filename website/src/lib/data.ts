@@ -1,4 +1,5 @@
 import index from "./generated/index.json";
+import covers from "./generated/covers.json";
 
 export type GameKey = "zh" | "generals";
 
@@ -30,7 +31,8 @@ function read(game: GameKey, mods: RawMod[]): SiteMod[] {
     game,
     version: m.version,
     page: m.page,
-    image: m.image,
+    // the copy kept on this site, never the original address
+    image: m.image ? (covers as Record<string, string>)[m.image] : undefined,
     discord: m.discord,
     deprecated: !!m.deprecated,
     patches: (m.patches ?? []).map((p) => p.name),

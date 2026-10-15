@@ -4,6 +4,7 @@
 // If the files outside website/ are not available (a build that only has this folder), they are fetched from GitHub.
 
 import fs from "node:fs";
+import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -59,6 +60,36 @@ function markdown(md) {
 }
 
 const [zh, generals, privacy, terms] = await Promise.all([read("index/zero-hour.json"), read("index/generals.json"), read("PRIVACY.md"), read("TERMS.md")]);
-fs.writeFileSync(path.join(out, "index.json"), JSON.stringify({ zh: JSON.parse(zh), generals: JSON.parse(generals) }));
+/**
+ * Mod cover images are kept on this site, so a card does not depend on imgur or Discord staying up.
+ * Each image is downloaded once into static/covers/ (and committed); an existing file is never fetched again, and an
+ * address that no longer works simply has no cover.
+ */
+const coversDir = path.join(here, "..", "static", "covers");
+fs.mkdirSync(coversDir, { recursive: true });
+const EXT = { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/gif": ".gif", "image/svg+xml": ".svg" };
+const index = { zh: JSON.parse(zh), generals: JSON.parse(generals) };
+const urls = [...new Set([...index.zh.mods, ...index.generals.mods].map((m) => m.image).filter((u) => typeof u === "string" && /^https?:/.test(u)))];
+const covers = {};
+const existing = fs.readdirSync(coversDir);
+await Promise.all(urls.map(async (url) => {
+  const key = crypto.createHash("sha1").update(url).digest("hex").slice(0, 12);
+  const have = existing.find((f) => f.startsWith(key + "."));
+  if (have) { covers[url] = "/covers/" + have; return; }
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(15000), headers: { "user-agent": "GenLauncher-site-build (+https://github.com/soheilous/GenLauncher)" } });
+    const ext = EXT[(r.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase()];
+    if (!r.ok || !ext) throw new Error(r.ok ? "not an image" : "HTTP " + r.status);
+    const bytes = Buffer.from(await r.arrayBuffer());
+    if (bytes.length > 3 * 1024 * 1024) throw new Error("larger than 3 MB");
+    fs.writeFileSync(path.join(coversDir, key + ext), bytes);
+    covers[url] = "/covers/" + key + ext;
+  } catch (e) {
+    console.warn(`no cover for ${url}: ${e.message}`);
+  }
+}));
+fs.writeFileSync(path.join(out, "covers.json"), JSON.stringify(covers));
+
+fs.writeFileSync(path.join(out, "index.json"), JSON.stringify(index));
 fs.writeFileSync(path.join(out, "legal.json"), JSON.stringify({ privacy: markdown(privacy), terms: markdown(terms) }));
-console.log("synced the mod index and the legal pages");
+console.log(`synced the mod index (${Object.keys(covers).length} of ${urls.length} covers) and the legal pages`);
