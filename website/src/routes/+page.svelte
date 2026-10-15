@@ -1,15 +1,8 @@
 <script lang="ts">
   import ModCard from "$lib/ModCard.svelte";
   import Faq from "$lib/Faq.svelte";
+  import Showcase from "$lib/Showcase.svelte";
   import { CATALOG, featured, release, stats, REPO } from "$lib/data";
-
-  const shots = [
-    { id: "library", label: "Library", text: "Your mods, each with its own art and accent colour. Pick a version, switch patches and add-ons on or off, and press Play." },
-    { id: "discover", label: "Discover", text: "Browse the mod index. Install opens the mod's own page in a built-in browser: you choose the version and click download, the launcher does the rest." },
-    { id: "notifications", label: "Notifications", text: "Nothing gets lost: finished installs, problems and messages from the project stay in one place until you dismiss them." },
-    { id: "options", label: "Game options", text: "Resolution, texture quality, particle limit and effects, written straight into the game's own settings file, with a backup of the original." },
-  ];
-  let tab = $state(0);
 
   // simple stroke icons (24x24 grid)
   const icons: Record<string, string> = {
@@ -52,6 +45,7 @@
     <p class="lead">GenLauncher installs, updates and switches between mods, patches and add-ons, then starts the game with exactly the combination you chose. When the game closes, your folder is put back the way it was.</p>
     <div class="cta">
       <a class="btn primary" href="#get">Get GenLauncher</a>
+      <a class="btn" href="#try">Try it live</a>
       <a class="btn" href="/mods">Browse {stats.mods} mods</a>
     </div>
     <ul class="chips" aria-label="Highlights">
@@ -60,24 +54,7 @@
   </div>
 </section>
 
-<section class="wrap showcase" aria-labelledby="show-h">
-  <h2 id="show-h" class="sr-only">The launcher</h2>
-  <div class="tabs" role="tablist" aria-label="Screens">
-    {#each shots as s, i}
-      <button role="tab" id="tab-{s.id}" aria-selected={tab === i} aria-controls="panel" class:on={tab === i} onclick={() => (tab = i)}>{s.label}</button>
-    {/each}
-  </div>
-  <div class="window" role="tabpanel" id="panel" aria-labelledby="tab-{shots[tab].id}">
-    <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span>GenLauncher</span></div>
-    {#each shots as s, i}
-      {#if i === tab}
-        <img class="shot dark" src="/screens/{s.id}-dark.jpg" alt="The {s.label} screen of GenLauncher" width="1360" height="850" />
-        <img class="shot light" src="/screens/{s.id}-light.jpg" alt="The {s.label} screen of GenLauncher" width="1360" height="850" />
-      {/if}
-    {/each}
-  </div>
-  <p class="caption">{shots[tab].text}</p>
-</section>
+<Showcase />
 
 <section class="wrap metrics" aria-label="In numbers">
   <div><strong>{stats.mods}</strong><span>mods in the catalog</span></div>
@@ -164,19 +141,6 @@
   .cta { display: flex; flex-wrap: wrap; gap: .8rem; justify-content: center; }
   .chips { list-style: none; display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; justify-content: center; padding: 0; margin: 1.6rem 0 0; color: var(--text-faint); font-size: .92rem; }
   .chips li::before { content: "✓ "; color: var(--accent); }
-
-  .showcase { text-align: center; }
-  .tabs { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: .3rem; padding: .3rem; border-radius: 999px; background: var(--surface); border: 1px solid var(--stroke); margin-bottom: 1.3rem; }
-  .tabs button { font: inherit; font-weight: 600; font-size: .95rem; color: var(--text-dim); background: none; border: 0; padding: .5rem 1.1rem; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s; }
-  .tabs button:hover { color: var(--text); }
-  .tabs button.on { background: var(--accent); color: var(--accent-ink); }
-  .window { border-radius: 18px; border: 1px solid var(--stroke-hi); background: var(--surface-solid); box-shadow: var(--shadow), 0 0 90px var(--glow-1); overflow: hidden; text-align: left; }
-  .chrome { display: flex; align-items: center; gap: .45rem; padding: .6rem .9rem; border-bottom: 1px solid var(--stroke); background: var(--bg-2); }
-  .chrome i { width: .7rem; height: .7rem; border-radius: 50%; background: var(--stroke-hi); }
-  .chrome span { margin: 0 auto; transform: translateX(-1rem); font-size: .8rem; color: var(--text-faint); }
-  .shot { width: 100%; height: auto; }
-  :global(:root[data-theme="light"]) .shot.dark, :global(:root:not([data-theme="light"])) .shot.light { display: none; }
-  .caption { margin: 1.1rem auto 0; max-width: 40rem; color: var(--text-dim); min-height: 3.4rem; }
 
   .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 2.5rem; }
   .metrics div { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--r-md); padding: 1.1rem 1rem; text-align: center; }

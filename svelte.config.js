@@ -9,8 +9,13 @@ import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 const config = {
   preprocess: vitePreprocess(),
   kit: {
+    // GL_BASE / GL_OUT: the interactive demo for the website is built under /demo into website/static/demo
+    // (tools/build-demo.mjs); the desktop app is built at the root into build/
+    paths: { base: process.env.GL_BASE ?? "" },
     adapter: adapter({
       fallback: "index.html",
+      pages: process.env.GL_OUT ?? "build",
+      assets: process.env.GL_OUT ?? "build",
     }),
   },
 };

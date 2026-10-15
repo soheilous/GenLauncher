@@ -15,6 +15,7 @@
 
   const nav = [
     { href: "/#features", label: "Features" },
+    { href: "/#try", label: "Try it" },
     { href: "/mods", label: "Mods" },
     { href: "/guide", label: "Guide" },
   ];

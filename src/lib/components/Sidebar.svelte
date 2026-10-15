@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from "$app/paths";
   import { app, type View } from "$lib/app.svelte";
   import Icon from "./Icon.svelte";
   import { N, i18n, t } from "$lib/i18n/index.svelte";
@@ -18,7 +19,7 @@
 
 <aside class="glass side" class:collapsed>
   <div class="brand">
-    <img class="logo" src="/logo.svg" alt="" width="36" height="36" />
+    <img class="logo" src="{base}/logo.svg" alt="" width="36" height="36" />
     <div class="name"><strong>GenLauncher</strong><small>{t("2.0 preview")}</small></div>
     <button class="collapse" onclick={() => app.toggleSidebar()} aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
       aria-expanded={!collapsed} title={collapsed ? t("Expand sidebar (Ctrl+B)") : t("Collapse sidebar (Ctrl+B)")}>

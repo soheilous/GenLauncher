@@ -1,15 +1,16 @@
+import { base } from "$app/paths";
 import type { Item } from "./types";
 
 // Placeholder data. Replaced by the Rust manifest reader later.
 export const mockItems: Item[] = [
-  { id: "rotr", kind: "mod", name: "Rise of the Reds", hue: 8, cover: "/covers/rotr.svg", latest: "1.87", sizeMb: 2400,
+  { id: "rotr", kind: "mod", name: "Rise of the Reds", hue: 8, cover: `${base}/covers/rotr.svg`, latest: "1.87", sizeMb: 2400,
     summary: "Total conversion adding Russia and the Chinese Federation with a new campaign-scale roster.",
     versions: [{ v: "1.87", installed: true }, { v: "1.86", installed: true }],
     links: { moddb: "https://www.moddb.com", discord: "https://discord.gg" } },
-  { id: "contra", kind: "mod", name: "Contra", hue: 150, cover: "/covers/contra.svg", latest: "009 Final", sizeMb: 1900,
+  { id: "contra", kind: "mod", name: "Contra", hue: 150, cover: `${base}/covers/contra.svg`, latest: "009 Final", sizeMb: 1900,
     summary: "Large community overhaul with rebalanced factions, new generals and tech trees.",
     versions: [{ v: "009 Final", installed: false }, { v: "009 Beta 3", installed: true }] },
-  { id: "shockwave", kind: "mod", name: "Shockwave", hue: 205, cover: "/covers/shockwave.svg", latest: "1.201", sizeMb: 1300,
+  { id: "shockwave", kind: "mod", name: "Shockwave", hue: 205, cover: `${base}/covers/shockwave.svg`, latest: "1.201", sizeMb: 1300,
     summary: "Adds new units, abilities and a refined general's powers system to Zero Hour.",
     versions: [{ v: "1.201", installed: true }] },
   { id: "eod", kind: "mod", name: "The End of Days", hue: 32, latest: "0.97.5", sizeMb: 1100,

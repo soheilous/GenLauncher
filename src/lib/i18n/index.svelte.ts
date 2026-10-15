@@ -8,6 +8,7 @@
 //
 // tools/check-i18n.mjs lists what a language still lacks.
 
+import { storeKey } from "../env";
 import ar from "./locales/ar";
 import de from "./locales/de";
 import es from "./locales/es";
@@ -59,7 +60,7 @@ const SUPPORTED = new Set(["en", ...Object.keys(bundles)]);
 const AUTO = "auto";
 
 function stored(): string {
-  try { return localStorage.getItem("language") ?? AUTO; } catch { return AUTO; }
+  try { return localStorage.getItem(storeKey("language")) ?? AUTO; } catch { return AUTO; }
 }
 
 /** The best supported language for what the system asks for ("fa-IR" -> "fa"), English if none. */
@@ -82,7 +83,7 @@ class I18n {
 
   choose(code: string) {
     this.setting = code === AUTO || SUPPORTED.has(code) ? code : AUTO;
-    try { localStorage.setItem("language", this.setting); } catch { /* private window */ }
+    try { localStorage.setItem(storeKey("language"), this.setting); } catch { /* private window */ }
   }
 
   /** Mirror the language on the page itself (screen readers, hyphenation, right-to-left layout). */

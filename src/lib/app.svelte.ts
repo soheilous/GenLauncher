@@ -4,6 +4,7 @@ import {
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
 } from "./backend";
+import { storeKey } from "./env";
 import { slugify } from "./guess";
 import { N, i18n, t } from "./i18n/index.svelte";
 import { mockItems } from "./mock";
@@ -40,14 +41,14 @@ const DEFAULT_SETTINGS: Settings = {
 
 function load<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(storeKey(key));
     return raw === null ? fallback : (JSON.parse(raw) as T);
   } catch {
     return fallback;
   }
 }
 function save(key: string, value: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ }
+  try { localStorage.setItem(storeKey(key), JSON.stringify(value)); } catch { /* storage unavailable */ }
 }
 const gameName = (g: string) => (g === "zh" ? t("Zero Hour") : t("Generals"));
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -684,7 +685,7 @@ class AppState {
     item.cover = cover; item.hue = hue;
     this.customCovers[id] = { cover, hue };
     try {
-      localStorage.setItem("customCovers", JSON.stringify(this.customCovers));
+      localStorage.setItem(storeKey("customCovers"), JSON.stringify(this.customCovers));
     } catch {
       this.say(t("Cover applied, but it is too large to remember after restart"));
     }

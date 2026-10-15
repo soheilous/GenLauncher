@@ -69,7 +69,7 @@ says it is not set up. See [PRIVACY.md](PRIVACY.md) and [TERMS.md](TERMS.md).
 ### Website
 
 `website/` is the project's site (landing page, searchable mod index, guide, privacy and terms), a static SvelteKit project
-of its own: `cd website && npm install && npm run dev`. It reads the mod index and the legal pages from this repository
+of its own: `cd website && npm install && npm run dev`. The interactive demo on its home page is the launcher's own interface built with sample data into `website/static/demo`; run `npm run build:demo` in the repository root after changing the interface and commit the result. It reads the mod index and the legal pages from this repository
 at build time. Deploying on Vercel: import the repository, set **Root Directory** to `website` and keep the detected
 SvelteKit preset; nothing else is needed.
 

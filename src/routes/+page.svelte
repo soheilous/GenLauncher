@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
+  import { base } from "$app/paths";
   import { app } from "$lib/app.svelte";
   import { art, coverStyle } from "$lib/art";
   import Sidebar from "$lib/components/Sidebar.svelte";
@@ -12,8 +13,13 @@
   import Icon from "$lib/components/Icon.svelte";
   import { formatBytes } from "$lib/guess";
   import { i18n, t } from "$lib/i18n/index.svelte";
+  import { initDemo } from "$lib/demo";
+  import { isDemo } from "$lib/env";
 
-  onMount(() => app.init());
+  onMount(() => {
+    app.init();
+    initDemo(); // only does anything in the website's demo build
+  });
 
   // keep the page's language and reading direction in step with the chosen language
   $effect(() => {
@@ -48,7 +54,17 @@
 
 <svelte:window {onkeydown} />
 
+<svelte:head>
+  {#if isDemo}<meta name="robots" content="noindex" />{/if}
+</svelte:head>
+
 <div class="stage">
+  {#if isDemo}
+    <div class="demo-pill" role="note">
+      <span>{t("Interactive demo · sample data, nothing is installed")}</span>
+      <a href="/#get" target="_top">{t("Get GenLauncher")}</a>
+    </div>
+  {/if}
   <!-- One layer per mod so switching mods crossfades the backdrop. -->
   {#each app.mods as m (m.id)}
     <div class="backdrop" class:on={m.id === app.activeMod.id}
@@ -93,7 +109,7 @@
       {#if app.phase === "setup"}
         <div class="center">
           <div class="glass setup">
-            <img class="big-logo" src="/logo.svg" alt="" width="56" height="56" />
+            <img class="big-logo" src="{base}/logo.svg" alt="" width="56" height="56" />
             <h2>{t("Find your game")}</h2>
             <p>{t("Select the folder that contains generals.exe: your Command & Conquer Generals or Zero Hour install. GenLauncher keeps everything it needs in a .genlauncher folder inside it and never changes your original game files permanently.")}</p>
             {#each app.installs as i}
@@ -209,6 +225,11 @@
   .dropveil { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: var(--scrim); backdrop-filter: blur(6px); pointer-events: none; }
   .dropveil .glass { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 34px 54px; border: 2px dashed var(--accent); background: var(--surface-solid); color: var(--text); border-radius: var(--r-lg); }
   .dropveil span { color: var(--text-dim); }
+  .demo-pill { position: fixed; top: 8px; inset-inline-start: 50%; transform: translateX(-50%); z-index: 25; display: flex; align-items: center; gap: 12px; padding: 5px 6px 5px 14px;
+    border-radius: 999px; font-size: 12px; background: var(--surface-solid); border: 1px solid var(--stroke-hi); box-shadow: var(--shadow); white-space: nowrap; }
+  :global([dir="rtl"]) .demo-pill { transform: translateX(50%); }
+  .demo-pill span { color: var(--text-dim); }
+  .demo-pill a { background: var(--accent); color: var(--accent-ink); font-weight: 700; padding: 4px 12px; border-radius: 999px; text-decoration: none; }
   .toast { position: fixed; bottom: 108px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 999px; z-index: 30; animation: rise .3s var(--ease); background: var(--surface-solid); }
   @keyframes rise { from { opacity: 0; transform: translate(-50%, 10px); } }
   @media (max-width: 1000px) { :global(.detail) { display: none; } }
