@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="GenLauncher">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="0" x2="448" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff4d3d"/>
+      <stop offset="0.55" stop-color="#ff7a2f"/>
+      <stop offset="1" stop-color="#ffc233"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#7a1500" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#shine)"/>
+  <!-- the G: an open ring whose bar points the way a launch goes -->
+  <g filter="url(#soft)" fill="none" stroke="#ffffff" stroke-width="58" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 349 176 A 122 122 0 1 0 378 256 L 262 256"/>
+  </g>
+  <!-- a small spark in the opening of the G -->
+  <path d="M 392 128 l 9 24 24 9 -24 9 -9 24 -9 -24 -24 -9 24 -9 z" fill="#ffffff"/>
+</svg>
