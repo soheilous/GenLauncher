@@ -91,6 +91,21 @@ Next: "check for update" from the saved page, and growing the index with the com
 Not yet: in-app graphics options editor, GenTool and Vulkan handling, World Builder download, self-update,
 localisation (translations are in `reference/`) and Linux/Wine prefix selection.
 
+### Translations
+
+The launcher speaks English, فارسی, Français, Español, Português (Brasil), Italiano, Deutsch, 简体中文, Русский, Українська,
+Polski, Türkçe and العربية (Persian and Arabic are laid out right to left). Settings > Appearance > Language picks one;
+"Automatic" follows the system language. The translations were written without native review, so corrections are very
+welcome.
+
+The code keeps the English text as the key, `t("Install")`, and each language is one file,
+`src/lib/i18n/locales/<code>.ts`, mapping English to that language. A text a language lacks falls back to English.
+`node tools/check-i18n.mjs` lists what is missing, stale or has wrong `{values}` per language (CI runs it);
+`--missing fa` prints what Persian still lacks. To add a language, add a file, import it in
+`src/lib/i18n/index.svelte.ts` and add it to `LANGUAGES`. In development, the "Pseudo (dev)" language wraps every text in
+⟦ ⟧, so anything not yet translatable stands out. Messages that come from the Rust core (mostly errors) and the texts in the
+mod catalog are not translated yet.
+
 ### Where mods come from
 
 The launcher hosts no mods and downloads none by itself. Mods are added from a file or folder on your computer, a direct

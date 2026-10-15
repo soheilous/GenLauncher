@@ -39,7 +39,7 @@
 
 <div class="sel" bind:this={root}>
   <button class="trigger" class:open aria-haspopup="listbox" aria-expanded={open} aria-label={label} onclick={toggle} onkeydown={onkey}>
-    <span class="cur">{current?.label}</span>
+    <span class="cur"><bdi>{current?.label}</bdi></span>
     {#if current?.hint}<span class="hint" class:warn={current.muted}>{current.hint}</span>{/if}
     <span class="chev" class:flip={open}><Icon name="chevron" size={14} /></span>
   </button>
@@ -49,7 +49,7 @@
       {#each options as o, i (o.value)}
         <li role="option" aria-selected={o.value === value} class:active={i === active} class:sel={o.value === value}
           onpointerenter={() => (active = i)} onclick={() => pick(o)} onkeydown={onkey} tabindex="-1">
-          <span class="name" class:muted={o.muted}>{o.label}</span>
+          <span class="name" class:muted={o.muted}><bdi>{o.label}</bdi></span>
           {#if o.hint}<span class="hint" class:warn={o.muted}>{o.hint}</span>{/if}
           {#if o.value === value}<Icon name="check" size={14} />{/if}
         </li>
@@ -60,7 +60,7 @@
 
 <style>
   .sel { position: relative; flex: 1; min-width: 0; }
-  .trigger { width: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 14px; border-radius: 999px; text-align: left;
+  .trigger { width: 100%; display: flex; align-items: center; gap: 8px; padding-block: 8px; padding-inline: 14px 12px; border-radius: 999px; text-align: start;
     background: var(--surface-hi); border: 1px solid var(--stroke); transition: border-color .18s, background .18s; }
   .trigger:hover, .trigger.open { border-color: var(--stroke-hi); }
   .trigger.open { border-color: var(--accent); }

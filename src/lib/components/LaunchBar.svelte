@@ -1,24 +1,26 @@
 <script lang="ts">
   import { app } from "$lib/app.svelte";
   import Icon from "./Icon.svelte";
+  import { t } from "$lib/i18n/index.svelte";
+  import { modName } from "$lib/names";
   import Toggle from "./Toggle.svelte";
 
   const picked = $derived(app.children.filter((c) => c.selected));
-  const label = $derived(app.launch === "idle" ? "Play" : app.launch === "preparing" ? "Preparing files…" : "Game running");
+  const label = $derived(app.launch === "idle" ? t("Play") : app.launch === "preparing" ? t("Preparing files…") : t("Game running"));
 </script>
 
 <footer class="glass bar">
   <div class="summary">
-    <strong>{app.activeMod.name}</strong>
+    <strong><bdi>{modName(app.activeMod)}</bdi></strong>
     <div class="chips">
-      {#each picked as p}<span class="chip accent">{p.name}</span>{:else}<span class="chip">Base mod only</span>{/each}
+      {#each picked as p}<span class="chip accent"><bdi>{p.name}</bdi></span>{:else}<span class="chip">{t("Base mod only")}</span>{/each}
     </div>
   </div>
 
-  <div class="opt"><Toggle label="Windowed" checked={app.windowed} onchange={(v) => app.setPref("windowed", v)} /> Windowed</div>
-  <div class="opt"><Toggle label="Quick start" checked={app.quickStart} onchange={(v) => app.setPref("quickStart", v)} /> Quick start</div>
+  <div class="opt"><Toggle label={t("Windowed")} checked={app.windowed} onchange={(v) => app.setPref("windowed", v)} /> {t("Windowed")}</div>
+  <div class="opt"><Toggle label={t("Quick start")} checked={app.quickStart} onchange={(v) => app.setPref("quickStart", v)} /> {t("Quick start")}</div>
 
-  <button class="btn" disabled={app.launch !== "idle"} onclick={() => app.play("worldbuilder")}><Icon name="tool" size={16} /> World Builder</button>
+  <button class="btn" disabled={app.launch !== "idle"} onclick={() => app.play("worldbuilder")}><Icon name="tool" size={16} /> {t("World Builder")}</button>
   <button class="btn primary play" disabled={app.launch !== "idle"} onclick={() => app.play("game")}>
     <Icon name="play" size={18} /> {label}
   </button>

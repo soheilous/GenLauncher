@@ -11,5 +11,6 @@
   .toggle span { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--text-dim); transition: transform .22s var(--ease), background .2s; }
   .toggle.on { background: var(--accent); border-color: transparent; }
   .toggle.on span { transform: translateX(18px); background: var(--accent-ink); }
+  :global([dir="rtl"]) .toggle.on span { transform: translateX(-18px); }
   .toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>

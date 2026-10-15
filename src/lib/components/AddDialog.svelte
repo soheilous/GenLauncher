@@ -11,6 +11,8 @@
   import type { ModKind } from "$lib/types";
   import Icon from "./Icon.svelte";
   import Select from "./Select.svelte";
+  import { N, t } from "$lib/i18n/index.svelte";
+  import { modName } from "$lib/names";
 
   type Source =
     | { type: "file"; path: string; pageUrl: string | null }
@@ -131,7 +133,7 @@
     } else if (e.state === "failed" || e.state === "stalled") {
       backToLink(e.message); // the launcher already closed the window
     } else if (e.state === "closed" && !downloadDone && !browserDone) {
-      backToLink("The browser window was closed before the download finished.");
+      backToLink(t("The browser window was closed before the download finished."));
     }
   }
 
@@ -146,17 +148,22 @@
   /** A dropped file does not say what it is, so the dialog asks (everywhere else the entry point already decides). */
   const askType = $derived(!!app.addDialog?.preset?.askType);
   const KINDS: { value: ModKind; label: string }[] = [
-    { value: "mod", label: "Mod" },
-    { value: "patch", label: "Patch" },
-    { value: "addon", label: "Add-on" },
-    { value: "exe", label: "Executable" },
+    { value: "mod", label: N("Mod") },
+    { value: "patch", label: N("Patch") },
+    { value: "addon", label: N("Add-on") },
+    { value: "exe", label: N("Executable") },
   ];
   /** Patches, add-ons and executables belong to a mod that is installed (the stock game counts). */
-  const parentOptions = $derived(app.mods.filter((m) => m.versions.some((v) => v.installed)).map((m) => ({ value: m.id, label: m.name })));
-  const parentName = $derived(app.mods.find((m) => m.id === parent)?.name ?? "");
+  const parentOptions = $derived(app.mods.filter((m) => m.versions.some((v) => v.installed)).map((m) => ({ value: m.id, label: modName(m) })));
+  const parentName = $derived((() => { const m = app.mods.find((x) => x.id === parent); return m ? modName(m) : ""; })());
   const title = $derived(
-    kind === "mod" ? "Add a mod" : `Add ${kind === "exe" ? "an executable" : "a " + kind}${parentName ? " for " + parentName : ""}`
+    kind === "mod" ? t("Add a mod")
+    : parentName
+      ? kind === "exe" ? t("Add an executable for {mod}", { mod: parentName }) : kind === "addon" ? t("Add an add-on for {mod}", { mod: parentName }) : t("Add a patch for {mod}", { mod: parentName })
+      : kind === "exe" ? t("Add an executable") : kind === "addon" ? t("Add an add-on") : t("Add a patch")
   );
+  /** "a mod", "a patch"... as words inside a sentence. */
+  const kindWord = (k: string) => (k === "patch" ? t("patch") : k === "addon" ? t("add-on") : k === "exe" ? t("executable") : t("mod"));
 
   function toDetails(guess: { name: string; version: string }, src: Source) {
     source = src;
@@ -182,7 +189,7 @@
   async function continueWithLink() {
     const link = url.trim();
     if (!isWebAddress(link)) {
-      error = "Paste a web address that starts with http:// or https://";
+      error = t("Paste a web address that starts with http:// or https://");
       return;
     }
     error = "";
@@ -233,7 +240,7 @@
         await openInBrowser(url.trim());
       } else window.open(url.trim(), "_blank");
     } catch {
-      error = "Could not open your browser. Copy the address and open it yourself.";
+      error = t("Could not open your browser. Copy the address and open it yourself.");
     }
     step = "source";
     tab = "file"; // download it there, then choose the file here
@@ -242,31 +249,31 @@
   async function submit() {
     if (!source) return;
     if (!name.trim() || !/[\p{L}\p{N}]/u.test(name)) {
-      error = "Give it a name with at least one letter or number.";
+      error = t("Give it a name with at least one letter or number.");
       return;
     }
     if (!version.trim()) {
-      error = "Enter a version, for example 1.0.";
+      error = t("Enter a version, for example 1.0.");
       return;
     }
     if (kind !== "mod" && !parent) {
-      error = "Choose which mod this belongs to.";
+      error = t("Choose which mod this belongs to.");
       return;
     }
     if (reserved) {
-      error = "That name is reserved for the stock game. Choose another name.";
+      error = t("That name is reserved for the stock game. Choose another name.");
       return;
     }
     if (inFlight) {
-      error = "Something with this name is already being installed. Wait for it to finish.";
+      error = t("Something with this name is already being installed. Wait for it to finish.");
       return;
     }
     if (sameItem && sameVersion) {
-      error = `${sameItem.name} ${version.trim()} is already installed. Choose another version or remove the installed one first.`;
+      error = t("{name} {version} is already installed. Choose another version or remove the installed one first.", { name: sameItem.name, version: version.trim() });
       return;
     }
     if (sameItem && !ackSameName && !isUpdate) {
-      error = `You already have "${sameItem.name}". Tick the box if this is another version of it, or choose a different name.`;
+      error = t('You already have "{name}". Tick the box if this is another version of it, or choose a different name.', { name: sameItem.name });
       return;
     }
     error = "";
@@ -294,7 +301,7 @@
   }
 
   const sourceLabel = $derived(
-    source ? (source.type === "file" ? source.path : source.type === "link" ? source.url : (browser.fileName ?? "download from the page")) : ""
+    source ? (source.type === "file" ? source.path : source.type === "link" ? source.url : (browser.fileName ?? t("download from the page"))) : ""
   );
 </script>
 
@@ -305,55 +312,53 @@
   <div class="glass dlg" role="dialog" aria-modal="true" aria-labelledby="add-title" tabindex="-1" bind:this={dialog}>
     <header>
       <h2 id="add-title">{title}</h2>
-      <button class="btn" aria-label="Close" onclick={close}><Icon name="x" size={16} /></button>
+      <button class="btn" aria-label={t("Close")} onclick={close}><Icon name="x" size={16} /></button>
     </header>
 
     {#if step === "source"}
       <div class="tabs" role="tablist">
-        <button role="tab" aria-selected={tab === "file"} class:on={tab === "file"} onclick={() => (tab = "file")}>From a file</button>
-        <button role="tab" aria-selected={tab === "link"} class:on={tab === "link"} onclick={() => (tab = "link")}>From a link</button>
+        <button role="tab" aria-selected={tab === "file"} class:on={tab === "file"} onclick={() => (tab = "file")}>{t("From a file")}</button>
+        <button role="tab" aria-selected={tab === "link"} class:on={tab === "link"} onclick={() => (tab = "link")}>{t("From a link")}</button>
       </div>
 
       {#if tab === "file"}
         <p class="hint">
-          {#if pageUrl}Now choose the file you downloaded from the page.{:else}Choose the archive you downloaded (zip, 7z, rar), a single .big file, or a folder with the mod's files.{/if}
+          {#if pageUrl}{t("Now choose the file you downloaded from the page.")}{:else}{t("Choose the archive you downloaded (zip, 7z, rar), a single .big file, or a folder with the mod's files.")}{/if}
         </p>
         <div class="choices">
-          <button class="choice" onclick={chooseFile}><Icon name="download" size={22} /><strong>Choose a file…</strong><small>zip · 7z · rar · big</small></button>
-          <button class="choice" onclick={chooseFolder}><Icon name="folder" size={22} /><strong>Choose a folder…</strong><small>already unpacked</small></button>
+          <button class="choice" onclick={chooseFile}><Icon name="download" size={22} /><strong>{t("Choose a file…")}</strong><small>{t("zip · 7z · rar · big")}</small></button>
+          <button class="choice" onclick={chooseFolder}><Icon name="folder" size={22} /><strong>{t("Choose a folder…")}</strong><small>{t("already unpacked")}</small></button>
         </div>
       {:else}
         <label class="field">
-          <span>Web address</span>
-          <input type="url" placeholder="https://www.moddb.com/mods/…  or a direct download link" bind:value={url}
+          <span>{t("Web address")}</span>
+          <input type="url" placeholder={t("https://www.moddb.com/mods/…  or a direct download link")} bind:value={url}
             onkeydown={(e) => e.key === "Enter" && continueWithLink()} spellcheck="false" />
         </label>
         <p class="hint">
-          Paste a mod's page (ModDB or any website) and the launcher opens it in its own browser window: you choose the
-          version and click its download button, and the launcher takes the file. A direct link to a file (OneDrive,
-          Dropbox, GitHub, <code>.zip</code>) is downloaded straight away.
+          {t("Paste a mod's page (ModDB or any website) and the launcher opens it in its own browser window: you choose the version and click its download button, and the launcher takes the file. A direct link to a file (OneDrive, Dropbox, GitHub, .zip) is downloaded straight away.")}
         </p>
       {/if}
       {#if error}<p class="error" role="alert">{error}</p>{/if}
       <footer>
-        <button class="btn" onclick={close}>Cancel</button>
-        {#if tab === "link"}<button class="btn primary" onclick={continueWithLink}>Continue</button>{/if}
+        <button class="btn" onclick={close}>{t("Cancel")}</button>
+        {#if tab === "link"}<button class="btn primary" onclick={continueWithLink}>{t("Continue")}</button>{/if}
       </footer>
     {:else if step === "browser"}
       <div class="waiting" aria-live="polite">
         <div class="spinner" aria-hidden="true"></div>
         {#if browser.fileName}
-          <strong>Downloading {browser.fileName}</strong>
-          <p>{browser.bytes > 0 ? formatBytes(browser.bytes) + " received" : "Starting…"}. The page has been put away; the launcher continues by itself when the download is complete.</p>
+          <strong>{t("Downloading {file}", { file: browser.fileName })}</strong>
+          <p>{browser.bytes > 0 ? t("{size} received.", { size: formatBytes(browser.bytes) }) : t("Starting…")} {t("The page has been put away; the launcher continues by itself when the download is complete.")}</p>
         {:else}
-          <strong>Waiting for you in the browser window</strong>
-          <p>A window with the page has opened. Choose the version you want and click its download button there. The launcher takes the file as soon as the download starts.</p>
+          <strong>{t("Waiting for you in the browser window")}</strong>
+          <p>{t("A window with the page has opened. Choose the version you want and click its download button there. The launcher takes the file as soon as the download starts.")}</p>
         {/if}
       </div>
       {#if error}<p class="error" role="alert">{error}</p>{/if}
       <footer>
-        <button class="btn" onclick={useSystemBrowserInstead}>Use my own browser instead</button>
-        <button class="btn" onclick={cancelBrowser}>Cancel</button>
+        <button class="btn" onclick={useSystemBrowserInstead}>{t("Use my own browser instead")}</button>
+        <button class="btn" onclick={cancelBrowser}>{t("Cancel")}</button>
       </footer>
     {:else}
       <p class="from" title={sourceLabel}><Icon name={source?.type === "file" ? "folder" : "link"} size={15} /> <span>{sourceLabel}</span></p>
@@ -361,10 +366,10 @@
       {#if source?.type === "browser"}
         <div class="dl" class:done={downloadDone} aria-live="polite">
           {#if downloadDone}
-            <Icon name="check" size={16} /> <span>Download complete{browser.bytes ? ` (${formatBytes(browser.bytes)})` : ""}. Confirm to install it.</span>
+            <Icon name="check" size={16} /> <span>{browser.bytes ? t("Download complete ({size}). Confirm to install it.", { size: formatBytes(browser.bytes) }) : t("Download complete. Confirm to install it.")}</span>
           {:else}
             <div class="spinner small" aria-hidden="true"></div>
-            <span>Downloading in the background{browser.bytes > 0 ? ` · ${formatBytes(browser.bytes)} received` : "…"}. You can fill this in while it arrives.</span>
+            <span>{browser.bytes > 0 ? t("Downloading in the background · {size} received. You can fill this in while it arrives.", { size: formatBytes(browser.bytes) }) : t("Downloading in the background… You can fill this in while it arrives.")}</span>
           {/if}
         </div>
       {/if}
@@ -372,60 +377,59 @@
       <div class="form">
         {#if askType}
           <div class="field">
-            <span id="kind-label">What is it?</span>
+            <span id="kind-label">{t("What is it?")}</span>
             <div class="tabs kinds" role="group" aria-labelledby="kind-label">
-              {#each KINDS as k}<button aria-pressed={kind === k.value} class:on={kind === k.value} onclick={() => (kind = k.value)}>{k.label}</button>{/each}
+              {#each KINDS as k}<button aria-pressed={kind === k.value} class:on={kind === k.value} onclick={() => (kind = k.value)}>{t(k.label)}</button>{/each}
             </div>
           </div>
           {#if kind !== "mod"}
             <div class="field">
-              <span id="parent-label">Which mod is it for?</span>
-              <Select label="Which mod is it for?" options={parentOptions} value={parent} onchange={(v) => (parent = v)} />
+              <span id="parent-label">{t("Which mod is it for?")}</span>
+              <Select label={t("Which mod is it for?")} options={parentOptions} value={parent} onchange={(v) => (parent = v)} />
             </div>
           {/if}
         {/if}
         <label class="field">
-          <span>Name</span>
+          <span>{t("Name")}</span>
           <input bind:value={name} spellcheck="false" onkeydown={(e) => e.key === "Enter" && submit()} />
         </label>
         <label class="field narrow">
-          <span>Version</span>
+          <span>{t("Version")}</span>
           <input bind:value={version} spellcheck="false" onkeydown={(e) => e.key === "Enter" && submit()} />
         </label>
       </div>
       {#if reserved}
-        <div class="alert danger" role="alert"><strong>"Original Game" is reserved for the stock game.</strong> Choose another name.</div>
+        <div class="alert danger" role="alert"><strong>{t('"Original Game" is reserved for the stock game.')}</strong> {t("Choose another name.")}</div>
       {:else if inFlight}
-        <div class="alert danger" role="alert"><strong>Something with this name is already being installed.</strong> Wait for it to finish, or choose another name.</div>
+        <div class="alert danger" role="alert"><strong>{t("Something with this name is already being installed.")}</strong> {t("Wait for it to finish, or choose another name.")}</div>
       {:else if sameItem && sameVersion}
         <div class="alert danger" role="alert">
-          <strong>{sameItem.name} {version.trim()} is already installed.</strong>
-          <p>Choose another version, or remove the installed one first. If this is a different mod, give it a different name.</p>
-          <div class="row"><button class="btn" onclick={useDifferentName}>Use "{suggestedName}"</button></div>
+          <strong>{t("{name} {version} is already installed.", { name: sameItem.name, version: version.trim() })}</strong>
+          <p>{t("Choose another version, or remove the installed one first. If this is a different mod, give it a different name.")}</p>
+          <div class="row"><button class="btn" onclick={useDifferentName}>{t('Use "{name}"', { name: suggestedName })}</button></div>
         </div>
       {:else if sameItem && !isUpdate}
         <div class="alert warn" role="alert">
-          <strong>You already have a {sameItem.kind === "mod" ? "mod" : sameItem.kind} called "{sameItem.name}"</strong>
-          ({installedVersions.length ? "installed: " + installedVersions.join(", ") : "in the catalog, not installed"}).
+          <strong>{t('You already have a {kind} called "{name}"', { kind: kindWord(sameItem.kind), name: sameItem.name })}</strong>
+          ({installedVersions.length ? t("installed: {versions}", { versions: installedVersions.join(", ") }) : t("in the catalog, not installed")}).
           <p>
-            If you continue, this is stored as <b>another version of it</b> and appears in its version list. If it is a
-            different mod (another page or another author), give it a different name instead.
+            {t("If you continue, this is stored as another version of it and appears in its version list. If it is a different mod (another page or another author), give it a different name instead.")}
           </p>
           <div class="row">
-            <button class="btn" onclick={useDifferentName}>Use "{suggestedName}"</button>
-            <label class="check"><input type="checkbox" bind:checked={ackSameName} /> It is another version of {sameItem.name}</label>
+            <button class="btn" onclick={useDifferentName}>{t('Use "{name}"', { name: suggestedName })}</button>
+            <label class="check"><input type="checkbox" bind:checked={ackSameName} /> {t("It is another version of {name}", { name: sameItem.name })}</label>
           </div>
         </div>
       {/if}
       <p class="hint">
-        The name and version were guessed from the file. Change them if they're wrong; they decide where the files are stored.
-        {#if source?.type === "browser" && !downloadDone}Once you confirm, it is added to Downloads and installs by itself as soon as the file is complete.{/if}
+        {t("The name and version were guessed from the file. Change them if they're wrong; they decide where the files are stored.")}
+        {#if source?.type === "browser" && !downloadDone}{t("Once you confirm, it is added to Downloads and installs by itself as soon as the file is complete.")}{/if}
       </p>
       {#if error}<p class="error" role="alert">{error}</p>{/if}
       <footer>
-        {#if source?.type !== "browser"}<button class="btn" disabled={busy} onclick={() => (step = "source")}>Back</button>{/if}
-        {#if source?.type === "browser"}<button class="btn" disabled={busy} onclick={close}>Cancel download</button>{/if}
-        <button class="btn primary" disabled={busy || blocked} onclick={submit}><Icon name="plus" size={16} /> Add {kind === "mod" ? "mod" : kind === "exe" ? "executable" : kind}</button>
+        {#if source?.type !== "browser"}<button class="btn" disabled={busy} onclick={() => (step = "source")}>{t("Back")}</button>{/if}
+        {#if source?.type === "browser"}<button class="btn" disabled={busy} onclick={close}>{t("Cancel download")}</button>{/if}
+        <button class="btn primary" disabled={busy || blocked} onclick={submit}><Icon name="plus" size={16} /> {kind === "mod" ? t("Add mod") : kind === "exe" ? t("Add executable") : kind === "addon" ? t("Add add-on") : t("Add patch")}</button>
       </footer>
     {/if}
   </div>
@@ -441,7 +445,6 @@
   .tabs button { flex: 1; padding: 8px; border-radius: 999px; font-weight: 600; color: var(--text-dim); transition: background .2s, color .2s; }
   .tabs button.on { background: var(--accent); color: var(--accent-ink); }
   .hint { color: var(--text-dim); font-size: 13px; margin: 10px 0 0; }
-  .hint code { background: var(--surface-hi); padding: 1px 5px; border-radius: 6px; }
   .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
   .choice { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 22px 12px; border-radius: var(--r-md);
     background: var(--surface); border: 1px dashed var(--stroke-hi); transition: background .15s, border-color .15s, transform .2s var(--ease); }

@@ -38,3 +38,14 @@ jobs:
       - run: npm run build # the app embeds the built UI
       - run: cargo test
         working-directory: src-tauri
+
+  translations:
+    name: Translations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # stale texts and {values} that do not match the English text fail; a missing translation only falls back to English
+      - run: node tools/check-i18n.mjs

@@ -11,8 +11,16 @@
   import OptionsDialog from "$lib/components/OptionsDialog.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { formatBytes } from "$lib/guess";
+  import { i18n, t } from "$lib/i18n/index.svelte";
 
   onMount(() => app.init());
+
+  // keep the page's language and reading direction in step with the chosen language
+  $effect(() => {
+    i18n.locale;
+    i18n.dir;
+    i18n.apply();
+  });
 
   /** Entries that were unread when the page was opened stay highlighted while it is open. */
   let fresh = $state(new Set<string>());
@@ -26,10 +34,10 @@
 
   function ago(at: number): string {
     const s = Math.max(0, Math.round((Date.now() - at) / 1000));
-    if (s < 60) return "just now";
-    if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-    return new Date(at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+    if (s < 60) return t("just now");
+    if (s < 3600) return t("{n} min ago", { n: Math.floor(s / 60) });
+    if (s < 86400) return t("{n} h ago", { n: Math.floor(s / 3600) });
+    return i18n.date(at);
   }
   const levelIcon = { info: "bell", success: "check", error: "x", news: "discover" } as const;
 
@@ -54,14 +62,14 @@
     <main>
       <header class="top">
         <div>
-          <h1>{app.view === "library" ? "Library" : app.view === "discover" ? "Discover" : app.view === "notifications" ? "Notifications" : "Downloads"}</h1>
+          <h1>{app.view === "library" ? t("Library") : app.view === "discover" ? t("Discover") : app.view === "notifications" ? t("Notifications") : t("Downloads")}</h1>
           <p>
             {#if app.view === "notifications"}
-              {app.unread ? `${app.unread} unread` : "Everything you were told, newest first"}
+              {app.unread ? t("{n} unread", { n: app.unread }) : t("Everything you were told, newest first")}
             {:else}
-            {app.game === "zh" ? "Zero Hour" : "Generals"} · {app.installedMods.length} installed
+            {app.game === "zh" ? t("Zero Hour") : t("Generals")} · {t("{n} installed", { n: app.installedMods.length })}
             {#if app.phase === "ready" && !app.online}
-              <span class="chip warn offline" title={app.catalogError ?? ""}>Offline · showing saved data</span>
+              <span class="chip warn offline" title={app.catalogError ?? ""}>{t("Offline · showing saved data")}</span>
             {/if}
             {/if}
           </p>
@@ -70,14 +78,14 @@
           <div class="tools">
             <label class="search glass">
               <Icon name="search" size={16} />
-              <input placeholder="Search mods" bind:value={app.search} aria-label="Search mods" />
+              <input placeholder={t("Search mods")} bind:value={app.search} aria-label={t("Search mods")} />
             </label>
-            <button class="btn primary" onclick={() => app.openAdd("mod")}><Icon name="plus" size={16} /> Add mod</button>
+            <button class="btn primary" onclick={() => app.openAdd("mod")}><Icon name="plus" size={16} /> {t("Add mod")}</button>
           </div>
         {:else if app.phase === "ready" && app.view === "notifications"}
           <div class="tools">
-            <button class="btn" disabled={!app.unread} onclick={() => app.markAllRead()}><Icon name="check" size={16} /> Mark all read</button>
-            <button class="btn" disabled={!app.notices.length} onclick={() => app.clearNotices()}><Icon name="trash" size={16} /> Clear all</button>
+            <button class="btn" disabled={!app.unread} onclick={() => app.markAllRead()}><Icon name="check" size={16} /> {t("Mark all read")}</button>
+            <button class="btn" disabled={!app.notices.length} onclick={() => app.clearNotices()}><Icon name="trash" size={16} /> {t("Clear all")}</button>
           </div>
         {/if}
       </header>
@@ -86,16 +94,16 @@
         <div class="center">
           <div class="glass setup">
             <img class="big-logo" src="/logo.svg" alt="" width="56" height="56" />
-            <h2>Find your game</h2>
-            <p>Select the folder that contains <b>generals.exe</b>: your Command &amp; Conquer Generals or Zero Hour install. GenLauncher keeps everything it needs in a <code>.genlauncher</code> folder inside it and never changes your original game files permanently.</p>
+            <h2>{t("Find your game")}</h2>
+            <p>{t("Select the folder that contains generals.exe: your Command & Conquer Generals or Zero Hour install. GenLauncher keeps everything it needs in a .genlauncher folder inside it and never changes your original game files permanently.")}</p>
             {#each app.installs as i}
-              <button class="btn" onclick={() => app.openInstall(i.dir)}>{i.game === "zh" ? "Zero Hour" : "Generals"} · {i.dir}</button>
+              <button class="btn" onclick={() => app.openInstall(i.dir)}>{i.game === "zh" ? t("Zero Hour") : t("Generals")} · {i.dir}</button>
             {/each}
-            <button class="btn primary" onclick={() => app.chooseFolder()}><Icon name="folder" size={16} /> Browse for folder…</button>
+            <button class="btn primary" onclick={() => app.chooseFolder()}><Icon name="folder" size={16} /> {t("Browse for folder…")}</button>
           </div>
         </div>
       {:else if app.phase === "loading"}
-        <div class="scroll" aria-busy="true" aria-label="Loading library">
+        <div class="scroll" aria-busy="true" aria-label={t("Loading library")}>
           <div class="grid">
             {#each Array(8) as _, i}<div class="skeleton glass" style:animation-delay="{i * 90}ms"></div>{/each}
           </div>
@@ -106,7 +114,7 @@
             <div class="grid">
               {#each app.installedMods as m (m.id)}<ModCard mod={m} />{/each}
             </div>
-            {#if app.installedMods.length === 0}<p class="empty">No installed mods match your search.</p>{/if}
+            {#if app.installedMods.length === 0}<p class="empty">{t("No installed mods match your search.")}</p>{/if}
           </div>
           <DetailPanel />
         </div>
@@ -116,7 +124,7 @@
           <div class="grid">
             {#each app.availableMods as m (m.id)}<ModCard mod={m} discover />{/each}
           </div>
-          {#if app.availableMods.length === 0}<p class="empty">Everything available is already installed.</p>{/if}
+          {#if app.availableMods.length === 0}<p class="empty">{t("Everything available is already installed.")}</p>{/if}
         </div>
       {:else if app.view === "notifications"}
         <div class="scroll">
@@ -126,26 +134,26 @@
               <div class="body">
                 {#if n.title}<strong>{n.title}</strong>{/if}
                 <p>{n.text}</p>
-                <small>{n.level === "news" ? "From GenLauncher · " : ""}{ago(n.at)}</small>
+                <small>{n.level === "news" ? t("From GenLauncher") + " · " : ""}{ago(n.at)}</small>
               </div>
-              {#if n.link}<button class="btn" onclick={() => app.openPage(n.link ?? "")}><Icon name="link" size={14} /> Open</button>{/if}
-              <button class="btn" aria-label="Dismiss" title="Dismiss" onclick={() => app.removeNotice(n.id)}><Icon name="x" size={14} /></button>
+              {#if n.link}<button class="btn" onclick={() => app.openPage(n.link ?? "")}><Icon name="link" size={14} /> {t("Open")}</button>{/if}
+              <button class="btn" aria-label={t("Dismiss")} title={t("Dismiss")} onclick={() => app.removeNotice(n.id)}><Icon name="x" size={14} /></button>
             </div>
           {:else}
-            <p class="empty">Nothing yet. Install results, game sessions and messages from GenLauncher will show up here.</p>
+            <p class="empty">{t("Nothing yet. Install results, game sessions and messages from GenLauncher will show up here.")}</p>
           {/each}
         </div>
       {:else}
         <div class="scroll">
           {#each app.downloading as d (d.id)}
             <div class="glass dl">
-              <div class="dlinfo"><strong>{d.name}</strong><small>{app.versionLabel(d)} · {app.phaseLabel(d)}{d.bytes ? " · " + formatBytes(d.bytes) + " received" : ""}</small>
+              <div class="dlinfo"><strong>{d.name}</strong><small>{app.versionLabel(d)} · {app.phaseLabel(d)}{d.bytes ? " · " + t("{size} received", { size: formatBytes(d.bytes) }) : ""}</small>
                 <div class="bar"><i style:width="{(d.progress ?? 0) * 100}%"></i></div></div>
               <span>{Math.round((d.progress ?? 0) * 100)}%</span>
-              <button class="btn" aria-label="Cancel download" onclick={() => app.cancel(d)}><Icon name="x" size={14} /></button>
+              <button class="btn" aria-label={t("Cancel download")} onclick={() => app.cancel(d)}><Icon name="x" size={14} /></button>
             </div>
           {:else}
-            <p class="empty">No active downloads. Install something from Discover.</p>
+            <p class="empty">{t("No active downloads. Install something from Discover.")}</p>
           {/each}
         </div>
       {/if}
@@ -154,7 +162,7 @@
 
   <SettingsDialog />
   <AddDialog />
-  {#if app.dragging}<div class="dropveil" aria-hidden="true"><div class="glass"><Icon name="download" size={28} /><strong>Drop to add a mod</strong><span>zip, 7z, rar, a .big file or a folder</span></div></div>{/if}
+  {#if app.dragging}<div class="dropveil" aria-hidden="true"><div class="glass"><Icon name="download" size={28} /><strong>{t("Drop to add a mod")}</strong><span>{t("zip, 7z, rar, a .big file or a folder")}</span></div></div>{/if}
   <OptionsDialog />
   {#if app.toast}<div class="toast glass" role="status">{app.toast}</div>{/if}
 </div>
@@ -176,11 +184,10 @@
   .scroll { flex: 1; overflow-y: auto; min-height: 0; padding: 4px 6px 12px 4px; display: flex; flex-direction: column; gap: 10px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
   .empty { color: var(--text-faint); text-align: center; padding: 40px 0; }
-  .offline { margin-left: 8px; }
+  .offline { margin-inline-start: 8px; }
   .center { flex: 1; display: grid; place-items: center; }
   .setup { width: min(520px, 100%); padding: 32px; display: flex; flex-direction: column; gap: 14px; align-items: stretch; text-align: center; background: var(--surface-solid); }
   .setup p { color: var(--text-dim); }
-  .setup code { background: var(--surface-hi); padding: 1px 6px; border-radius: 6px; }
   .setup .btn { justify-content: center; word-break: break-all; }
   .big-logo { width: 56px; height: 56px; border-radius: 18px; margin: 0 auto; }
   .skeleton { height: 190px; border-radius: var(--r-md); animation: pulse 1.4s ease-in-out infinite; box-shadow: none; }

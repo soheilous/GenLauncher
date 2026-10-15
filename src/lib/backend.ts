@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { t } from "./i18n/index.svelte";
 import type { Announcement, Bootstrap, CatalogResponse, Item, Settings } from "./types";
 
 /** False in a plain browser (vite dev, headless QA); the UI then runs on mock data. */
@@ -69,7 +70,7 @@ export async function onInstallFinished(cb: (r: InstallFinished) => void): Promi
   return listen<InstallFinished>("install-finished", (e) => cb(e.payload));
 }
 
-export async function confirmDialog(message: string, title = "GenLauncher", okLabel = "Remove", cancelLabel = "Keep"): Promise<boolean> {
+export async function confirmDialog(message: string, title = "GenLauncher", okLabel = t("Remove"), cancelLabel = t("Keep")): Promise<boolean> {
   if (!isTauri) return confirm(message);
   const { ask } = await import("@tauri-apps/plugin-dialog");
   return ask(message, { title, kind: "warning", okLabel, cancelLabel });

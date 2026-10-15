@@ -1,56 +1,57 @@
 <script lang="ts">
   import { app, type View } from "$lib/app.svelte";
   import Icon from "./Icon.svelte";
+  import { N, i18n, t } from "$lib/i18n/index.svelte";
 
   const nav: { id: View; label: string; icon: string }[] = [
-    { id: "library", label: "Library", icon: "library" },
-    { id: "discover", label: "Discover", icon: "discover" },
-    { id: "downloads", label: "Downloads", icon: "download" },
-    { id: "notifications", label: "Notifications", icon: "bell" },
+    { id: "library", label: N("Library"), icon: "library" },
+    { id: "discover", label: N("Discover"), icon: "discover" },
+    { id: "downloads", label: N("Downloads"), icon: "download" },
+    { id: "notifications", label: N("Notifications"), icon: "bell" },
   ];
   const collapsed = $derived(app.sidebarCollapsed);
   import { isTauri } from "$lib/backend";
   import type { Game } from "$lib/types";
   const canUse = (g: Game) => !isTauri || !!app.installFor(g);
-  const gameLabel = $derived(app.game === "zh" ? "Zero Hour" : "Generals");
+  const gameLabel = $derived(app.game === "zh" ? t("Zero Hour") : t("Generals"));
 </script>
 
 <aside class="glass side" class:collapsed>
   <div class="brand">
     <img class="logo" src="/logo.svg" alt="" width="36" height="36" />
-    <div class="name"><strong>GenLauncher</strong><small>2.0 preview</small></div>
-    <button class="collapse" onclick={() => app.toggleSidebar()} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      aria-expanded={!collapsed} title="{collapsed ? 'Expand' : 'Collapse'} sidebar (Ctrl+B)">
-      <Icon name={collapsed ? "expand" : "collapse"} size={16} />
+    <div class="name"><strong>GenLauncher</strong><small>{t("2.0 preview")}</small></div>
+    <button class="collapse" onclick={() => app.toggleSidebar()} aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
+      aria-expanded={!collapsed} title={collapsed ? t("Expand sidebar (Ctrl+B)") : t("Collapse sidebar (Ctrl+B)")}>
+      <Icon name={collapsed !== (i18n.dir === "rtl") ? "expand" : "collapse"} size={16} />
     </button>
   </div>
 
   {#if collapsed}
-    <button class="game-mini" title="{gameLabel} (click to switch)" aria-label="Switch game, current {gameLabel}"
+    <button class="game-mini" title={t("{game} (click to switch)", { game: gameLabel })} aria-label={t("Switch game, current: {game}", { game: gameLabel })}
       onclick={() => app.switchGame(app.game === "zh" ? "generals" : "zh")}>{app.game === "zh" ? "ZH" : "G"}</button>
   {:else}
-    <div class="games" role="tablist" aria-label="Game">
-      <button role="tab" aria-selected={app.game === "zh"} class:on={app.game === "zh"} disabled={!canUse("zh")} title={canUse("zh") ? undefined : "Zero Hour was not found"} onclick={() => app.switchGame("zh")}>Zero Hour</button>
-      <button role="tab" aria-selected={app.game === "generals"} class:on={app.game === "generals"} disabled={!canUse("generals")} title={canUse("generals") ? undefined : "Generals was not found"} onclick={() => app.switchGame("generals")}>Generals</button>
+    <div class="games" role="tablist" aria-label={t("Game")}>
+      <button role="tab" aria-selected={app.game === "zh"} class:on={app.game === "zh"} disabled={!canUse("zh")} title={canUse("zh") ? undefined : t("Zero Hour was not found")} onclick={() => app.switchGame("zh")}>{t("Zero Hour")}</button>
+      <button role="tab" aria-selected={app.game === "generals"} class:on={app.game === "generals"} disabled={!canUse("generals")} title={canUse("generals") ? undefined : t("Generals was not found")} onclick={() => app.switchGame("generals")}>{t("Generals")}</button>
     </div>
   {/if}
 
   <nav>
     {#each nav as n}
-      <button class="nav-item" class:on={app.view === n.id} onclick={() => (app.view = n.id)} title={collapsed ? n.label : undefined} aria-label={n.label}>
-        <Icon name={n.icon} /> <span class="label">{n.label}</span>
+      <button class="nav-item" class:on={app.view === n.id} onclick={() => (app.view = n.id)} title={collapsed ? t(n.label) : undefined} aria-label={t(n.label)}>
+        <Icon name={n.icon} /> <span class="label">{t(n.label)}</span>
         {#if n.id === "downloads" && app.downloading.length}<span class="badge">{app.downloading.length}</span>{/if}
-        {#if n.id === "notifications" && app.unread}<span class="badge" aria-label="{app.unread} unread">{app.unread}</span>{/if}
+        {#if n.id === "notifications" && app.unread}<span class="badge" aria-label={t("{n} unread", { n: app.unread })}>{app.unread}</span>{/if}
       </button>
     {/each}
   </nav>
 
   <div class="foot">
-    <button class="nav-item" onclick={() => (app.settingsOpen = true)} title={collapsed ? "Settings" : undefined} aria-label="Settings">
-      <Icon name="settings" /> <span class="label">Settings</span>
+    <button class="nav-item" onclick={() => (app.settingsOpen = true)} title={collapsed ? t("Settings") : undefined} aria-label={t("Settings")}>
+      <Icon name="settings" /> <span class="label">{t("Settings")}</span>
     </button>
-    <button class="nav-item" onclick={() => app.toggleTheme()} aria-label="Toggle theme" title={collapsed ? "Toggle theme" : undefined}>
-      <Icon name={app.theme === "dark" ? "moon" : "sun"} /> <span class="label">{app.theme === "dark" ? "Dark" : "Light"} theme</span>
+    <button class="nav-item" onclick={() => app.toggleTheme()} aria-label={t("Toggle theme")} title={collapsed ? t("Toggle theme") : undefined}>
+      <Icon name={app.theme === "dark" ? "moon" : "sun"} /> <span class="label">{app.theme === "dark" ? t("Dark theme") : t("Light theme")}</span>
     </button>
   </div>
 </aside>
@@ -79,13 +80,13 @@
 
   nav, .foot { display: flex; flex-direction: column; gap: 4px; }
   nav { flex: 1; }
-  .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; color: var(--text-dim); text-align: left; position: relative; white-space: nowrap; transition: background .18s, color .18s; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; color: var(--text-dim); text-align: start; position: relative; white-space: nowrap; transition: background .18s, color .18s; }
   .nav-item:hover { background: var(--surface-hi); color: var(--text); }
   .nav-item.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
   .nav-item :global(svg) { flex: none; }
-  .badge { margin-left: auto; background: var(--accent); color: var(--accent-ink); border-radius: 999px; font-size: 11px; font-weight: 700; padding: 1px 7px; }
+  .badge { margin-inline-start: auto; background: var(--accent); color: var(--accent-ink); border-radius: 999px; font-size: 11px; font-weight: 700; padding: 1px 7px; }
 
   .collapsed .label { display: none; }
   .collapsed .nav-item { justify-content: center; padding: 11px 0; }
-  .collapsed .badge { position: absolute; top: 2px; right: 4px; margin: 0; padding: 0 5px; font-size: 10px; }
+  .collapsed .badge { position: absolute; top: 2px; inset-inline-end: 4px; margin: 0; padding: 0 5px; font-size: 10px; }
 </style>

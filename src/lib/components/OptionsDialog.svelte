@@ -4,6 +4,7 @@
   import Icon from "./Icon.svelte";
   import Select from "./Select.svelte";
   import Toggle from "./Toggle.svelte";
+  import { N, t } from "$lib/i18n/index.svelte";
 
   const DEFAULTS: Graphics = {
     width: 1920, height: 1080, textureReduction: 0, maxParticleCount: 2500, shadowVolumes: false, shadowDecals: true,
@@ -45,19 +46,19 @@
     if (!list.includes(own)) list.unshift(own);
     return list.map((v) => ({ value: v, label: v }));
   });
-  const QUALITY: { v: number; label: string }[] = [{ v: 0, label: "High" }, { v: 1, label: "Medium" }, { v: 2, label: "Low" }];
+  const QUALITY: { v: number; label: string }[] = [{ v: 0, label: N("High") }, { v: 1, label: N("Medium") }, { v: 2, label: N("Low") }];
   const TOGGLES: { key: keyof Graphics; label: string }[] = [
-    { key: "shadowVolumes", label: "Shadow volumes" },
-    { key: "shadowDecals", label: "Shadow decals" },
-    { key: "buildingOcclusion", label: "Show units behind buildings" },
-    { key: "showTrees", label: "Trees" },
-    { key: "cloudMap", label: "Cloud shadows" },
-    { key: "lightMap", label: "Light map" },
-    { key: "softWaterEdge", label: "Soft water edges" },
-    { key: "heatEffects", label: "Heat haze" },
-    { key: "extraAnimations", label: "Extra animations" },
-    { key: "dynamicLod", label: "Dynamic detail (LOD)" },
-    { key: "alternateMouse", label: "Alternate mouse controls" },
+    { key: "shadowVolumes", label: N("Shadow volumes") },
+    { key: "shadowDecals", label: N("Shadow decals") },
+    { key: "buildingOcclusion", label: N("Show units behind buildings") },
+    { key: "showTrees", label: N("Trees") },
+    { key: "cloudMap", label: N("Cloud shadows") },
+    { key: "lightMap", label: N("Light map") },
+    { key: "softWaterEdge", label: N("Soft water edges") },
+    { key: "heatEffects", label: N("Heat haze") },
+    { key: "extraAnimations", label: N("Extra animations") },
+    { key: "dynamicLod", label: N("Dynamic detail (LOD)") },
+    { key: "alternateMouse", label: N("Alternate mouse controls") },
   ];
 
   function pickResolution(v: string) {
@@ -75,7 +76,7 @@
     try {
       if (isTauri) await optionsSave(g);
       app.setLaunchExtras(args.trim(), hide);
-      app.say("Game options saved", "success");
+      app.say(t("Game options saved"), "success");
       app.optionsOpen = false;
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
@@ -90,55 +91,55 @@
 
 {#if app.optionsOpen}
   <div class="scrim" role="presentation" onclick={close}></div>
-  <div class="glass dlg" role="dialog" aria-modal="true" aria-label="Game options" tabindex="-1" bind:this={dialog}>
+  <div class="glass dlg" role="dialog" aria-modal="true" aria-label={t("Game options")} tabindex="-1" bind:this={dialog}>
     <header>
-      <h2>Game options</h2>
-      <button class="btn" aria-label="Close" onclick={close}><Icon name="x" size={16} /></button>
+      <h2>{t("Game options")}</h2>
+      <button class="btn" aria-label={t("Close")} onclick={close}><Icon name="x" size={16} /></button>
     </header>
 
     <div class="grid" aria-busy={loading}>
-      <h3>Display</h3>
-      <div class="line"><span>Resolution</span>
+      <h3>{t("Display")}</h3>
+      <div class="line"><span>{t("Resolution")}</span>
         <div class="pair">
-          <Select label="Resolution" options={resolutionOptions} value={`${g.width} x ${g.height}`} onchange={pickResolution} />
-          <button class="btn" title="Use the size of this screen" onclick={() => { const s = screenSize(); g.width = s.width; g.height = s.height; }}>This screen</button>
+          <Select label={t("Resolution")} options={resolutionOptions} value={`${g.width} x ${g.height}`} onchange={pickResolution} />
+          <button class="btn" title={t("Use the size of this screen")} onclick={() => { const s = screenSize(); g.width = s.width; g.height = s.height; }}>{t("This screen")}</button>
         </div>
       </div>
-      <div class="line"><span>Texture quality</span>
-        <div class="seg" role="group" aria-label="Texture quality">
-          {#each QUALITY as q}<button class:on={g.textureReduction === q.v} onclick={() => (g.textureReduction = q.v)}>{q.label}</button>{/each}
+      <div class="line"><span>{t("Texture quality")}</span>
+        <div class="seg" role="group" aria-label={t("Texture quality")}>
+          {#each QUALITY as q}<button class:on={g.textureReduction === q.v} onclick={() => (g.textureReduction = q.v)}>{t(q.label)}</button>{/each}
         </div>
       </div>
-      <div class="line"><span>Particle limit</span>
+      <div class="line"><span>{t("Particle limit")}</span>
         <div class="slider">
           <input type="range" min="500" max="5000" step="100" value={Math.min(5000, Math.max(500, g.maxParticleCount))}
-            aria-label="Particle limit" oninput={(e) => (g.maxParticleCount = +e.currentTarget.value)} />
+            aria-label={t("Particle limit")} oninput={(e) => (g.maxParticleCount = +e.currentTarget.value)} />
           <output>{g.maxParticleCount}</output>
         </div>
       </div>
 
-      <h3>Effects</h3>
-      {#each TOGGLES as t}
-        <div class="line"><span>{t.label}</span>
-          <Toggle label={t.label} checked={g[t.key] as boolean} onchange={(v) => ((g as unknown as Record<string, unknown>)[t.key] = v)} /></div>
+      <h3>{t("Effects")}</h3>
+      {#each TOGGLES as tg}
+        <div class="line"><span>{t(tg.label)}</span>
+          <Toggle label={t(tg.label)} checked={g[tg.key] as boolean} onchange={(v) => ((g as unknown as Record<string, unknown>)[tg.key] = v)} /></div>
       {/each}
 
-      <h3>Launching</h3>
-      <div class="line"><span>Hide the launcher while the game runs</span><Toggle label="Hide launcher while playing" checked={hide} onchange={(v) => (hide = v)} /></div>
-      <label class="line col"><span>Extra game arguments</span>
-        <input bind:value={args} placeholder="e.g. -fps 60" spellcheck="false" maxlength="300" /></label>
+      <h3>{t("Launching")}</h3>
+      <div class="line"><span>{t("Hide the launcher while the game runs")}</span><Toggle label={t("Hide launcher while playing")} checked={hide} onchange={(v) => (hide = v)} /></div>
+      <label class="line col"><span>{t("Extra game arguments")}</span>
+        <input bind:value={args} placeholder={t("e.g. -fps 60")} spellcheck="false" maxlength="300" /></label>
     </div>
 
     <p class="note">
-      These are the game's own settings{exists ? "" : " (the game has not created its file yet; it is created on save)"}, stored in<br />
-      <code>{path}</code>. A copy of the original file is kept as <code>Options.ini.bak</code>.
+      {exists ? t("These are the game's own settings, stored in:") : t("These are the game's own settings (the game has not created its file yet; it is created on save), stored in:")}<br />
+      <code>{path}</code> {t("A copy of the original file is kept as Options.ini.bak.")}
     </p>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
     <footer>
-      <button class="btn" disabled={busy} onclick={recommended}><Icon name="undo" size={14} /> Recommended</button>
+      <button class="btn" disabled={busy} onclick={recommended}><Icon name="undo" size={14} /> {t("Recommended")}</button>
       <span class="spacer"></span>
-      <button class="btn" disabled={busy} onclick={close}>Cancel</button>
-      <button class="btn primary" disabled={busy || loading} onclick={save}>Save</button>
+      <button class="btn" disabled={busy} onclick={close}>{t("Cancel")}</button>
+      <button class="btn primary" disabled={busy || loading} onclick={save}>{t("Save")}</button>
     </footer>
   </div>
 {/if}
@@ -160,7 +161,7 @@
   .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
   .slider { display: flex; align-items: center; gap: 12px; }
   input[type="range"] { accent-color: var(--accent); width: 170px; }
-  output { min-width: 48px; text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  output { min-width: 48px; text-align: end; color: var(--text-dim); font-variant-numeric: tabular-nums; }
   .note { margin-top: 14px; color: var(--text-faint); font-size: 12px; overflow-wrap: anywhere; }
   .note code { background: var(--surface-hi); padding: 1px 6px; border-radius: 6px; user-select: text; }
   .error { color: var(--danger); margin-top: 10px; }

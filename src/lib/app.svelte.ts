@@ -5,6 +5,7 @@ import {
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
 } from "./backend";
 import { slugify } from "./guess";
+import { N, i18n, t } from "./i18n/index.svelte";
 import { mockItems } from "./mock";
 import type { Bootstrap, Game, GameInstall, Item, LegacySummary, ModKind, Notice, NoticeLevel, Settings } from "./types";
 
@@ -48,6 +49,7 @@ function load<T>(key: string, fallback: T): T {
 function save(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage unavailable */ }
 }
+const gameName = (g: string) => (g === "zh" ? t("Zero Hour") : t("Generals"));
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** A stable accent hue for something without art yet. */
 const hueOf = (s: string) => [...s].reduce((h, c) => (h * 33 + c.charCodeAt(0)) % 360, 7);
@@ -125,7 +127,7 @@ class AppState {
     try {
       await this.useBootstrap(await backend.bootstrap());
     } catch (e) {
-      this.say(`Could not start: ${errText(e)}`, "error");
+      this.say(t("Could not start: {error}", { error: errText(e) }), "error");
       this.phase = "setup";
     }
   }
@@ -141,11 +143,11 @@ class AppState {
       if (r.error) this.say(r.error);
       else {
         const m = Math.floor(r.playedSecs / 60);
-        const played = m >= 1 ? `${m} min` : `${r.playedSecs} s`;
-        this.say(`Game closed after ${played}. Game folder restored${r.warnings.length ? ` (${r.warnings.length} notes in the log)` : ""}.`);
+        const played = m >= 1 ? t("{n} min", { n: m }) : t("{n} s", { n: r.playedSecs });
+        this.say(r.warnings.length ? t("Game closed after {time}. Game folder restored ({n} notes in the log).", { time: played, n: r.warnings.length }) : t("Game closed after {time}. Game folder restored.", { time: played }));
       }
     });
-    void onCloseBlocked(() => this.say("The game is still running. Close it first so your game folder can be restored."));
+    void onCloseBlocked(() => this.say(t("The game is still running. Close it first so your game folder can be restored.")));
     void onInstallProgress((p) => {
       this.installProgress[p.id] = p;
       this.applyProgress();
@@ -165,10 +167,10 @@ class AppState {
   private addDropped(paths: string[]) {
     const first = paths[0];
     if (/\.(png|jpe?g|webp|gif|bmp|ico)$/i.test(first)) {
-      this.say("That is an image. To change a mod's cover, use the Change cover button on its panel.");
+      this.say(t("That is an image. To change a mod's cover, use the Change cover button on its panel."));
       return;
     }
-    if (paths.length > 1) this.say("One at a time: adding the first of the dropped files.");
+    if (paths.length > 1) this.say(t("One at a time: adding the first of the dropped files."));
     this.view = "library";
     this.openAdd("mod", null, { name: "", pageUrl: null, update: false, file: first, askType: true });
   }
@@ -184,7 +186,7 @@ class AppState {
   }
 
   phaseLabel(item: Pick<Item, "phase">) {
-    return ({ preparing: "Preparing", downloading: "Downloading", verifying: "Checking files", extracting: "Extracting", finishing: "Finishing" } as Record<string, string>)[item.phase ?? ""] ?? "Working";
+    return t(({ preparing: N("Preparing"), downloading: N("Downloading"), verifying: N("Checking files"), extracting: N("Extracting"), finishing: N("Finishing") } as Record<string, string>)[item.phase ?? ""] ?? N("Working"));
   }
 
   private applyProgress() {
@@ -206,14 +208,14 @@ class AppState {
       this.items = this.items.filter((i) => !(i.id === r.id && i.versions.length === 0));
     }
     if (r.cancelled) {
-      this.say(`${name}: installation cancelled. Progress is kept if you try again.`);
+      this.say(t("{name}: installation cancelled. Progress is kept if you try again.", { name }));
       return;
     }
     if (!r.ok) {
-      this.say(`${name}: ${r.error ?? "installation failed"}`, "error");
+      this.say(t("{name}: {error}", { name, error: r.error ?? t("installation failed") }), "error");
       return;
     }
-    this.say(`${name} ${r.version ?? ""} installed`.trim(), "success");
+    this.say(t("{name} {version} installed", { name, version: r.version ?? "" }).replace(/\s+/g, " ").trim(), "success");
     await this.refreshLibrary();
   }
 
@@ -247,7 +249,7 @@ class AppState {
       } else {
         this.items.push({ id, kind: req.kind, name, summary: "", hue: hueOf(name), versions: [{ v: version, installed: true }], latest: version, parent: req.kind === "mod" ? null : req.parent });
       }
-      this.say(`${name} ${version} added (preview)`);
+      this.say(t("{name} {version} added (preview)", { name, version }));
       return true;
     }
     try {
@@ -273,14 +275,14 @@ class AppState {
       if (isTauri) await openInBrowser(url);
       else window.open(url, "_blank");
     } catch {
-      this.say("Could not open your browser. The address is: " + url);
+      this.say(t("Could not open your browser. The address is: {url}", { url }));
     }
   }
 
   /** Show the installed files of `item` (the given version) in the file manager. */
   async openFolder(item: Item, version?: string) {
     if (!isTauri) {
-      this.say("Opening folders works in the desktop app.");
+      this.say(t("Opening folders works in the desktop app."));
       return;
     }
     try {
@@ -330,8 +332,8 @@ class AppState {
       const r = b.recovered;
       for (const w of r.warnings) console.warn("restore:", w);
       this.say(r.opsUndone > 0
-        ? "The last session did not finish cleanly. Your game folder has been restored."
-        : `Could not fully restore the game folder: ${r.warnings[0] ?? "unknown problem"}`);
+        ? t("The last session did not finish cleanly. Your game folder has been restored.")
+        : t("Could not fully restore the game folder: {problem}", { problem: r.warnings[0] ?? t("unknown problem") }));
     }
     this.phase = "loading";
     if (b.legacy) await this.offerMigration(b.legacy); // the library is scanned fresh right after
@@ -342,15 +344,15 @@ class AppState {
   private async offerMigration(l: LegacySummary): Promise<boolean> {
     const gb = (l.bytes / 1e9).toFixed(1);
     const msg =
-      `Data from the old GenLauncher was found in this game folder.\n\n` +
-      `• ${l.mods} installed mods (${gb} GB) will be MOVED into the new library. They are kept, not re-downloaded.\n` +
-      `• ${l.deletions} leftover files and folders of the old launcher (its program, settings and caches) will be deleted.\n` +
-      `• Your game files, GenTool and Steam files are not touched.` +
-      (l.notes.length ? `\n\nLeft alone:\n${l.notes.map((n) => "• " + n).join("\n")}` : "");
-    if (!(await confirmDialog(msg, "Move to the new library", "Move and clean up", "Not now"))) return false;
+      t("Data from the old GenLauncher was found in this game folder.") + "\n\n" +
+      t("• {n} installed mods ({gb} GB) will be MOVED into the new library. They are kept, not re-downloaded.", { n: l.mods, gb }) + "\n" +
+      t("• {n} leftover files and folders of the old launcher (its program, settings and caches) will be deleted.", { n: l.deletions }) + "\n" +
+      t("• Your game files, GenTool and Steam files are not touched.") +
+      (l.notes.length ? "\n\n" + t("Left alone:") + "\n" + l.notes.map((n) => "• " + n).join("\n") : "");
+    if (!(await confirmDialog(msg, t("Move to the new library"), t("Move and clean up"), t("Not now")))) return false;
     try {
       await migrateLegacy();
-      this.say("Your library was moved and the old launcher's files were removed.");
+      this.say(t("Your library was moved and the old launcher's files were removed."));
       return true;
     } catch (e) {
       this.say(errText(e), "error");
@@ -364,7 +366,7 @@ class AppState {
       this.items = res.items;
       this.online = res.online;
       this.catalogError = res.error;
-      if (!res.online) this.notify(`Could not reach the mod index, showing the saved copy. ${res.error ?? ""}`.trim(), "error", { id: "index-offline" });
+      if (!res.online) this.notify((t("Could not reach the mod catalog, showing the saved copy.") + " " + (res.error ?? "")).trim(), "error", { id: "index-offline" });
       if (!this.mods.some((m) => m.id === this.activeModId)) {
         this.activeModId = (this.mods.find((m) => m.versions.some((v) => v.installed)) ?? this.mods[0])?.id ?? "";
       }
@@ -376,7 +378,7 @@ class AppState {
       void this.refreshGoogle();
       await this.ensureExtras(this.activeModId);
     } catch (e) {
-      this.say(`Could not load the library: ${errText(e)}`, "error");
+      this.say(t("Could not load the library: {error}", { error: errText(e) }), "error");
       this.phase = "setup";
     }
   }
@@ -393,7 +395,7 @@ class AppState {
       this.applyProgress();
     } catch (e) {
       this.extrasLoaded.delete(modId);
-      this.say(`Could not load add-ons: ${errText(e)}`, "error");
+      this.say(t("Could not load add-ons: {error}", { error: errText(e) }), "error");
     } finally {
       this.loadingExtras = false;
     }
@@ -459,7 +461,7 @@ class AppState {
       await backend.saveSettings(s);
       this.maybeAutoCloudBackup();
     } catch (e) {
-      this.say(`Could not save settings: ${errText(e)}`, "error");
+      this.say(t("Could not save settings: {error}", { error: errText(e) }), "error");
       throw e;
     }
   }
@@ -492,13 +494,13 @@ class AppState {
 
   /** Save the settings of every game on this computer, and the look, to a file the user chooses. */
   async exportConfiguration(includeCovers: boolean) {
-    if (!isTauri) { this.say("Exporting works in the desktop app."); return; }
+    if (!isTauri) { this.say(t("Exporting works in the desktop app.")); return; }
     try {
       const path = await pickConfigSavePath();
       if (!path) return;
       await this.flush();
       const games = await exportConfig(path, this.uiBundle(includeCovers));
-      this.say(`Configuration exported (${games.map((g) => (g === "zh" ? "Zero Hour" : "Generals")).join(", ") || "look only"})`, "success");
+      this.say(t("Configuration exported ({games})", { games: games.map(gameName).join(", ") || t("look only") }), "success");
     } catch (e) {
       this.say(errText(e), "error");
     }
@@ -531,17 +533,17 @@ class AppState {
   }
 
   async signInGoogle() {
-    if (!isTauri) { this.say("Signing in works in the desktop app."); return; }
+    if (!isTauri) { this.say(t("Signing in works in the desktop app.")); return; }
     this.googleBusy = true;
     try {
       this.google = await googleSignIn();
-      this.notify(`Signed in to Google as ${this.google.email || "your account"}.`, "success");
+      this.notify(t("Signed in to Google as {account}.", { account: this.google.email || t("your account") }), "success");
       await this.refreshCloudBackups();
       const newest = this.cloudBackups[0];
       if (newest) {
         // probably a new computer, or a reinstall: offer to take the saved settings
-        const when = new Date(newest.at * 1000).toLocaleString();
-        if (await confirmDialog(`Your Google Drive has a settings backup from ${when}.\nRestore it? Your current settings are backed up first.`, "Restore from Google Drive", "Restore", "Keep mine")) {
+        const when = i18n.dateTime(newest.at * 1000);
+        if (await confirmDialog(t("Your Google Drive has a settings backup from {when}.", { when }) + "\n" + t("Restore it? Your current settings are backed up first."), t("Restore from Google Drive"), t("Restore"), t("Keep mine"))) {
           await this.restoreCloudBackup(newest, false);
         }
       } else {
@@ -558,7 +560,7 @@ class AppState {
     try { await googleSignOut(); } catch { /* signed out locally anyway */ }
     this.google = null;
     this.cloudBackups = [];
-    this.say("Signed out of Google. Backups already in your Drive are kept.");
+    this.say(t("Signed out of Google. Backups already in your Drive are kept."));
   }
 
   setAutoCloud(v: boolean) { this.autoCloud = v; save("autoCloud", v); }
@@ -570,7 +572,7 @@ class AppState {
       await cloudBackupCreate(this.uiBundle(withCovers), label);
       save("cloudHash", this.settingsFingerprint());
       save("cloudAt", Date.now());
-      if (announce) this.say("Backed up to Google Drive", "success");
+      if (announce) this.say(t("Backed up to Google Drive"), "success");
       await this.refreshCloudBackups();
     } catch (e) {
       this.googleFailed(e);
@@ -582,16 +584,16 @@ class AppState {
   }
 
   async restoreCloudBackup(b: CloudBackup, ask = true) {
-    const when = new Date(b.at * 1000).toLocaleString();
+    const when = i18n.dateTime(b.at * 1000);
     if (ask) {
-      const msg = `Go back to the settings saved on ${when}?\nYour current settings are backed up first, so you can undo this. Mods and game files are not touched.`;
-      if (!(await confirmDialog(msg, "Restore backup", "Restore", "Cancel"))) return;
+      const msg = t("Go back to the settings saved on {when}?", { when }) + "\n" + t("Your current settings are backed up first, so you can undo this. Mods and game files are not touched.");
+      if (!(await confirmDialog(msg, t("Restore backup"), t("Restore"), t("Cancel")))) return;
     }
     try {
       await this.flush();
       const r = await cloudBackupRestore(b.id, this.uiBundle(false));
       this.applyUiBundle(r.ui);
-      this.notify(`Settings restored from Google Drive (${when}).`, "success");
+      this.notify(t("Settings restored from Google Drive ({when}).", { when }), "success");
       location.reload();
     } catch (e) {
       this.googleFailed(e);
@@ -616,11 +618,11 @@ class AppState {
   }
 
   async backUpNow(includeCovers: boolean) {
-    if (!isTauri) { this.say("Backups work in the desktop app."); return; }
+    if (!isTauri) { this.say(t("Backups work in the desktop app.")); return; }
     try {
       await this.flush();
       await backupCreate(this.uiBundle(includeCovers));
-      this.say("Backup saved", "success");
+      this.say(t("Backup saved"), "success");
       await this.refreshBackups();
     } catch (e) {
       this.say(errText(e), "error");
@@ -633,14 +635,14 @@ class AppState {
 
   /** Go back to a backup (asks first). The current settings are backed up before they are replaced. */
   async restoreBackup(b: Backup) {
-    const when = new Date(b.at * 1000).toLocaleString();
-    const msg = `Go back to the settings saved on ${when}?\nYour current settings are backed up first, so you can undo this. Mods and game files are not touched.`;
-    if (!(await confirmDialog(msg, "Restore backup", "Restore", "Cancel"))) return;
+    const when = i18n.dateTime(b.at * 1000);
+    const msg = t("Go back to the settings saved on {when}?", { when }) + "\n" + t("Your current settings are backed up first, so you can undo this. Mods and game files are not touched.");
+    if (!(await confirmDialog(msg, t("Restore backup"), t("Restore"), t("Cancel")))) return;
     try {
       await this.flush();
       const r = await backupRestore(b.name, this.uiBundle(false));
       this.applyUiBundle(r.ui);
-      this.notify(`Settings restored from the backup of ${when}.`, "success");
+      this.notify(t("Settings restored from the backup of {when}.", { when }), "success");
       location.reload();
     } catch (e) {
       this.say(errText(e), "error");
@@ -648,17 +650,17 @@ class AppState {
   }
 
   async importConfiguration() {
-    if (!isTauri) { this.say("Importing works in the desktop app."); return; }
+    if (!isTauri) { this.say(t("Importing works in the desktop app.")); return; }
     try {
       const path = await pickConfigFile();
       if (!path) return;
-      const msg = "Replace your current settings with the ones in this file?\nYour current settings are saved as a backup first. Mods and game files are not touched.";
-      if (!(await confirmDialog(msg, "Import configuration", "Import", "Cancel"))) return;
+      const msg = t("Replace your current settings with the ones in this file?") + "\n" + t("Your current settings are saved as a backup first. Mods and game files are not touched.");
+      if (!(await confirmDialog(msg, t("Import configuration"), t("Import"), t("Cancel")))) return;
       await this.flush();
       const r = await importConfig(path, this.uiBundle(false));
       this.applyUiBundle(r.ui);
-      const names = r.games.map((g) => (g === "zh" ? "Zero Hour" : "Generals")).join(", ") || "look only";
-      this.notify(`Configuration imported (${names}).`, "success");
+      const names = r.games.map(gameName).join(", ") || t("look only");
+      this.notify(t("Configuration imported ({games}).", { games: names }), "success");
       location.reload(); // every screen re-reads its settings from the files
     } catch (e) {
       this.say(errText(e), "error");
@@ -684,7 +686,7 @@ class AppState {
     try {
       localStorage.setItem("customCovers", JSON.stringify(this.customCovers));
     } catch {
-      this.say("Cover applied, but it is too large to remember after restart");
+      this.say(t("Cover applied, but it is too large to remember after restart"));
     }
     this.applyTheme();
   }
@@ -808,7 +810,7 @@ class AppState {
         item.progress = undefined;
         const latest = item.versions.find((v) => v.v === item.latest);
         if (latest) latest.installed = true; else item.versions.unshift({ v: item.latest, installed: true });
-        this.say(`${item.name} ${item.latest} installed`);
+        this.say(t("{name} {version} installed", { name: item.name, version: item.latest }));
       }
     }, 140);
   }
@@ -820,8 +822,8 @@ class AppState {
 
   /** Remove one installed version from disk (asks first). */
   async uninstall(item: Item, version: string) {
-    const msg = `Remove ${item.name} ${version} from your computer?\nIts files are deleted from GenLauncher's folder; your game files are not touched.`;
-    if (!(await confirmDialog(msg, `Remove ${item.name}`))) return;
+    const msg = t("Remove {name} {version} from your computer?", { name: item.name, version }) + "\n" + t("Its files are deleted from GenLauncher's folder; your game files are not touched.");
+    if (!(await confirmDialog(msg, t("Remove {name}", { name: item.name })))) return;
     if (!isTauri) {
       const v = item.versions.find((x) => x.v === version);
       if (v) v.installed = false;
@@ -834,7 +836,7 @@ class AppState {
         this.enabled = this.enabled.filter((id) => id !== item.id);
         this.persist();
       }
-      this.say(`${item.name} ${version} removed`);
+      this.say(t("{name} {version} removed", { name: item.name, version }));
       await this.refreshLibrary();
     } catch (e) {
       this.say(errText(e), "error");
@@ -858,10 +860,10 @@ class AppState {
     this.launch = "preparing";
     await new Promise((r) => setTimeout(r, 1400));
     this.launch = "running";
-    this.say("Game started (simulated)");
+    this.say(t("Game started (simulated)"));
     await new Promise((r) => setTimeout(r, 3000));
     this.launch = "idle";
-    this.say("Game closed, files restored");
+    this.say(t("Game closed, files restored"));
   }
 }
 

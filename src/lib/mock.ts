@@ -18,7 +18,7 @@ export const mockItems: Item[] = [
   { id: "evo", kind: "mod", name: "Evolution", hue: 300, latest: "2.4", sizeMb: 800,
     summary: "Graphical and gameplay modernisation focused on competitive balance.",
     versions: [{ v: "2.4", installed: false }] },
-  { id: "og", kind: "mod", name: "Original Game", hue: 220, latest: "1.04", sizeMb: 0,
+  { id: "original-game", kind: "mod", name: "Original Game", hue: 220, latest: "1.04", sizeMb: 0,
     summary: "Unmodified Zero Hour. Patches and addons still apply.",
     versions: [{ v: "1.04", installed: true }] },
 
@@ -31,6 +31,6 @@ export const mockItems: Item[] = [
   { id: "contra-p1", kind: "patch", parent: "contra", name: "Hotfix 3", hue: 150, latest: "3", versions: [{ v: "3", installed: true }], summary: "Stability fixes." },
   { id: "contra-a1", kind: "addon", parent: "contra", name: "Extra Maps", hue: 150, latest: "1.0", versions: [{ v: "1.0", installed: true }], summary: "40 community maps." },
 
-  { id: "og-a1", kind: "addon", parent: "og", name: "Widescreen Fix", hue: 220, latest: "1.1", versions: [{ v: "1.1", installed: true }], summary: "Proper UI scaling above 1080p." },
-  { id: "og-e1", kind: "exe", parent: "og", name: "Modded EXE (camera unlock)", hue: 220, latest: "2.0", versions: [{ v: "2.0", installed: true }], summary: "Bypasses the LAN camera-height limit." },
+  { id: "og-a1", kind: "addon", parent: "original-game", name: "Widescreen Fix", hue: 220, latest: "1.1", versions: [{ v: "1.1", installed: true }], summary: "Proper UI scaling above 1080p." },
+  { id: "og-e1", kind: "exe", parent: "original-game", name: "Modded EXE (camera unlock)", hue: 220, latest: "2.0", versions: [{ v: "2.0", installed: true }], summary: "Bypasses the LAN camera-height limit." },
 ];

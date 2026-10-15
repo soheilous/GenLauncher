@@ -6,11 +6,13 @@
   import type { ModKind } from "$lib/types";
   import Icon from "./Icon.svelte";
   import Select from "./Select.svelte";
+  import { N, t } from "$lib/i18n/index.svelte";
+  import { modName } from "$lib/names";
 
   const tabs: { kind: ModKind; label: string }[] = [
-    { kind: "patch", label: "Patches" },
-    { kind: "addon", label: "Addons" },
-    { kind: "exe", label: "Executables" },
+    { kind: "patch", label: N("Patches") },
+    { kind: "addon", label: N("Addons") },
+    { kind: "exe", label: N("Executables") },
   ];
   let tab = $state<ModKind>("patch");
   const mod = $derived(app.activeMod);
@@ -19,7 +21,7 @@
     mod.versions.map((v) => ({
       value: v.v,
       label: v.v,
-      hint: !v.installed ? "Not installed" : v.v === mod.latest ? "Latest" : "Installed",
+      hint: !v.installed ? t("Not installed") : v.v === mod.latest ? t("Latest") : t("Installed"),
       muted: !v.installed,
     }))
   );
@@ -35,14 +37,14 @@
    *  without one, fall back to the mod's own page from the catalog. */
   const versionPage = $derived(mod.versions.find((v) => v.v === selectedVersion)?.page || "");
   const pageUrl = $derived(versionPage || mod.links?.moddb || "");
-  const pageLabel = $derived(versionPage ? "Open the page this version was downloaded from" : "Open the mod's web page");
+  const pageLabel = $derived(versionPage ? t("Open the page this version was downloaded from") : t("Open the mod's web page"));
 
   const PHASES: Record<string, string> = {
-    preparing: "Preparing…", downloading: "Downloading", verifying: "Checking files…", extracting: "Extracting…", finishing: "Finishing…",
+    preparing: N("Preparing…"), downloading: N("Downloading"), verifying: N("Checking files…"), extracting: N("Extracting…"), finishing: N("Finishing…"),
   };
   /** "Downloading 42%" while the size is known, otherwise just the step. */
   function status(it: { progress?: number; phase?: string; bytes?: number }) {
-    const label = PHASES[it.phase ?? ""] ?? "Working…";
+    const label = t(PHASES[it.phase ?? ""] ?? N("Working…"));
     if (it.phase === "downloading" && it.progress) return `${label} ${Math.round(it.progress * 100)}%`;
     return it.bytes ? `${label} · ${formatBytes(it.bytes)}` : label;
   }
@@ -59,9 +61,9 @@
     try {
       const { dataUrl, hue } = await processCover(file);
       app.setCover(mod.id, dataUrl, hue);
-      app.say(`Cover updated for ${mod.name}`);
+      app.say(t("Cover updated for {name}", { name: mod.name }));
     } catch (e) {
-      app.say(e instanceof Error ? e.message : "Could not load that image");
+      app.say(e instanceof Error ? e.message : t("Could not load that image"));
     }
   }
 </script>
@@ -73,38 +75,38 @@
     ondrop={(e) => { e.preventDefault(); dragOver = false; applyCover(e.dataTransfer?.files[0]); }}>
     <CoverArt item={mod} pad={34} />
     <div class="fade"></div>
-    <h2>{mod.name}</h2>
+    <h2><bdi>{modName(mod)}</bdi></h2>
     <div class="cover-actions">
       {#if hasCustom}
-        <button class="mini" title="Reset cover" aria-label="Reset cover" onclick={() => app.resetCover(mod.id)}><Icon name="undo" size={15} /></button>
+        <button class="mini" title={t("Reset cover")} aria-label={t("Reset cover")} onclick={() => app.resetCover(mod.id)}><Icon name="undo" size={15} /></button>
       {/if}
-      <button class="mini" title="Change cover (or drop an image here)" aria-label="Change cover" onclick={() => fileInput?.click()}>
-        <Icon name="image" size={15} /> <span>Change cover</span>
+      <button class="mini" title={t("Change cover (or drop an image here)")} aria-label={t("Change cover")} onclick={() => fileInput?.click()}>
+        <Icon name="image" size={15} /> <span>{t("Change cover")}</span>
       </button>
     </div>
     <input bind:this={fileInput} type="file" accept="image/*" hidden
       onchange={(e) => { applyCover(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
-    {#if dragOver}<div class="dropnote">Drop image to set as cover</div>{/if}
+    {#if dragOver}<div class="dropnote">{t("Drop image to set as cover")}</div>{/if}
   </div>
 
   <div class="body">
     {#if mod.summary}<p class="sum">{mod.summary}</p>{/if}
 
     <div class="row2">
-      <span class="lbl">Version</span>
-      <Select label="Version" options={versionOptions} value={selectedVersion} onchange={(v) => app.setChosenVersion(mod.id, v)} />
+      <span class="lbl">{t("Version")}</span>
+      <Select label={t("Version")} options={versionOptions} value={selectedVersion} onchange={(v) => app.setChosenVersion(mod.id, v)} />
       {#if pageUrl}
         <button class="btn icon" title={pageLabel} aria-label={pageLabel} onclick={() => app.openPage(pageUrl)}><Icon name="link" size={15} /></button>
       {/if}
       {#if versionPage && selectedInstalled}
-        <button class="btn icon" title="Check for a newer version (opens the page this version came from)" aria-label="Check for a newer version"
+        <button class="btn icon" title={t("Check for a newer version (opens the page this version came from)")} aria-label={t("Check for a newer version")}
           onclick={() => app.checkForUpdate(mod, versionPage)}><Icon name="refresh" size={15} /></button>
       {/if}
-      <button class="btn icon" title={anyInstalled || mod.id === "original-game" ? "Show the installed files" : "Not installed yet"}
-        aria-label="Show the installed files" disabled={!anyInstalled && mod.id !== "original-game"}
+      <button class="btn icon" title={anyInstalled || mod.id === "original-game" ? t("Show the installed files") : t("Not installed yet")}
+        aria-label={t("Show the installed files")} disabled={!anyInstalled && mod.id !== "original-game"}
         onclick={() => app.openFolder(mod, selectedVersion)}><Icon name="folder" size={15} /></button>
       {#if canRemove}
-        <button class="btn icon danger" title="Remove version {selectedVersion}" aria-label="Remove version {selectedVersion}"
+        <button class="btn icon danger" title={t("Remove version {version}", { version: selectedVersion })} aria-label={t("Remove version {version}", { version: selectedVersion })}
           disabled={mod.progress !== undefined} onclick={() => app.uninstall(mod, selectedVersion)}><Icon name="trash" size={15} /></button>
       {/if}
     </div>
@@ -112,19 +114,19 @@
     {#if mod.progress !== undefined}
       <div class="install">
         <div class="meter" class:unknown={!mod.progress}><i style:width="{Math.max(mod.progress, 0.02) * 100}%"></i></div>
-        <div class="install-row"><span>{app.pending[mod.id] ? `Adding ${app.pending[mod.id].version} · ` : ""}{status(mod)}</span>
-          <button class="btn" onclick={() => app.cancel(mod)}><Icon name="x" size={13} /> Cancel</button></div>
+        <div class="install-row"><span>{app.pending[mod.id] ? t("Adding {version}", { version: app.pending[mod.id].version }) + " · " : ""}{status(mod)}</span>
+          <button class="btn" onclick={() => app.cancel(mod)}><Icon name="x" size={13} /> {t("Cancel")}</button></div>
       </div>
     {:else if canInstall}
       <button class="btn primary wide" onclick={() => app.install(mod)}>
-        <Icon name="download" size={16} /> {anyInstalled ? "Update to" : "Install"} {mod.latest}
+        <Icon name="download" size={16} /> {anyInstalled ? t("Update to {version}", { version: mod.latest }) : t("Install {version}", { version: mod.latest })}
       </button>
     {/if}
 
     <div class="tabs" role="tablist">
-      {#each tabs as t}
-        <button role="tab" aria-selected={tab === t.kind} class:on={tab === t.kind} onclick={() => (tab = t.kind)}>
-          {t.label}<span>{app.children.filter((c) => c.kind === t.kind && c.selected).length || ""}</span>
+      {#each tabs as tb}
+        <button role="tab" aria-selected={tab === tb.kind} class:on={tab === tb.kind} onclick={() => (tab = tb.kind)}>
+          {t(tb.label)}<span>{app.children.filter((c) => c.kind === tb.kind && c.selected).length || ""}</span>
         </button>
       {/each}
     </div>
@@ -136,26 +138,26 @@
           onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); app.toggleChild(it); } }}>
           <span class="box" class:checked={it.selected}>{#if it.selected}<Icon name="check" size={13} />{/if}</span>
           <div class="txt">
-            <strong>{it.name}</strong>
-            <small>{it.progress !== undefined ? status(it) : has ? `Installed ${it.versions.find((v) => v.installed)?.v ?? ""}` : "Not installed"}</small>
+            <strong><bdi>{it.name}</bdi></strong>
+            <small>{it.progress !== undefined ? status(it) : has ? t("Installed {version}", { version: it.versions.find((v) => v.installed)?.v ?? "" }) : t("Not installed")}</small>
             {#if it.progress !== undefined}<div class="bar"><i style:width="{Math.max(it.progress, 0.02) * 100}%"></i></div>{/if}
           </div>
           {#if it.progress !== undefined}
-            <button class="chip warn" aria-label="Cancel installing {it.name}" onclick={(e) => { e.stopPropagation(); app.cancel(it); }}>Cancel</button>
+            <button class="chip warn" aria-label={t("Cancel installing {name}", { name: it.name })} onclick={(e) => { e.stopPropagation(); app.cancel(it); }}>{t("Cancel")}</button>
           {:else if has}
-            <button class="chip trash" title="Remove {it.versions.find((v) => v.installed)?.v ?? ''}" aria-label="Remove {it.name}"
+            <button class="chip trash" title={t("Remove {version}", { version: it.versions.find((v) => v.installed)?.v ?? "" })} aria-label={t("Remove {name}", { name: it.name })}
               onclick={(e) => { e.stopPropagation(); app.uninstall(it, it.versions.find((v) => v.installed)?.v ?? ""); }}><Icon name="trash" size={14} /></button>
-            {#if hasUpdate(it)}<button class="chip warn" title="Update to {it.latest}" aria-label="Update {it.name} to {it.latest}" onclick={(e) => { e.stopPropagation(); app.install(it); }}>Update</button>
-            {:else}<span class="chip">{it.latest}</span>{/if}
+            {#if hasUpdate(it)}<button class="chip warn" title={t("Update to {version}", { version: it.latest })} aria-label={t("Update {name} to {version}", { name: it.name, version: it.latest })} onclick={(e) => { e.stopPropagation(); app.install(it); }}>{t("Update")}</button>
+            {:else}<span class="chip"><bdi>{it.latest}</bdi></span>{/if}
           {:else}
-            <span class="chip accent">Get</span>
+            <span class="chip accent">{t("Get")}</span>
           {/if}
         </div>
       {:else}
-        <p class="empty">{app.loadingExtras ? "Loading…" : "Nothing here for this mod."}</p>
+        <p class="empty">{app.loadingExtras ? t("Loading…") : t("Nothing here for this mod.")}</p>
       {/each}
       <button class="add-extra" onclick={() => app.openAdd(tab, mod.id)}>
-        <Icon name="plus" size={14} /> Add {tab === "exe" ? "an executable" : "a " + tab} from a file or link
+        <Icon name="plus" size={14} /> {tab === "exe" ? t("Add an executable from a file or link") : tab === "addon" ? t("Add an add-on from a file or link") : t("Add a patch from a file or link")}
       </button>
     </div>
   </div>
@@ -166,7 +168,7 @@
   .hero { height: 170px; position: relative; display: flex; align-items: flex-end; padding: 16px 20px; }
   .fade { position: absolute; inset: 0; background: linear-gradient(to top, rgb(0 0 0 / .72), transparent 55%); }
   .hero.drag { outline: 2px dashed var(--accent); outline-offset: -8px; }
-  .cover-actions { z-index: 2; position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; opacity: 0; transition: opacity .2s; }
+  .cover-actions { z-index: 2; position: absolute; top: 12px; inset-inline-end: 12px; display: flex; gap: 6px; opacity: 0; transition: opacity .2s; }
   .hero:hover .cover-actions, .hero:focus-within .cover-actions { opacity: 1; }
   .mini { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff;
     background: rgb(0 0 0 / .45); backdrop-filter: blur(10px); border: 1px solid rgb(255 255 255 / .25); transition: background .15s; }
@@ -199,8 +201,8 @@
   .tabs { display: flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--stroke); border-radius: 999px; }
   .tabs button { flex: 1; padding: 6px 4px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--text-dim); transition: background .2s, color .2s; }
   .tabs button.on { background: var(--surface-hi); color: var(--text); }
-  .tabs span { margin-left: 5px; color: var(--accent); }
-  .list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 0; padding-right: 2px; }
+  .tabs span { margin-inline-start: 5px; color: var(--accent); }
+  .list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 0; padding-inline-end: 2px; }
   .row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--stroke); cursor: pointer; transition: background .15s, border-color .15s; }
   .row:hover { background: var(--surface-hi); border-color: var(--stroke-hi); }
   .row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
