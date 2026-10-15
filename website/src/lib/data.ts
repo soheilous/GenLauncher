@@ -1,5 +1,6 @@
 import index from "./generated/index.json";
 import covers from "./generated/covers.json";
+import releaseInfo from "./generated/release.json";
 
 export type GameKey = "zh" | "generals";
 
@@ -61,3 +62,6 @@ export const featured = mods
 
 export const REPO = "https://github.com/soheilous/GenLauncher";
 export const CATALOG = "https://github.com/soheilous/generals-mod-catalog";
+
+/** The newest published release, when the build could read it from GitHub. */
+export const release = releaseInfo as { tag: string; version: string; prerelease: boolean; page: string; download: string; size: number } | null;

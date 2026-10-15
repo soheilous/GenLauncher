@@ -1,7 +1,7 @@
 <script lang="ts">
   import ModCard from "$lib/ModCard.svelte";
   import Faq from "$lib/Faq.svelte";
-  import { CATALOG, featured, stats, REPO } from "$lib/data";
+  import { CATALOG, featured, release, stats, REPO } from "$lib/data";
 
   const shots = [
     { id: "library", label: "Library", text: "Your mods, each with its own art and accent colour. Pick a version, switch patches and add-ons on or off, and press Play." },
@@ -120,12 +120,23 @@
 <section class="wrap block get" id="get" aria-labelledby="get-h">
   <div class="card">
     <h2 id="get-h">Get GenLauncher</h2>
-    <p class="status"><span class="dot"></span> Preview: the first installer is not published yet.</p>
-    <p>GenLauncher is under active development. Until the first release is out you can follow the project on GitHub or build it yourself; the README explains how.</p>
-    <div class="cta">
-      <a class="btn primary" href={REPO} rel="noopener">View on GitHub</a>
-      <a class="btn" href="{REPO}#development">Build it yourself</a>
-    </div>
+    {#if release}
+      <p class="status"><span class="dot"></span> Version {release.version}{release.prerelease ? " (preview)" : ""} · Windows 10 and 11 · {(release.size / 1048576).toFixed(1)} MB</p>
+      <p>A normal setup program: it installs for your user account and needs no administrator rights.</p>
+      <div class="cta">
+        <a class="btn primary" href={release.download} rel="noopener">Download for Windows</a>
+        <a class="btn" href={release.page} rel="noopener">Release notes</a>
+        <a class="btn" href="{REPO}#development">Build it yourself</a>
+      </div>
+      <p class="warn-note"><strong>Windows may say "Windows protected your PC".</strong> The installer is not code-signed yet, which is what triggers it: click <em>More info</em>, then <em>Run anyway</em>. See the <a href="/guide#problems">guide</a>.</p>
+    {:else}
+      <p class="status"><span class="dot"></span> Preview for Windows</p>
+      <p>GenLauncher is under active development. Get the installer from the releases page, or build it yourself; the README explains how.</p>
+      <div class="cta">
+        <a class="btn primary" href="{REPO}/releases" rel="noopener">Releases on GitHub</a>
+        <a class="btn" href="{REPO}#development">Build it yourself</a>
+      </div>
+    {/if}
     <p class="req"><strong>Needs:</strong> Windows 10 or 11 and a copy of Generals or Zero Hour (Steam, EA App or disc). Linux is planned.</p>
   </div>
 </section>
@@ -197,6 +208,7 @@
   .get .card p { color: var(--text-dim); max-width: 38rem; margin-inline: auto; }
   .get .status { display: inline-flex; align-items: center; gap: .6rem; color: var(--text); font-weight: 600; }
   .get .req { margin-top: 1.4rem; font-size: .95rem; }
+  .get .warn-note { margin-top: 1.1rem; font-size: .92rem; background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--r-md); padding: .8rem 1rem; text-align: start; }
 
   .thanks p { color: var(--text-dim); max-width: 46rem; }
 

@@ -1,5 +1,6 @@
 // Copies what the website shows from the rest of the repository into src/lib/generated/:
 //   - the mod catalog (github.com/soheilous/generals-mod-catalog; the snapshot in ../src-tauri/bundled/ if GitHub is unreachable)
+//   - the newest release of the launcher (GitHub API)
 //   - the privacy policy and terms of service (../PRIVACY.md, ../TERMS.md), turned into HTML
 // If the files outside website/ are not available (a build that only has this folder), they are fetched from GitHub.
 
@@ -72,6 +73,23 @@ function markdown(md) {
   return html.join("\n");
 }
 
+/** The newest published release and its Windows installer, or null when GitHub cannot be reached (the page then links to the releases list). */
+async function latestRelease() {
+  try {
+    const r = await fetch("https://api.github.com/repos/soheilous/GenLauncher/releases?per_page=10", {
+      signal: AbortSignal.timeout(15000),
+      headers: { accept: "application/vnd.github+json", "user-agent": "GenLauncher-site-build (+https://github.com/soheilous/GenLauncher)" },
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const rel = (await r.json()).find((x) => !x.draft);
+    const asset = rel?.assets?.find((a) => /-setup\.exe$/.test(a.name));
+    return rel && asset ? { tag: rel.tag_name, version: rel.tag_name.replace(/^v/, ""), prerelease: !!rel.prerelease, page: rel.html_url, download: asset.browser_download_url, size: asset.size } : null;
+  } catch (e) {
+    console.warn("release info: " + e.message);
+    return null;
+  }
+}
+
 const [zh, generals, privacy, terms] = await Promise.all([readCatalog("zero-hour.json"), readCatalog("generals.json"), read("PRIVACY.md"), read("TERMS.md")]);
 /**
  * Mod cover images are kept on this site, so a card does not depend on imgur or Discord staying up.
@@ -102,6 +120,7 @@ await Promise.all(urls.map(async (url) => {
   }
 }));
 fs.writeFileSync(path.join(out, "covers.json"), JSON.stringify(covers));
+fs.writeFileSync(path.join(out, "release.json"), JSON.stringify(await latestRelease()));
 
 fs.writeFileSync(path.join(out, "index.json"), JSON.stringify(index));
 fs.writeFileSync(path.join(out, "legal.json"), JSON.stringify({ privacy: markdown(privacy), terms: markdown(terms) }));

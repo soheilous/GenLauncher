@@ -44,6 +44,7 @@
 
     <h2 id="problems">When something goes wrong</h2>
     <ul>
+      <li><strong>Windows says "protected your PC".</strong> The installer is not code-signed yet. Click <em>More info</em>, then <em>Run anyway</em>.</li>
       <li><strong>The Notifications page</strong> keeps the message of every failed install, in full.</li>
       <li><strong>A download stops moving.</strong> After a minute the launcher cancels it and takes you back to the link step so you can try again.</li>
       <li><strong>Mod folders out of place?</strong> Use the folder button next to a version to open it in the file manager.</li>

@@ -7,6 +7,13 @@ even if the launcher or the PC dies mid-game.
 Rewrite of the original GenLauncher (WPF, .NET Framework) as a small native app: **Tauri 2** (Rust core) with a
 **SvelteKit** UI. Mods are listed in the open [mod catalog](https://github.com/soheilous/generals-mod-catalog). Windows first, Linux (Wine/Proton) planned.
 
+## Install
+
+Windows 10 or 11: download `GenLauncher_<version>_x64-setup.exe` from the
+[latest release](https://github.com/soheilous/GenLauncher/releases) and run it. It installs for your user account and needs
+no administrator rights. The installer is not code-signed yet, so **Windows SmartScreen may say "Windows protected your PC"**:
+click *More info*, then *Run anyway*. A winget package is being prepared (`packaging/`).
+
 ## How it works
 
 Everything the launcher stores in a game folder lives in one directory, `.genlauncher/`. Deleting it removes the launcher.

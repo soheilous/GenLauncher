@@ -28,6 +28,10 @@ export const faq: { q: string; a: string }[] = [
     a: "It is optional. It keeps copies of your launcher settings in a hidden folder of your own Google Drive that only GenLauncher can see, so you can bring your setup to a new PC. No mod files are ever uploaded. See the privacy policy for the details.",
   },
   {
+    q: "Windows says \"Windows protected your PC\". Is it safe?",
+    a: "That screen (Microsoft Defender SmartScreen) appears for any program that is not code-signed yet or that few people have downloaded. GenLauncher is open source, so you can read exactly what it does, and the installer on the releases page is built by GitHub from that source. Click More info, then Run anyway. Code signing is planned; once it is in place the warning fades as more people install it.",
+  },
+  {
     q: "Does it work on Linux?",
     a: "Not yet. Windows comes first. Running the game through Wine or Proton on Linux is planned.",
   },
