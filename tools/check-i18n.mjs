@@ -5,6 +5,8 @@
 //   node tools/check-i18n.mjs --keys         print every text that needs translating (JSON)
 //   node tools/check-i18n.mjs --missing fa   print what fa still lacks, as a JSON object ready to fill in
 //
+// Add --site to check the website (website/src, website/src/lib/locales) instead of the launcher.
+//
 // Exit code 1 when a translation is broken: a text the code no longer has (stale), or {values} that do not match the
 // English text. A language that simply lacks a text is allowed (it falls back to English) and only reported.
 
@@ -13,13 +15,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
-const srcDir = path.join(root, "src");
-const localesDir = path.join(srcDir, "lib", "i18n", "locales");
+const site = process.argv.includes("--site");
+const args = process.argv.slice(2).filter((a) => a !== "--site");
+const srcDir = path.join(root, site ? "website/src" : "src");
+const localesDir = site ? path.join(srcDir, "lib", "locales") : path.join(srcDir, "lib", "i18n", "locales");
 
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) { if (!p.includes(path.join("lib", "i18n"))) walk(p, out); }
+    if (e.isDirectory()) { if (!p.includes(path.join("lib", "i18n")) && p !== localesDir && e.name !== "generated") walk(p, out); }
     else if (/\.(svelte|ts)$/.test(e.name)) out.push(p);
   }
   return out;
@@ -54,7 +58,7 @@ function loadLocale(code) {
 const vars = (s) => [...new Set([...String(s).matchAll(/\{(\w+)\}/g)].map((m) => m[1]))].sort().join(",");
 
 const keys = extract();
-const arg = process.argv[2];
+const arg = args[0];
 if (arg === "--keys") {
   console.log(JSON.stringify([...keys.keys()].sort(), null, 2));
   process.exit(0);
@@ -62,7 +66,7 @@ if (arg === "--keys") {
 
 const codes = fs.readdirSync(localesDir).filter((f) => f.endsWith(".ts")).map((f) => f.slice(0, -3)).sort();
 if (arg === "--missing") {
-  const code = process.argv[3];
+  const code = args[1];
   const have = loadLocale(code);
   const out = {};
   for (const k of [...keys.keys()].sort()) if (!(k in have)) out[k] = "";

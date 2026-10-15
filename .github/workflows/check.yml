@@ -49,6 +49,7 @@ jobs:
           node-version: 22
       # stale texts and {values} that do not match the English text fail; a missing translation only falls back to English
       - run: node tools/check-i18n.mjs
+      - run: node tools/check-i18n.mjs --site
 
   demo:
     name: Website demo is current

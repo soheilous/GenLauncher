@@ -1,12 +1,15 @@
 <script lang="ts">
   import { faq } from "$lib/faq";
+  import { getI18n } from "$lib/i18n";
+
+  const { t } = getI18n();
 </script>
 
 <div class="faq">
   {#each faq as item}
     <details>
-      <summary>{item.q}</summary>
-      <p>{item.a}</p>
+      <summary>{t(item.q)}</summary>
+      <p>{t(item.a)}</p>
     </details>
   {/each}
 </div>

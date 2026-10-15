@@ -2,7 +2,11 @@
   import ModCard from "$lib/ModCard.svelte";
   import Faq from "$lib/Faq.svelte";
   import Showcase from "$lib/Showcase.svelte";
+  import Rich from "$lib/Rich.svelte";
   import { CATALOG, featured, release, stats, REPO } from "$lib/data";
+  import { N, getI18n } from "$lib/i18n";
+
+  const { t, href } = getI18n();
 
   // simple stroke icons (24x24 grid)
   const icons: Record<string, string> = {
@@ -17,116 +21,118 @@
     palette: "M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2s0-2 1.5-2h2a4 4 0 0 0 4-4 9 9 0 0 0-9-10zM7.5 11h.01M10 7.5h.01M14 7.5h.01M16.5 11h.01",
   };
   const features = [
-    { icon: "shield", title: "Safe by design", text: "Every change to your game folder is written down first and undone when the game closes, even after a crash. Your original files are never edited." },
-    { icon: "link", title: "Mods from their authors", text: "Nothing is mirrored. The launcher opens a mod's own page and takes the download you click, so files come from the people who made them." },
-    { icon: "layers", title: "Every version, side by side", text: "Keep several versions of a mod and pick which one to play. Each remembers the page it came from." },
-    { icon: "puzzle", title: "Patches, add-ons, executables", text: "Each mod has its own tabs. Switch on exactly the combination you want, one click each." },
-    { icon: "refresh", title: "Check for newer versions", text: "One button reopens a version's page to fetch the next release. Same-name mods are never silently mixed up." },
-    { icon: "sliders", title: "Game options built in", text: "Edit resolution, textures, particles and effects for the game without hunting for Options.ini." },
-    { icon: "bell", title: "A notification page", text: "Install results, problems and project news are kept until you read them." },
-    { icon: "cloud", title: "Backups that follow you", text: "Export your settings, keep versioned backups, or sync them to a hidden folder in your own Google Drive." },
-    { icon: "palette", title: "Looks like it belongs", text: "Light and dark themes, glass panels, and an accent colour taken from each mod's art." },
+    { icon: "shield", title: N("Safe by design"), text: N("Every change to your game folder is written down first and undone when the game closes, even after a crash. Your original files are never edited.") },
+    { icon: "link", title: N("Mods from their authors"), text: N("Nothing is mirrored. The launcher opens a mod's own page and takes the download you click, so files come from the people who made them.") },
+    { icon: "layers", title: N("Every version, side by side"), text: N("Keep several versions of a mod and pick which one to play. Each remembers the page it came from.") },
+    { icon: "puzzle", title: N("Patches, add-ons, executables"), text: N("Each mod has its own tabs. Switch on exactly the combination you want, one click each.") },
+    { icon: "refresh", title: N("Check for newer versions"), text: N("One button reopens a version's page to fetch the next release. Same-name mods are never silently mixed up.") },
+    { icon: "sliders", title: N("Game options built in"), text: N("Edit resolution, textures, particles and effects for the game without hunting for Options.ini.") },
+    { icon: "bell", title: N("A notification page"), text: N("Install results, problems and project news are kept until you read them.") },
+    { icon: "cloud", title: N("Backups that follow you"), text: N("Export your settings, keep versioned backups, or sync them to a hidden folder in your own Google Drive.") },
+    { icon: "palette", title: N("Looks like it belongs"), text: N("Light and dark themes, glass panels, and an accent colour taken from each mod's art.") },
   ];
 </script>
 
 <svelte:head>
-  <title>GenLauncher: a mod launcher for Command &amp; Conquer: Generals and Zero Hour</title>
-  <meta name="description" content="Install, switch between and start Generals and Zero Hour mods, patches and add-ons. Your game folder is restored when the game closes. Free and open source." />
+  <title>{t("GenLauncher: a mod launcher for Command & Conquer: Generals and Zero Hour")}</title>
+  <meta name="description" content={t("Install, switch between and start Generals and Zero Hour mods, patches and add-ons. Your game folder is restored when the game closes. Free and open source.")} />
   <meta property="og:title" content="GenLauncher" />
-  <meta property="og:description" content="A modern mod launcher for Command & Conquer: Generals and Zero Hour." />
+  <meta property="og:description" content={t("A modern mod launcher for Command & Conquer: Generals and Zero Hour.")} />
   <meta property="og:image" content="/logo-512.png" />
 </svelte:head>
 
 <section class="hero">
   <div class="glow" aria-hidden="true"></div>
   <div class="wrap">
-    <p class="badge"><span class="dot"></span> Preview · Windows · Zero Hour &amp; Generals</p>
-    <h1>Every Generals mod.<br /><span class="grad">Your game left untouched.</span></h1>
-    <p class="lead">GenLauncher installs, updates and switches between mods, patches and add-ons, then starts the game with exactly the combination you chose. When the game closes, your folder is put back the way it was.</p>
+    <p class="badge"><span class="dot"></span> {t("Preview · Windows · Zero Hour & Generals")}</p>
+    <h1>{t("Every Generals mod.")}<br /><span class="grad">{t("Your game left untouched.")}</span></h1>
+    <p class="lead">{t("GenLauncher installs, updates and switches between mods, patches and add-ons, then starts the game with exactly the combination you chose. When the game closes, your folder is put back the way it was.")}</p>
     <div class="cta">
-      <a class="btn primary" href="#get">Get GenLauncher</a>
-      <a class="btn" href="#try">Try it live</a>
-      <a class="btn" href="/mods">Browse {stats.mods} mods</a>
+      <a class="btn primary" href="#get">{t("Get GenLauncher")}</a>
+      <a class="btn" href="#try">{t("Try it live")}</a>
+      <a class="btn" href={href("/mods")}>{t("Browse {n} mods", { n: stats.mods })}</a>
     </div>
-    <ul class="chips" aria-label="Highlights">
-      <li>Free &amp; open source</li><li>No admin rights</li><li>Dark &amp; light theme</li><li>Linux planned</li>
+    <ul class="chips" aria-label={t("Highlights")}>
+      <li>{t("Free & open source")}</li><li>{t("No admin rights")}</li><li>{t("Dark & light theme")}</li><li>{t("Linux planned")}</li>
     </ul>
   </div>
 </section>
 
 <Showcase />
 
-<section class="wrap metrics" aria-label="In numbers">
-  <div><strong>{stats.mods}</strong><span>mods in the catalog</span></div>
-  <div><strong>{stats.patches + stats.addons}</strong><span>patches &amp; add-ons</span></div>
-  <div><strong>2</strong><span>games supported</span></div>
-  <div><strong>0</strong><span>files hosted by us</span></div>
+<section class="wrap metrics" aria-label={t("In numbers")}>
+  <div><strong>{stats.mods}</strong><span>{t("mods in the catalog")}</span></div>
+  <div><strong>{stats.patches + stats.addons}</strong><span>{t("patches & add-ons")}</span></div>
+  <div><strong>2</strong><span>{t("games supported")}</span></div>
+  <div><strong>0</strong><span>{t("files hosted by us")}</span></div>
 </section>
 
 <section class="wrap block" id="features" aria-labelledby="feat-h">
-  <h2 id="feat-h">Made for people who play with mods</h2>
-  <p class="sub">The old launcher, rebuilt from scratch: faster, safer and nicer to look at.</p>
+  <h2 id="feat-h">{t("Made for people who play with mods")}</h2>
+  <p class="sub">{t("The old launcher, rebuilt from scratch: faster, safer and nicer to look at.")}</p>
   <div class="grid3">
     {#each features as f}
       <article class="feature">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={icons[f.icon]} /></svg>
-        <h3>{f.title}</h3>
-        <p>{f.text}</p>
+        <h3>{t(f.title)}</h3>
+        <p>{t(f.text)}</p>
       </article>
     {/each}
   </div>
 </section>
 
 <section class="wrap block" aria-labelledby="how-h">
-  <h2 id="how-h">Three steps to play</h2>
+  <h2 id="how-h">{t("Three steps to play")}</h2>
   <ol class="steps">
-    <li><b>1</b><div><h3>Point it at your game</h3><p>GenLauncher finds your Steam or EA App install of Zero Hour or Generals. Already using the old launcher? It offers to move your mods over.</p></div></li>
-    <li><b>2</b><div><h3>Pick a mod</h3><p>Press Install on a mod in Discover, choose the version on its own page and click download. Or add a zip, 7z, rar or folder you already have.</p></div></li>
-    <li><b>3</b><div><h3>Press Play</h3><p>Choose the patches and add-ons you want and play. When you quit, the game folder goes back to normal.</p></div></li>
+    <li><b>1</b><div><h3>{t("Point it at your game")}</h3><p>{t("GenLauncher finds your Steam or EA App install of Zero Hour or Generals. Already using the old launcher? It offers to move your mods over.")}</p></div></li>
+    <li><b>2</b><div><h3>{t("Pick a mod")}</h3><p>{t("Press Install on a mod in Discover, choose the version on its own page and click download. Or add a zip, 7z, rar or folder you already have.")}</p></div></li>
+    <li><b>3</b><div><h3>{t("Press Play")}</h3><p>{t("Choose the patches and add-ons you want and play. When you quit, the game folder goes back to normal.")}</p></div></li>
   </ol>
 </section>
 
 <section class="wrap block" aria-labelledby="mods-h">
-  <div class="head"><h2 id="mods-h">A growing mod catalog</h2><a href="/mods">See all {stats.mods} mods →</a></div>
+  <div class="head"><h2 id="mods-h">{t("A growing mod catalog")}</h2><a href={href("/mods")}>{t("See all {n} mods →", { n: stats.mods })}</a></div>
   <div class="grid4">
     {#each featured as m (m.name)}<ModCard mod={m} />{/each}
   </div>
-  <p class="note">The catalog only points to each mod's page; every file comes from its author. Missing a mod or found a dead link? <a href={CATALOG} rel="noopener">Improve the catalog on GitHub.</a></p>
+  <p class="note"><Rich text={t("The catalog only points to each mod's page; every file comes from its author. Missing a mod or found a dead link? [Improve the catalog on GitHub.]({url})", { url: CATALOG })} /></p>
 </section>
 
 <section class="wrap block get" id="get" aria-labelledby="get-h">
   <div class="card">
-    <h2 id="get-h">Get GenLauncher</h2>
+    <h2 id="get-h">{t("Get GenLauncher")}</h2>
     {#if release}
-      <p class="status"><span class="dot"></span> Version {release.version}{release.prerelease ? " (preview)" : ""} · Windows 10 and 11 · {(release.size / 1048576).toFixed(1)} MB</p>
-      <p>A normal setup program: it installs for your user account and needs no administrator rights.</p>
+      <p class="status"><span class="dot"></span> {release.prerelease
+        ? t("Version {version} (preview) · Windows 10 and 11 · {size} MB", { version: release.version, size: (release.size / 1048576).toFixed(1) })
+        : t("Version {version} · Windows 10 and 11 · {size} MB", { version: release.version, size: (release.size / 1048576).toFixed(1) })}</p>
+      <p>{t("A normal setup program: it installs for your user account and needs no administrator rights.")}</p>
       <div class="cta">
-        <a class="btn primary" href={release.download} rel="noopener">Download for Windows</a>
-        <a class="btn" href={release.page} rel="noopener">Release notes</a>
-        <a class="btn" href="{REPO}#development">Build it yourself</a>
+        <a class="btn primary" href={release.download} rel="noopener">{t("Download for Windows")}</a>
+        <a class="btn" href={release.page} rel="noopener">{t("Release notes")}</a>
+        <a class="btn" href="{REPO}#development">{t("Build it yourself")}</a>
       </div>
-      <p class="warn-note"><strong>Windows may say "Windows protected your PC".</strong> The installer is not code-signed yet, which is what triggers it: click <em>More info</em>, then <em>Run anyway</em>. See the <a href="/guide#problems">guide</a>.</p>
+      <p class="warn-note"><Rich text={t("**Windows may say \"Windows protected your PC\".** The installer is not code-signed yet, which is what triggers it: click *More info*, then *Run anyway*. See the [guide](/guide#problems).")} /></p>
     {:else}
-      <p class="status"><span class="dot"></span> Preview for Windows</p>
-      <p>GenLauncher is under active development. Get the installer from the releases page, or build it yourself; the README explains how.</p>
+      <p class="status"><span class="dot"></span> {t("Preview for Windows")}</p>
+      <p>{t("GenLauncher is under active development. Get the installer from the releases page, or build it yourself; the README explains how.")}</p>
       <div class="cta">
-        <a class="btn primary" href="{REPO}/releases" rel="noopener">Releases on GitHub</a>
-        <a class="btn" href="{REPO}#development">Build it yourself</a>
+        <a class="btn primary" href="{REPO}/releases" rel="noopener">{t("Releases on GitHub")}</a>
+        <a class="btn" href="{REPO}#development">{t("Build it yourself")}</a>
       </div>
     {/if}
-    <p class="req"><strong>Needs:</strong> Windows 10 or 11 and a copy of Generals or Zero Hour (Steam, EA App or disc). Linux is planned.</p>
+    <p class="req"><Rich text={t("**Needs:** Windows 10 or 11 and a copy of Generals or Zero Hour (Steam, EA App or disc). Linux is planned.")} /></p>
   </div>
 </section>
 
 <section class="wrap block" aria-labelledby="faq-h">
-  <h2 id="faq-h">Questions</h2>
+  <h2 id="faq-h">{t("Questions")}</h2>
   <Faq />
-  <p class="note">More in the <a href="/guide">guide</a>.</p>
+  <p class="note"><Rich text={t("More in the [guide](/guide).")} /></p>
 </section>
 
 <section class="wrap block thanks" aria-labelledby="thanks-h">
-  <h2 id="thanks-h">Built on other people's work</h2>
-  <p>GenLauncher continues the original <a href="https://github.com/p0ls3r/GenLauncher" rel="noopener">GenLauncher</a> by <strong>p0ls3r</strong> and its contributors, whose mod list at <a href="https://github.com/p0ls3r/GenLauncherModsData" rel="noopener">GenLauncherModsData</a> was the starting point of our index. Every mod listed belongs to its authors. Thank you for keeping Generals alive.</p>
+  <h2 id="thanks-h">{t("Built on other people's work")}</h2>
+  <p><Rich text={t("GenLauncher continues the original [GenLauncher](https://github.com/p0ls3r/GenLauncher) by **p0ls3r** and its contributors, whose mod list at [GenLauncherModsData](https://github.com/p0ls3r/GenLauncherModsData) was the starting point of our index. Every mod listed belongs to its authors. Thank you for keeping Generals alive.")} /></p>
 </section>
 
 <style>

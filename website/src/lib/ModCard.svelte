@@ -1,10 +1,11 @@
 <script lang="ts">
   import { GAMES, type SiteMod } from "$lib/data";
+  import { getI18n } from "$lib/i18n";
 
   let { mod }: { mod: SiteMod } = $props();
   let broken = $state(false);
   const extras = $derived(mod.patches.length + mod.addons.length);
-  const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const { t, tn } = getI18n();
 </script>
 
 <article class="card" class:old={mod.deprecated}>
@@ -20,12 +21,12 @@
     <p class="meta">
       <span class="tag">{GAMES[mod.game]}</span>
       {#if mod.version}<span>{mod.version}</span>{/if}
-      {#if extras}<span>{count(mod.patches.length, "patch", "patches")} · {count(mod.addons.length, "add-on", "add-ons")}</span>{/if}
+      {#if extras}<span>{tn(mod.patches.length, "{n} patch", "{n} patches")} · {tn(mod.addons.length, "{n} add-on", "{n} add-ons")}</span>{/if}
     </p>
     <div class="links">
-      {#if mod.page}<a href={mod.page} rel="noopener noreferrer" target="_blank">Mod page</a>{/if}
+      {#if mod.page}<a href={mod.page} rel="noopener noreferrer" target="_blank">{t("Mod page")}</a>{/if}
       {#if mod.discord}<a href={mod.discord} rel="noopener noreferrer" target="_blank">Discord</a>{/if}
-      {#if mod.deprecated}<span class="warn">No longer maintained</span>{/if}
+      {#if mod.deprecated}<span class="warn">{t("No longer maintained")}</span>{/if}
     </div>
   </div>
 </article>

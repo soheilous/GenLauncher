@@ -1,6 +1,10 @@
 <script lang="ts">
   import ModCard from "$lib/ModCard.svelte";
+  import Rich from "$lib/Rich.svelte";
   import { CATALOG, GAMES, mods, stats, type GameKey } from "$lib/data";
+  import { N, getI18n } from "$lib/i18n";
+
+  const { t, tn } = getI18n();
 
   let query = $state("");
   let game = $state<"all" | GameKey>("all");
@@ -16,40 +20,40 @@
       })
       .toSorted((a, b) => (sort === "extras" ? b.patches.length + b.addons.length - (a.patches.length + a.addons.length) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name)))
   );
-  const GAME_TABS: { id: "all" | GameKey; label: string }[] = [{ id: "all", label: "All" }, { id: "zh", label: GAMES.zh }, { id: "generals", label: GAMES.generals }];
+  const GAME_TABS: { id: "all" | GameKey; label: string }[] = [{ id: "all", label: N("All") }, { id: "zh", label: GAMES.zh }, { id: "generals", label: GAMES.generals }];
 </script>
 
 <svelte:head>
-  <title>Mods · GenLauncher</title>
-  <meta name="description" content="The GenLauncher mod catalog: {stats.mods} Generals and Zero Hour mods with their patches and add-ons, each linking to its author's own page." />
+  <title>{t("Mods · GenLauncher")}</title>
+  <meta name="description" content={t("The GenLauncher mod catalog: {n} Generals and Zero Hour mods with their patches and add-ons, each linking to its author's own page.", { n: stats.mods })} />
 </svelte:head>
 
 <div class="wrap page">
-  <h1>Mod catalog</h1>
-  <p class="lead">{stats.mods} mods with {stats.patches} patches and {stats.addons} add-ons. This list only points to each mod's own page; every download comes from its author. Last updated {stats.updated}.</p>
+  <h1>{t("Mod catalog")}</h1>
+  <p class="lead">{t("{mods} mods with {patches} patches and {addons} add-ons. This list only points to each mod's own page; every download comes from its author. Last updated {date}.", { mods: stats.mods, patches: stats.patches, addons: stats.addons, date: stats.updated })}</p>
 
   <div class="tools" role="search">
     <label class="search">
-      <span class="sr-only">Search mods, patches and add-ons</span>
+      <span class="sr-only">{t("Search mods, patches and add-ons")}</span>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm9 16-4.2-4.2"/></svg>
-      <input type="search" placeholder="Search mods, patches and add-ons" bind:value={query} />
+      <input type="search" placeholder={t("Search mods, patches and add-ons")} bind:value={query} />
     </label>
-    <div class="seg" role="group" aria-label="Game">
-      {#each GAME_TABS as t}<button class:on={game === t.id} aria-pressed={game === t.id} onclick={() => (game = t.id)}>{t.label}</button>{/each}
+    <div class="seg" role="group" aria-label={t("Game")}>
+      {#each GAME_TABS as g}<button class:on={game === g.id} aria-pressed={game === g.id} onclick={() => (game = g.id)}>{g.id === "all" ? t(g.label) : g.label}</button>{/each}
     </div>
-    <label class="check"><input type="checkbox" bind:checked={onlyExtras} /> With patches or add-ons</label>
-    <label class="sort">Sort
-      <select bind:value={sort}><option value="name">A to Z</option><option value="extras">Most add-ons</option></select>
+    <label class="check"><input type="checkbox" bind:checked={onlyExtras} /> {t("With patches or add-ons")}</label>
+    <label class="sort">{t("Sort")}
+      <select bind:value={sort}><option value="name">{t("A to Z")}</option><option value="extras">{t("Most add-ons")}</option></select>
     </label>
   </div>
 
-  <p class="count" aria-live="polite">{shown.length} {shown.length === 1 ? "mod" : "mods"}</p>
+  <p class="count" aria-live="polite">{tn(shown.length, "{n} mod", "{n} mods")}</p>
   <div class="grid">
     {#each shown as m (m.game + m.name)}<ModCard mod={m} />{/each}
   </div>
-  {#if shown.length === 0}<p class="empty">Nothing matches. Try another word, or <a href="{CATALOG}" rel="noopener">add the mod to the index</a>.</p>{/if}
+  {#if shown.length === 0}<p class="empty"><Rich text={t("Nothing matches. Try another word, or [add the mod to the index]({url}).", { url: CATALOG })} /></p>{/if}
 
-  <p class="note">Missing a mod, a patch, or a newer version? The catalog is a plain file in its own repository: <a href="{CATALOG}" rel="noopener">send a pull request</a>.</p>
+  <p class="note"><Rich text={t("Missing a mod, a patch, or a newer version? The catalog is a plain file in its own repository: [send a pull request]({url}).", { url: CATALOG })} /></p>
 </div>
 
 <style>
@@ -65,7 +69,7 @@
   .seg button.on { background: var(--accent); color: var(--accent-ink); }
   .check { color: var(--text-dim); display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
   .check input { accent-color: var(--accent); width: 1rem; height: 1rem; }
-  .sort { color: var(--text-dim); display: inline-flex; align-items: center; gap: .5rem; margin-left: auto; }
+  .sort { color: var(--text-dim); display: inline-flex; align-items: center; gap: .5rem; margin-inline-start: auto; }
   select { font: inherit; color: var(--text); background: var(--surface-solid); border: 1px solid var(--stroke-hi); border-radius: 10px; padding: .4rem .6rem; }
   .count { color: var(--text-faint); font-size: .92rem; margin: 0 0 1rem; }
   .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(16.5rem, 1fr)); }

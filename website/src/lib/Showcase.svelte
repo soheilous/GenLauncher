@@ -1,5 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { N, getI18n } from "$lib/i18n";
+
+  const { t, lang } = getI18n();
 
   // The interactive demo: the launcher's own interface (built by tools/build-demo.mjs into static/demo) in a frame at its
   // natural size, scaled to fit, driven by the chapter buttons through messages.
@@ -14,26 +17,26 @@
     | { type: "play" };
 
   const chapters: { title: string; text: string; icon: string; commands: Command[] }[] = [
-    { title: "Library", icon: "M4 5h4v14H4zM10 5h4v14h-4zM16.5 5.8l3.9-1 3 13.9-3.9 1z",
-      text: "Your mods with their versions, patches, add-ons and executables. Select a mod, pick a version, switch things on.",
+    { title: N("Library"), icon: "M4 5h4v14H4zM10 5h4v14h-4zM16.5 5.8l3.9-1 3 13.9-3.9 1z",
+      text: N("Your mods with their versions, patches, add-ons and executables. Select a mod, pick a version, switch things on."),
       commands: [{ type: "view", value: "library" }] },
-    { title: "Play", icon: "M8 5v14l11-7z",
-      text: "Press Play: the launcher prepares your game folder, starts the game and puts everything back when it closes. (Simulated here.)",
+    { title: N("Play"), icon: "M8 5v14l11-7z",
+      text: N("Press Play: the launcher prepares your game folder, starts the game and puts everything back when it closes. (Simulated here.)"),
       commands: [{ type: "play" }] },
-    { title: "Install", icon: "M12 4v10m0 0-4-4m4 4 4-4M5 19h14",
-      text: "Press Install in Discover: the mod's own page opens in a built-in browser and the launcher takes the file you download. The demo shows the progress.",
+    { title: N("Install"), icon: "M12 4v10m0 0-4-4m4 4 4-4M5 19h14",
+      text: N("Press Install in Discover: the mod's own page opens in a built-in browser and the launcher takes the file you download. The demo shows the progress."),
       commands: [{ type: "install" }] },
-    { title: "Drop a file", icon: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
-      text: "Drag a zip, 7z, rar or folder onto the window, then say whether it is a mod, a patch, an add-on or an executable, and which mod it is for.",
+    { title: N("Drop a file"), icon: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
+      text: N("Drag a zip, 7z, rar or folder onto the window, then say whether it is a mod, a patch, an add-on or an executable, and which mod it is for."),
       commands: [{ type: "open", value: "drop" }] },
-    { title: "Game options", icon: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M10 10v4M16 16v4",
-      text: "Resolution, texture quality, particle limit and effects, written to the game's own settings file, with a backup of the original.",
+    { title: N("Game options"), icon: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M14 4v4M10 10v4M16 16v4",
+      text: N("Resolution, texture quality, particle limit and effects, written to the game's own settings file, with a backup of the original."),
       commands: [{ type: "open", value: "options" }] },
-    { title: "Notifications", icon: "M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4",
-      text: "Finished installs, problems and messages stay in one place until you dismiss them.",
+    { title: N("Notifications"), icon: "M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4",
+      text: N("Finished installs, problems and messages stay in one place until you dismiss them."),
       commands: [{ type: "view", value: "notifications" }] },
-    { title: "Settings", icon: "M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 13a7.6 7.6 0 0 0 0-2l2-1.5-2-3.5-2.3 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7 7 0 0 0-1.7 1l-2.3-1-2 3.5 2 1.5a7.6 7.6 0 0 0 0 2l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.3 1 2-3.5z",
-      text: "13 languages (try switching), dark and light themes, backups and Google Drive sync.",
+    { title: N("Settings"), icon: "M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 13a7.6 7.6 0 0 0 0-2l2-1.5-2-3.5-2.3 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7 7 0 0 0-1.7 1l-2.3-1-2 3.5 2 1.5a7.6 7.6 0 0 0 0 2l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7 7 0 0 0 1.7-1l2.3 1 2-3.5z",
+      text: N("13 languages (try switching), dark and light themes, backups and Google Drive sync."),
       commands: [{ type: "open", value: "settings" }] },
   ];
 
@@ -47,7 +50,7 @@
   let pending: Command[] = [];
   let loads = 0;
 
-  const demoUrl = () => `/demo/?theme=${theme}${loads ? `&r=${loads}` : ""}`;
+  const demoUrl = () => `/demo/?theme=${theme}&lang=${lang}${loads ? `&r=${loads}` : ""}`;
 
   function post(c: Command) {
     if (!ready) { pending.push(c); return; }
@@ -96,45 +99,45 @@
 </script>
 
 <section class="wrap try" id="try" aria-labelledby="try-h">
-  <p class="live"><span class="pulse" aria-hidden="true"></span> Live demo</p>
-  <h2 id="try-h">Try it, right here</h2>
-  <p class="sub">This is the real launcher interface, running in your browser with sample data. Click around: nothing is installed.</p>
+  <p class="live"><span class="pulse" aria-hidden="true"></span> {t("Live demo")}</p>
+  <h2 id="try-h">{t("Try it, right here")}</h2>
+  <p class="sub">{t("This is the real launcher interface, running in your browser with sample data. Click around: nothing is installed.")}</p>
 
   <div class="interactive">
-    <div class="pills" role="group" aria-label="Things to try">
+    <div class="pills" role="group" aria-label={t("Things to try")}>
       {#each chapters as c, i}
         <button class:on={active === i} aria-pressed={active === i} onclick={() => choose(i)}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={c.icon} /></svg>
-          {c.title}
+          {t(c.title)}
         </button>
       {/each}
     </div>
-    <p class="caption" aria-live="polite">{chapters[active].text}</p>
+    <p class="caption" aria-live="polite">{t(chapters[active].text)}</p>
 
     <div class="window">
       <div class="chrome">
         <i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>
         <span>GenLauncher</span>
         <div class="tools">
-          <button onclick={reset} title="Start the demo over">Reset</button>
-          <a href="/demo/" target="_blank" rel="noopener">Full screen</a>
+          <button onclick={reset} title={t("Start the demo over")}>{t("Reset")}</button>
+          <a href="/demo/" target="_blank" rel="noopener">{t("Full screen")}</a>
         </div>
       </div>
       <div class="screen" bind:clientWidth={width} style:--s={scale} style:height="{H * scale}px">
         <img class="poster dark" src="/screens/library-dark.jpg" alt="" width="1360" height="850" />
         <img class="poster light" src="/screens/library-light.jpg" alt="" width="1360" height="850" />
         {#if src}
-          <iframe bind:this={frame} {src} title="GenLauncher, interactive demo" class:ready></iframe>
+          <iframe bind:this={frame} {src} title={t("GenLauncher, interactive demo")} class:ready></iframe>
         {/if}
       </div>
     </div>
-    <p class="hint">Tip: the sun / moon button at the top of this page switches the demo's theme too.</p>
+    <p class="hint">{t("Tip: the sun / moon button at the top of this page switches the demo's theme too.")}</p>
   </div>
 
   <div class="static">
-    <img class="shot dark" src="/screens/library-dark.jpg" alt="The Library screen of GenLauncher" width="1360" height="850" loading="lazy" />
-    <img class="shot light" src="/screens/library-light.jpg" alt="The Library screen of GenLauncher" width="1360" height="850" loading="lazy" />
-    <p class="hint">The interactive demo needs a larger screen. <a href="/demo/">Open it anyway</a>.</p>
+    <img class="shot dark" src="/screens/library-dark.jpg" alt={t("The Library screen of GenLauncher")} width="1360" height="850" loading="lazy" />
+    <img class="shot light" src="/screens/library-light.jpg" alt={t("The Library screen of GenLauncher")} width="1360" height="850" loading="lazy" />
+    <p class="hint">{t("The interactive demo needs a larger screen.")} <a href="/demo/">{t("Open it anyway")}</a>.</p>
   </div>
 </section>
 
