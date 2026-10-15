@@ -864,3 +864,11 @@ class AppState {
 }
 
 export const app = new AppState();
+
+// checks in the browser preview can open the Add dialog as if a file had been dropped (never in a production build)
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  window.addEventListener("genlauncher-test-drop", () => {
+    const file = localStorage.getItem("test-drop");
+    if (file) app.openAdd("mod", null, { name: "", pageUrl: null, update: false, file });
+  });
+}

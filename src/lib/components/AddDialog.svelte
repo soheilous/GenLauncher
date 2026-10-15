@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { app } from "$lib/app.svelte";
   import {
     closeBuiltInBrowser, isTauri, onBrowserEvent, openBuiltInBrowser, openInBrowser, pickArchiveFile, pickModFolder,
@@ -61,7 +61,14 @@
   }
 
   // (re)initialise whenever the dialog is opened
+  // Only opening the dialog may start this. The setup below reads and writes the same fields (name, step, ...), so it
+  // must not be tracked: tracked, it re-triggered itself and kept resetting the dialog.
   $effect(() => {
+    if (!app.addDialog) return;
+    untrack(openFresh);
+  });
+
+  function openFresh() {
     if (!app.addDialog) return;
     step = "source";
     tab = "file";
@@ -91,7 +98,7 @@
       url = preset.pageUrl;
       queueMicrotask(() => void continueWithLink());
     }
-  });
+  }
 
   // events from the built-in browser window
   let unlisten: (() => void) | undefined;
