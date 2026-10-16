@@ -25,6 +25,8 @@ export interface AddPreset {
 }
 
 export type View = "library" | "discover" | "downloads" | "notifications";
+export type LibrarySort = "name" | "nameDesc" | "updates" | "recent";
+export type DiscoverSort = "name" | "nameDesc" | "direct";
 export type LaunchState = "idle" | "preparing" | "running";
 export type Theme = "dark" | "light";
 /** loading: talking to the core; setup: no game folder yet; ready: library available */
@@ -101,13 +103,52 @@ class AppState {
   filteredMods = $derived(
     this.mods.filter((m) => m.name.toLowerCase().includes(this.search.trim().toLowerCase()))
   );
-  // Original Game is always listed first in the library
-  installedMods = $derived(
-    this.filteredMods
-      .filter((m) => m.versions.some((v) => v.installed))
-      .sort((a, b) => Number(b.id === "original-game") - Number(a.id === "original-game"))
-  );
-  availableMods = $derived(this.filteredMods.filter((m) => !m.versions.some((v) => v.installed)));
+
+  // --- sorting and favourites ---
+  librarySort = $state<LibrarySort>(load("librarySort", "name"));
+  discoverSort = $state<DiscoverSort>(load("discoverSort", "name"));
+  /** Ids of the mods the user starred; they stay at the top of the library. */
+  favourites = $state<string[]>(load("favourites", []));
+  favouritesOnly = $state(load("favouritesOnly", false));
+  /** When each mod was last started (ms since 1970), for "Recently played". */
+  lastPlayed = $state<Record<string, number>>(load("lastPlayed", {}));
+
+  setLibrarySort(v: LibrarySort) { this.librarySort = v; save("librarySort", v); }
+  setDiscoverSort(v: DiscoverSort) { this.discoverSort = v; save("discoverSort", v); }
+  setFavouritesOnly(v: boolean) { this.favouritesOnly = v; save("favouritesOnly", v); }
+  isFavourite(id: string) { return this.favourites.includes(id); }
+  toggleFavourite(id: string) {
+    this.favourites = this.isFavourite(id) ? this.favourites.filter((f) => f !== id) : [...this.favourites, id];
+    save("favourites", this.favourites);
+  }
+
+  private byName = (a: Item, b: Item) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
+  private hasUpdate = (m: Item) => m.versions.some((v) => v.installed) && !(m.versions.find((v) => v.v === m.latest)?.installed ?? false);
+
+  // Original Game is always listed first in the library, then the favourites, then the chosen order
+  installedMods = $derived.by(() => {
+    const sort = this.librarySort;
+    const rank = (m: Item) => (m.id === "original-game" ? 0 : this.isFavourite(m.id) ? 1 : 2);
+    const order = (a: Item, b: Item) => {
+      if (sort === "nameDesc") return this.byName(b, a);
+      if (sort === "updates") return Number(this.hasUpdate(b)) - Number(this.hasUpdate(a)) || this.byName(a, b);
+      if (sort === "recent") return (this.lastPlayed[b.id] ?? 0) - (this.lastPlayed[a.id] ?? 0) || this.byName(a, b);
+      return this.byName(a, b);
+    };
+    return this.filteredMods
+      .filter((m) => m.versions.some((v) => v.installed) && (!this.favouritesOnly || this.isFavourite(m.id) || m.id === "original-game"))
+      .toSorted((a, b) => rank(a) - rank(b) || order(a, b));
+  });
+  availableMods = $derived.by(() => {
+    const sort = this.discoverSort;
+    return this.filteredMods
+      .filter((m) => !m.versions.some((v) => v.installed))
+      .toSorted((a, b) => {
+        if (sort === "nameDesc") return this.byName(b, a);
+        if (sort === "direct") return Number(!!b.direct) - Number(!!a.direct) || this.byName(a, b);
+        return this.byName(a, b);
+      });
+  });
 
   async init() {
     const stored = load<Theme | null>("theme", null);
@@ -1006,6 +1047,7 @@ class AppState {
 
   async play(target: LaunchTarget = "game") {
     if (this.launch !== "idle") return;
+    if (this.activeModId) { this.lastPlayed = { ...this.lastPlayed, [this.activeModId]: Date.now() }; save("lastPlayed", this.lastPlayed); }
     if (isTauri) {
       this.launch = "preparing";
       try {

@@ -24,6 +24,14 @@
     {#if mod.progress !== undefined}
       <div class="prog"><i style:width="{mod.progress * 100}%"></i></div>
     {/if}
+    {#if !discover && mod.id !== "original-game"}
+      <button class="fav" class:on={app.isFavourite(mod.id)} aria-pressed={app.isFavourite(mod.id)}
+        title={app.isFavourite(mod.id) ? t("Remove from favourites") : t("Add to favourites")}
+        aria-label={app.isFavourite(mod.id) ? t("Remove from favourites") : t("Add to favourites")}
+        onclick={(e) => { e.stopPropagation(); app.toggleFavourite(mod.id); }} onkeydown={(e) => e.stopPropagation()}>
+        <Icon name="star" size={15} />
+      </button>
+    {/if}
     {#if installed && !latestInstalled && !discover}
       <span class="chip warn tag">{t("Update {version}", { version: mod.latest })}</span>
     {:else if installed && !discover}
@@ -51,5 +59,11 @@
   .prog i { display: block; height: 100%; background: var(--accent); transition: width .14s linear; }
   .meta { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 2px; }
   .meta small { color: var(--text-faint); }
+  .fav { position: absolute; top: 8px; inset-inline-end: 8px; z-index: 2; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+    background: rgb(0 0 0 / .38); color: rgb(255 255 255 / .85); backdrop-filter: blur(8px); opacity: 0; transition: opacity .15s, color .15s, background .15s; }
+  .card:hover .fav, .fav:focus-visible, .fav.on { opacity: 1; }
+  .fav:hover { background: rgb(0 0 0 / .55); }
+  .fav.on { color: #ffcc33; }
+  .fav.on :global(svg) { fill: currentColor; }
   .get { position: absolute; inset-inline-end: 12px; bottom: 12px; padding: 6px 14px; font-size: 12px; }
 </style>

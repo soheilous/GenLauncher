@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import { base } from "$app/paths";
-  import { app } from "$lib/app.svelte";
+  import { app, type DiscoverSort, type LibrarySort } from "$lib/app.svelte";
+  import Select from "$lib/components/Select.svelte";
   import { art, coverStyle } from "$lib/art";
   import Sidebar from "$lib/components/Sidebar.svelte";
   import ModCard from "$lib/components/ModCard.svelte";
@@ -97,6 +98,21 @@
               <Icon name="search" size={16} />
               <input placeholder={t("Search mods")} bind:value={app.search} aria-label={t("Search mods")} />
             </label>
+            <div class="sortbox">
+              {#if app.view === "library"}
+                <Select label={t("Sort")} value={app.librarySort} onchange={(v) => app.setLibrarySort(v as LibrarySort)} options={[
+                  { value: "name", label: t("Name (A to Z)") }, { value: "nameDesc", label: t("Name (Z to A)") },
+                  { value: "updates", label: t("Updates first") }, { value: "recent", label: t("Recently played") }]} />
+              {:else}
+                <Select label={t("Sort")} value={app.discoverSort} onchange={(v) => app.setDiscoverSort(v as DiscoverSort)} options={[
+                  { value: "name", label: t("Name (A to Z)") }, { value: "nameDesc", label: t("Name (Z to A)") },
+                  { value: "direct", label: t("Direct downloads first") }]} />
+              {/if}
+            </div>
+            {#if app.view === "library"}
+              <button class="btn fav-filter" class:on={app.favouritesOnly} aria-pressed={app.favouritesOnly} title={t("Show favourites only")}
+                onclick={() => app.setFavouritesOnly(!app.favouritesOnly)}><Icon name="star" size={16} /> {t("Favourites")}</button>
+            {/if}
             <button class="btn primary" onclick={() => app.openAdd("mod")}><Icon name="plus" size={16} /> {t("Add mod")}</button>
           </div>
         {:else if app.phase === "ready" && app.view === "notifications"}
@@ -194,7 +210,10 @@
   .top { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px 0; }
   h1 { font-size: 28px; font-weight: 700; letter-spacing: -.01em; }
   .top p { color: var(--text-dim); }
-  .tools { display: flex; align-items: center; gap: 12px; }
+  .tools { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+  .sortbox { width: 190px; flex: none; display: flex; }
+  .fav-filter.on { border-color: #ffcc33; color: #ffcc33; }
+  .fav-filter.on :global(svg) { fill: currentColor; }
   .search { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 999px; color: var(--text-dim); box-shadow: none; }
   .search input { background: none; border: 0; outline: none; width: 220px; user-select: text; }
   .split { flex: 1; display: flex; gap: 16px; min-height: 0; }

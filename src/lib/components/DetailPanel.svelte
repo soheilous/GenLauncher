@@ -198,7 +198,7 @@
   h2 { position: relative; font-size: 24px; font-weight: 700; color: #fff; text-shadow: 0 2px 12px rgb(0 0 0 / .45); }
   .body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 14px; min-height: 0; flex: 1; }
   .sum { color: var(--text-dim); }
-  .row2 { display: flex; gap: 8px; align-items: center; }
+  .row2 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
   .row2 .lbl { color: var(--text-faint); font-size: 12px; }
   .icon { padding: 8px; }
   .icon.danger:hover { color: var(--danger); border-color: var(--danger); }

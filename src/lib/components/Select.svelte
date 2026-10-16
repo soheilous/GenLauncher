@@ -59,19 +59,19 @@
 </div>
 
 <style>
-  .sel { position: relative; flex: 1; min-width: 0; }
+  .sel { position: relative; flex: 1 1 150px; min-width: 150px; }
   .trigger { width: 100%; display: flex; align-items: center; gap: 8px; padding-block: 8px; padding-inline: 14px 12px; border-radius: 999px; text-align: start;
     background: var(--surface-hi); border: 1px solid var(--stroke); transition: border-color .18s, background .18s; }
   .trigger:hover, .trigger.open { border-color: var(--stroke-hi); }
   .trigger.open { border-color: var(--accent); }
   .trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .cur { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .hint { font-size: 11px; font-weight: 600; color: var(--ok); }
+  .hint { flex: none; font-size: 11px; font-weight: 600; color: var(--ok); }
   .hint.warn { color: var(--warn); }
   .chev { display: grid; color: var(--text-faint); transition: transform .2s var(--ease); }
   .chev.flip { transform: rotate(180deg); }
 
-  .menu { position: absolute; z-index: 15; left: 0; right: 0; top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none;
+  .menu { position: absolute; z-index: 15; inset-inline-start: 0; min-width: 100%; width: max-content; max-width: min(340px, 86vw); top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none;
     max-height: 240px; overflow-y: auto; border-radius: var(--r-md);
     background: var(--surface-solid); border: 1px solid var(--stroke-hi); box-shadow: var(--shadow);
     backdrop-filter: var(--blur); animation: drop .16s var(--ease); transform-origin: top; }
