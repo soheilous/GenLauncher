@@ -455,14 +455,14 @@ class AppState {
     this.saveTimer = setTimeout(() => void this.flush().catch(() => {}), 300);
   }
 
-  /** Write settings now (a launch must see exactly what is on screen). */
-  async flush() {
+  /** Write settings now (a launch must see exactly what is on screen). `auto: false` skips the automatic Drive backup the write can trigger. */
+  async flush(auto = true) {
     clearTimeout(this.saveTimer);
     const s = this.currentSettings();
     if (!isTauri) { save("settings", s); return; }
     try {
       await backend.saveSettings(s);
-      this.maybeAutoCloudBackup();
+      if (auto) this.maybeAutoCloudBackup();
     } catch (e) {
       this.say(t("Could not save settings: {error}", { error: errText(e) }), "error");
       throw e;
@@ -564,7 +564,13 @@ class AppState {
 
   async refreshCloudBackups() {
     if (!isTauri || !this.google) return;
-    try { this.cloudBackups = await cloudBackupList(); } catch (e) { this.googleFailed(e); }
+    try {
+      this.cloudBackups = await cloudBackupList();
+    } catch (e) {
+      // the list is refreshed whenever Settings opens; a failure is told once, not on every look
+      if (/sign-in has expired/i.test(errText(e))) this.google = null;
+      this.notify(errText(e), "error", { id: "cloud-list-failed" });
+    }
   }
 
   async signInGoogle() {
@@ -600,17 +606,27 @@ class AppState {
 
   setAutoCloud(v: boolean) { this.autoCloud = v; save("autoCloud", v); }
 
+  private cloudRunning = false;
+
   async cloudBackUpNow(label = "manual", withCovers = false, announce = true) {
-    if (!this.google) return;
+    if (!this.google || this.cloudRunning) return;
+    this.cloudRunning = true;
     try {
-      await this.flush();
+      await this.flush(false); // writing the settings must not start another automatic backup
       await cloudBackupCreate(this.uiBundle(withCovers), label);
       save("cloudHash", this.settingsFingerprint());
       save("cloudAt", Date.now());
       if (announce) this.say(t("Backed up to Google Drive"), "success");
       await this.refreshCloudBackups();
     } catch (e) {
-      this.googleFailed(e);
+      // an automatic backup that fails (no network, Google down) is reported once, quietly, not on every attempt
+      if (announce) this.googleFailed(e);
+      else {
+        if (/sign-in has expired/i.test(errText(e))) this.google = null;
+        this.notify(errText(e), "error", { id: "cloud-auto-failed" });
+      }
+    } finally {
+      this.cloudRunning = false;
     }
   }
 
@@ -642,8 +658,10 @@ class AppState {
   /** After the settings changed: keep Drive up to date, at most every half hour and only when something is different. */
   private maybeAutoCloudBackup() {
     if (!this.google || !this.autoCloud || this.googleBusy) return;
-    if (Date.now() - load("cloudAt", 0) < 30 * 60 * 1000) return;
+    // the last attempt counts, successful or not: an unreachable Google is not asked again for half an hour
+    if (Date.now() - Math.max(load("cloudAt", 0), load("cloudTry", 0)) < 30 * 60 * 1000) return;
     if (load("cloudHash", "") === this.settingsFingerprint()) return;
+    save("cloudTry", Date.now());
     void this.cloudBackUpNow("auto", false, false);
   }
 
