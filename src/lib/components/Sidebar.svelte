@@ -20,7 +20,7 @@
 <aside class="glass side" class:collapsed>
   <div class="brand">
     <img class="logo" src="{base}/logo.svg" alt="" width="36" height="36" />
-    <div class="name"><strong>GenLauncher</strong><small>{t("2.0 preview")}</small></div>
+    <div class="name"><strong>GenLauncher</strong><small>{t("{version} preview", { version: app.appVersion })}</small></div>
     <button class="collapse" onclick={() => app.toggleSidebar()} aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
       aria-expanded={!collapsed} title={collapsed ? t("Expand sidebar (Ctrl+B)") : t("Collapse sidebar (Ctrl+B)")}>
       <Icon name={collapsed !== (i18n.dir === "rtl") ? "expand" : "collapse"} size={16} />

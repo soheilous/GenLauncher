@@ -2,7 +2,6 @@ import type { Messages } from "../index.svelte";
 
 const messages: Messages = {
   "\"Original Game\" is reserved for the stock game.": "„Original Game“ ist dem Originalspiel vorbehalten.",
-  "2.0 preview": "2.0 Vorschau",
   "A configuration file holds your choices only (active mod, enabled patches, options, theme). Mod files are never included.": "Eine Konfigurationsdatei enthält nur Ihre Auswahl (aktive Mod, aktivierte Patches, Optionen, Design). Mod-Dateien sind nie enthalten.",
   "A copy of the original file is kept as Options.ini.bak.": "Eine Kopie der Originaldatei wird als Options.ini.bak aufbewahrt.",
   "A window with the page has opened. Choose the version you want and click its download button there. The launcher takes the file as soon as the download starts.": "Ein Fenster mit der Seite wurde geöffnet. Wählen Sie die gewünschte Version und klicken Sie dort auf den Download-Button. Der Launcher übernimmt die Datei, sobald der Download beginnt.",
@@ -325,6 +324,7 @@ const messages: Messages = {
   "{n} unread": "{n} ungelesen",
   "{size} received": "{size} empfangen",
   "{size} received.": "{size} empfangen.",
+  "{version} preview": "{version} Vorschau",
   "• Your game files, GenTool and Steam files are not touched.": "• Ihre Spieldateien, GenTool und Steam-Dateien bleiben unberührt.",
   "• {n} installed mods ({gb} GB) will be MOVED into the new library. They are kept, not re-downloaded.": "• {n} installierte Mods ({gb} GB) werden in die neue Bibliothek VERSCHOBEN. Sie bleiben erhalten und werden nicht erneut heruntergeladen.",
   "• {n} leftover files and folders of the old launcher (its program, settings and caches) will be deleted.": "• {n} übrig gebliebene Dateien und Ordner des alten Launchers (Programm, Einstellungen und Caches) werden gelöscht.",

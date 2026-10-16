@@ -2,7 +2,6 @@ import type { Messages } from "../index.svelte";
 
 const messages: Messages = {
   "\"Original Game\" is reserved for the stock game.": "“Original Game”是为原版游戏保留的名称。",
-  "2.0 preview": "2.0 预览版",
   "A configuration file holds your choices only (active mod, enabled patches, options, theme). Mod files are never included.": "配置文件只包含你的选择（当前模组、已启用的补丁、选项、主题）。从不包含模组文件。",
   "A copy of the original file is kept as Options.ini.bak.": "原文件的副本会保存为 Options.ini.bak。",
   "A window with the page has opened. Choose the version you want and click its download button there. The launcher takes the file as soon as the download starts.": "已打开一个显示该页面的窗口。请在其中选择想要的版本并点击下载按钮。下载一开始，启动器就会接管文件。",
@@ -325,6 +324,7 @@ const messages: Messages = {
   "{n} unread": "{n} 条未读",
   "{size} received": "已接收 {size}",
   "{size} received.": "已接收 {size}。",
+  "{version} preview": "{version} 预览版",
   "• Your game files, GenTool and Steam files are not touched.": "• 你的游戏文件、GenTool 和 Steam 文件不会被改动。",
   "• {n} installed mods ({gb} GB) will be MOVED into the new library. They are kept, not re-downloaded.": "• {n} 个已安装的模组（{gb} GB）将被移动到新库。它们会被保留，不会重新下载。",
   "• {n} leftover files and folders of the old launcher (its program, settings and caches) will be deleted.": "• 旧启动器遗留的 {n} 个文件和文件夹（其程序、设置和缓存）将被删除。",

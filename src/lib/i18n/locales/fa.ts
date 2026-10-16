@@ -2,7 +2,6 @@ import type { Messages } from "../index.svelte";
 
 const messages: Messages = {
   "\"Original Game\" is reserved for the stock game.": "«Original Game» برای بازی اصلی رزرو شده است.",
-  "2.0 preview": "پیش‌نمایش 2.0",
   "A configuration file holds your choices only (active mod, enabled patches, options, theme). Mod files are never included.": "فایل پیکربندی فقط انتخاب‌های شما را نگه می‌دارد (مود فعال، پچ‌های فعال، گزینه‌ها، پوسته). فایل‌های مود هرگز در آن گنجانده نمی‌شوند.",
   "A copy of the original file is kept as Options.ini.bak.": "یک نسخه از فایل اصلی با نام Options.ini.bak نگه داشته می‌شود.",
   "A window with the page has opened. Choose the version you want and click its download button there. The launcher takes the file as soon as the download starts.": "پنجره‌ای با صفحه باز شد. نسخهٔ دلخواهتان را انتخاب کنید و دکمهٔ دانلود آن را بزنید. لانچر به‌محض شروع دانلود فایل را برمی‌دارد.",
@@ -325,6 +324,7 @@ const messages: Messages = {
   "{n} unread": "{n} خوانده‌نشده",
   "{size} received": "{size} دریافت شد",
   "{size} received.": "{size} دریافت شد.",
+  "{version} preview": "{version} پیش‌نمایش",
   "• Your game files, GenTool and Steam files are not touched.": "• فایل‌های بازی، GenTool و Steam شما دست‌نخورده می‌مانند.",
   "• {n} installed mods ({gb} GB) will be MOVED into the new library. They are kept, not re-downloaded.": "• {n} مود نصب‌شده ({gb} گیگابایت) به کتابخانهٔ جدید منتقل می‌شود. آن‌ها نگه داشته می‌شوند و دوباره دانلود نمی‌شوند.",
   "• {n} leftover files and folders of the old launcher (its program, settings and caches) will be deleted.": "• {n} فایل و پوشهٔ باقی‌مانده از لانچر قدیمی (برنامه، تنظیمات و حافظه‌های نهانش) حذف می‌شود.",

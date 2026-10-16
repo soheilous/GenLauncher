@@ -2,7 +2,6 @@ import type { Messages } from "../index.svelte";
 
 const messages: Messages = {
   "\"Original Game\" is reserved for the stock game.": "«Original Game» محجوز للعبة الأصلية.",
-  "2.0 preview": "معاينة 2.0",
   "A configuration file holds your choices only (active mod, enabled patches, options, theme). Mod files are never included.": "ملف الإعدادات يحتوي على اختياراتك فقط (المود النشط، التصحيحات المفعّلة، الخيارات، السمة). ملفات المودات لا تُضمَّن فيه أبدًا.",
   "A copy of the original file is kept as Options.ini.bak.": "تُحفَظ نسخة من الملف الأصلي باسم Options.ini.bak.",
   "A window with the page has opened. Choose the version you want and click its download button there. The launcher takes the file as soon as the download starts.": "فُتحت نافذة تعرض الصفحة. اختر الإصدار الذي تريده واضغط على زر التنزيل فيه. يلتقط المشغّل الملف فور بدء التنزيل.",
@@ -325,6 +324,7 @@ const messages: Messages = {
   "{n} unread": "{n} غير مقروءة",
   "{size} received": "استُلم {size}",
   "{size} received.": "استُلم {size}.",
+  "{version} preview": "{version} معاينة",
   "• Your game files, GenTool and Steam files are not touched.": "• لا تُمسّ ملفات لعبتك ولا GenTool ولا ملفات Steam.",
   "• {n} installed mods ({gb} GB) will be MOVED into the new library. They are kept, not re-downloaded.": "• سيتم نقل {n} مود مثبّت ({gb} غيغابايت) إلى المكتبة الجديدة. يُحتفظ بها ولا يُعاد تنزيلها.",
   "• {n} leftover files and folders of the old launcher (its program, settings and caches) will be deleted.": "• سيتم حذف {n} ملفًا ومجلدًا متبقّيًا من المشغّل القديم (برنامجه وإعداداته وذاكرته المؤقتة).",

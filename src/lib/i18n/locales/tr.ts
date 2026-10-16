@@ -2,7 +2,6 @@ import type { Messages } from "../index.svelte";
 
 const messages: Messages = {
   "\"Original Game\" is reserved for the stock game.": "“Original Game” orijinal oyun için ayrılmıştır.",
-  "2.0 preview": "2.0 önizleme",
   "A configuration file holds your choices only (active mod, enabled patches, options, theme). Mod files are never included.": "Yapılandırma dosyası yalnızca seçimlerinizi içerir (etkin mod, açık yamalar, seçenekler, tema). Mod dosyaları asla dahil edilmez.",
   "A copy of the original file is kept as Options.ini.bak.": "Özgün dosyanın bir kopyası Options.ini.bak olarak saklanır.",
   "A window with the page has opened. Choose the version you want and click its download button there. The launcher takes the file as soon as the download starts.": "Sayfanın olduğu bir pencere açıldı. İstediğiniz sürümü seçin ve oradaki indirme düğmesine tıklayın. İndirme başlar başlamaz başlatıcı dosyayı alır.",
@@ -325,6 +324,7 @@ const messages: Messages = {
   "{n} unread": "{n} okunmamış",
   "{size} received": "{size} alındı",
   "{size} received.": "{size} alındı.",
+  "{version} preview": "{version} önizleme",
   "• Your game files, GenTool and Steam files are not touched.": "• Oyun dosyalarınıza, GenTool'a ve Steam dosyalarına dokunulmaz.",
   "• {n} installed mods ({gb} GB) will be MOVED into the new library. They are kept, not re-downloaded.": "• {n} kurulu mod ({gb} GB) yeni kitaplığa TAŞINACAK. Korunur, yeniden indirilmez.",
   "• {n} leftover files and folders of the old launcher (its program, settings and caches) will be deleted.": "• Eski başlatıcıdan kalan {n} dosya ve klasör (programı, ayarları ve önbellekleri) silinecek.",

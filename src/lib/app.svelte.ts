@@ -5,6 +5,7 @@ import {
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
 } from "./backend";
 import { storeKey } from "./env";
+import pkg from "../../package.json";
 import { slugify } from "./guess";
 import { N, i18n, t } from "./i18n/index.svelte";
 import { mockItems } from "./mock";
@@ -514,14 +515,14 @@ class AppState {
   // --- updating GenLauncher ---
   update = $state<UpdateInfo | null>(null);
   updateBusy = $state(false);
-  appVersion = $state("");
+  /** The version of this build (package.json is bumped with every release, together with the Rust and Tauri files). */
+  readonly appVersion: string = pkg.version;
 
   /** Ask whether a newer version is published. Quiet at start-up; with `manual` it also says when there is none. */
   async checkUpdate(manual: boolean) {
     if (!isTauri) return;
     if (manual) this.updateBusy = true;
     try {
-      if (!this.appVersion) this.appVersion = await (await import("@tauri-apps/api/app")).getVersion();
       this.update = await updateCheck();
       if (this.update) this.notify(t("GenLauncher {version} is available. You can update in Settings.", { version: this.update.version }), "info", { id: `update:${this.update.version}` });
       else if (manual) this.say(t("You have the newest version."), "success");
