@@ -66,4 +66,5 @@
   .toc a { padding: .35rem .9rem; border-radius: 999px; border: 1px solid var(--stroke); background: var(--surface); color: var(--text-dim); text-decoration: none; font-size: .93rem; }
   .toc a:hover { color: var(--text); border-color: var(--stroke-hi); }
   .prose :global(h2) { scroll-margin-top: 5.5rem; }
+  .page :global(.faq) { max-width: 46rem; }
 </style>

@@ -15,7 +15,7 @@
 </div>
 
 <style>
-  .faq { display: grid; gap: .65rem; max-width: 50rem; }
+  .faq { display: grid; gap: .65rem; }
   details { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--r-md); padding: 0 1.1rem; transition: border-color .2s; }
   details[open] { border-color: var(--stroke-hi); background: var(--surface-hi); }
   summary { cursor: pointer; font-weight: 600; padding: 1rem 0; list-style: none; display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
