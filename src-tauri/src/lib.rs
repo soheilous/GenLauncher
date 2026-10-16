@@ -436,6 +436,10 @@ async fn google_sign_in(app: AppHandle, state: State<'_, AppState>) -> Result<Ac
 
     let code = google::wait_for_redirect(listener, &nonce, std::time::Duration::from_secs(300)).await?;
     let tokens = google::exchange_code(&state.http, &ep, &secret, &code, &verifier, &redirect).await?;
+    if !tokens.drive_granted() {
+        google::revoke(&state.http, &ep, tokens.refresh_token.as_deref().unwrap_or(&tokens.access_token)).await;
+        return Err(Error::msg("The permission to keep settings in your Google Drive was not ticked. Sign in again and tick it: GenLauncher can only see its own hidden folder there."));
+    }
     let refresh_token = tokens.refresh_token.clone().ok_or_else(|| Error::msg("Google did not allow GenLauncher to stay signed in. Try again and accept every permission."))?;
     let email = tokens.id_token.as_deref().and_then(google::email_from_id_token).unwrap_or_default();
     store::save(&google_session_path(&state).await?, &google::Session { refresh_token, email: email.clone() })?;

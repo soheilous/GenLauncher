@@ -165,6 +165,16 @@ pub struct Tokens {
     pub expires_in: u64,
     #[serde(default)]
     pub id_token: Option<String>,
+    /// What the user actually allowed (space separated). Google lets people untick a permission on the consent screen.
+    #[serde(default)]
+    pub scope: Option<String>,
+}
+
+impl Tokens {
+    /// False when Google says the user did not grant access to the Drive app folder.
+    pub fn drive_granted(&self) -> bool {
+        self.scope.as_deref().map_or(true, |s| s.split(' ').any(|p| p.ends_with("/auth/drive.appdata")))
+    }
 }
 
 fn form_body(pairs: &[(&str, &str)]) -> String {
