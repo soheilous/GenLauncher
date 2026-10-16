@@ -7,7 +7,7 @@ import {
 import { storeKey } from "./env";
 import pkg from "../../package.json";
 import { slugify } from "./guess";
-import { N, i18n, t } from "./i18n/index.svelte";
+import { N, i18n, t, tn } from "./i18n/index.svelte";
 import { mockItems } from "./mock";
 import type { Bootstrap, Game, GameInstall, Item, LegacySummary, ModKind, Notice, NoticeLevel, Settings } from "./types";
 
@@ -203,6 +203,32 @@ class AppState {
     }
   }
 
+  /** The versions an item had installed when an install of it started (to offer removing the old ones after an update). */
+  private installedBefore: Record<string, string[]> = {};
+  /** After an update, ask whether to remove the old version(s). */
+  askRemoveOld = $state(load("askRemoveOld", true));
+  setAskRemoveOld(v: boolean) { this.askRemoveOld = v; save("askRemoveOld", v); }
+
+  private async offerRemoveOld(item: Item, version: string, olderBefore: string[]) {
+    const older = olderBefore.filter((v) => item.versions.some((x) => x.v === v && x.installed));
+    if (!older.length) return;
+    const msg = t("{name} {version} installed", { name: item.name, version }) + "\n"
+      + tn(older.length, "Remove the older version ({versions})?", "Remove the older versions ({versions})?", { versions: older.join(", ") }) + "\n"
+      + t("Its files are deleted from GenLauncher's folder; your game files are not touched.");
+    if (!(await confirmDialog(msg, t("Old versions")))) return;
+    for (const v of older) {
+      try {
+        await uninstallVersion(item.id, v);
+        this.say(t("{name} {version} removed", { name: item.name, version: v }));
+      } catch (e) {
+        this.say(errText(e), "error");
+      }
+    }
+    if (older.includes(this.chosenVersions[item.id])) this.chosenVersions[item.id] = version;
+    this.persist();
+    await this.refreshLibrary();
+  }
+
   /** Items whose install started from the catalog's direct link: if it fails, the author's page is the way to get it. */
   private directStarted: Record<string, Item> = {};
 
@@ -232,6 +258,11 @@ class AppState {
     }
     this.say(t("{name} {version} installed", { name, version: r.version ?? "" }).replace(/\s+/g, " ").trim(), "success");
     await this.refreshLibrary();
+    const older = (this.installedBefore[r.id] ?? []).filter((v) => v !== r.version);
+    delete this.installedBefore[r.id];
+    const item = this.items.find((i) => i.id === r.id);
+    // an update: the catalog's newest version was just installed while older ones are still there
+    if (this.askRemoveOld && r.version && item && item.latest === r.version && older.length) await this.offerRemoveOld(item, r.version, older);
   }
 
   // --- "Add mod": things the user picked or linked themselves ---
@@ -269,6 +300,7 @@ class AppState {
     }
     try {
       const id = await addItem(req);
+      this.installedBefore[id] = (this.items.find((i) => i.id === id)?.versions ?? []).filter((v) => v.installed).map((v) => v.v);
       this.installProgress[id] = { id, phase: "preparing", done: 0, total: 0 };
       this.pending[id] = { version: req.version.trim() };
       if (!this.items.some((i) => i.id === id)) {
