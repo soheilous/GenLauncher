@@ -41,7 +41,7 @@ jobs:
               Click **More info**, then **Run anyway**. Code signing is planned.
             - The interface is available in 13 languages. The translations were written without native review, so
               corrections are welcome (see the README, "Translations").
-            - Mods are never downloaded for you: GenLauncher opens each mod's own page and takes the file you download.
+            - GenLauncher hosts no mods: it opens each mod's own page and takes the file you download, or, where the author published a direct link, downloads that file when you press Install.
 
             Source and issues: https://github.com/soheilous/GenLauncher
           releaseDraft: true

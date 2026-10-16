@@ -203,9 +203,14 @@ class AppState {
     }
   }
 
+  /** Items whose install started from the catalog's direct link: if it fails, the author's page is the way to get it. */
+  private directStarted: Record<string, Item> = {};
+
   private async installFinished(r: InstallFinished) {
     delete this.installProgress[r.id];
     delete this.pending[r.id];
+    const direct = this.directStarted[r.id];
+    delete this.directStarted[r.id];
     this.applyProgress();
     const name = this.items.find((i) => i.id === r.id)?.name ?? "Item";
     if (!r.ok) {
@@ -218,6 +223,11 @@ class AppState {
     }
     if (!r.ok) {
       this.say(t("{name}: {error}", { name, error: r.error ?? t("installation failed") }), "error");
+      if (direct?.links?.moddb) {
+        // the author's link did not work (moved, removed): fall back to the page the author publishes the mod on
+        this.notify(t("The direct download of {name} did not work. Its page is open instead.", { name }), "info");
+        this.openAdd(direct.kind, direct.kind === "mod" ? null : (direct.parent ?? this.activeModId), { name: direct.name, pageUrl: direct.links.moddb, update: direct.versions.some((v) => v.installed) });
+      }
       return;
     }
     this.say(t("{name} {version} installed", { name, version: r.version ?? "" }).replace(/\s+/g, " ").trim(), "success");
@@ -881,6 +891,14 @@ class AppState {
   async install(item: Item) {
     if (isTauri) {
       if (this.installProgress[item.id]) return;
+      if (item.direct) {
+        // the author published a direct link: no page to visit
+        const parent = item.kind === "mod" ? null : (item.parent ?? this.activeModId);
+        this.directStarted[item.id] = item;
+        const ok = await this.add({ source: { type: "link", url: item.direct.url, pageUrl: item.links?.moddb ?? null }, name: item.name, version: item.latest, kind: item.kind, parent });
+        if (!ok) delete this.directStarted[item.id];
+        return;
+      }
       this.openAdd(item.kind, item.kind === "mod" ? null : (item.parent ?? this.activeModId), {
         name: item.name,
         pageUrl: item.links?.moddb || null,

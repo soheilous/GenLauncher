@@ -6,8 +6,9 @@ anywhere, except what is described here.
 **Mod index and messages.** The launcher downloads the public files in [mod catalog](https://github.com/soheilous/generals-mod-catalog) from GitHub (the list of mods
 and the project's announcements). GitHub sees an ordinary web request.
 
-**Mods.** Mods are downloaded by you, from the pages of their authors, in the launcher's built-in browser or your own.
-Those sites see you as any visitor.
+**Mods.** Mods are downloaded from their authors: either by you, on the author's page in the launcher's built-in browser or your
+own, or, when you press Install on an entry that has a direct download link the author published, by the launcher from that
+link. Those sites and hosts see you as any visitor.
 
 **Signing in with Google (optional).** If you choose *Sign in with Google*, GenLauncher asks for two things:
 

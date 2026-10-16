@@ -72,6 +72,19 @@ pub struct Links {
     pub support: Option<String>,
 }
 
+/// A direct download from the catalog (the file's address is the author's, `via` names where they published it).
+#[derive(Debug, Clone, Serialize)]
+pub struct Direct {
+    pub url: String,
+    pub via: Option<String>,
+    pub size: Option<u64>,
+}
+
+fn direct_of(info: Option<&Entry>) -> Option<Direct> {
+    let d = info?.download.as_ref().filter(|d| d.url.starts_with("https://"))?;
+    Some(Direct { url: d.url.clone(), via: d.via.clone(), size: d.size })
+}
+
 /// One row/card in the UI. Mirrors `Item` in `src/lib/types.ts`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -88,6 +101,8 @@ pub struct Item {
     pub links: Links,
     pub cover: Option<String>,
     pub deprecated: bool,
+    /// Set when the catalog has a direct download for this item (one-click install).
+    pub direct: Option<Direct>,
 }
 
 pub fn slug(s: &str) -> String {
@@ -194,6 +209,7 @@ pub fn mod_items(catalog: &Catalog, disk: &[InstalledMod]) -> Vec<Item> {
             links: links_of(info),
             cover: m.entry.image_link.clone(),
             deprecated: m.entry.deprecated,
+            direct: direct_of(Some(&m.entry)),
         });
     }
 
@@ -212,6 +228,7 @@ pub fn mod_items(catalog: &Catalog, disk: &[InstalledMod]) -> Vec<Item> {
             links: Links::default(),
             cover: None,
             deprecated: false,
+            direct: None,
         });
     }
 
@@ -228,6 +245,7 @@ pub fn mod_items(catalog: &Catalog, disk: &[InstalledMod]) -> Vec<Item> {
         links: Links::default(),
         cover: None,
         deprecated: false,
+        direct: None,
     });
     items
 }
@@ -266,6 +284,7 @@ fn extra_item(mod_id: &str, kind: Kind, info: &Entry, disks: &[&[Extra]]) -> Ite
         links: links_of(Some(info)),
         cover: None,
         deprecated: info.deprecated,
+        direct: direct_of(Some(info)),
     }
 }
 
@@ -352,7 +371,7 @@ mod tests {
         let json = serde_json::to_value(&items[0]).unwrap();
         let mut keys: Vec<_> = json.as_object().unwrap().keys().cloned().collect();
         keys.sort();
-        assert_eq!(keys, ["cover", "dependsOn", "deprecated", "hue", "id", "kind", "latest", "links", "name", "parent", "summary", "versions"]);
+        assert_eq!(keys, ["cover", "dependsOn", "deprecated", "direct", "hue", "id", "kind", "latest", "links", "name", "parent", "summary", "versions"]);
         assert_eq!(json["kind"], "mod");
         assert_eq!(json["versions"][0], serde_json::json!({ "v": "1.0", "installed": false }));
         let exe = extra_item("contra", Kind::Exe, &info("E", "2"), &[]);
@@ -432,9 +451,9 @@ mod tests {
         assert_eq!(names(None), ["global", "contra-only", "other", "stock"]);
     }
 
-    /// The copies that ship inside the app must be readable, and they hold pointers only.
+    /// The copies that ship inside the app must be readable and hold no secrets; a direct link is https and says where the author published it.
     #[test]
-    fn bundled_indexes_are_pointers_only() {
+    fn bundled_indexes_are_readable_and_hold_no_secrets() {
         for game in [crate::game::Game::Zh, crate::game::Game::Generals] {
             let text = game.bundled_index();
             let c = bundled(game);
@@ -442,9 +461,28 @@ mod tests {
             assert!(!c.index.mods.is_empty());
             assert!(c.index.mods.iter().all(|m| !m.entry.name.trim().is_empty()));
             let lower = text.to_lowercase();
-            for banned in ["insave.ovh", "s3host", "downloadlink", "secretkey"] {
+            for banned in ["s3host", "downloadlink", "secretkey", "publickey"] {
                 assert!(!lower.contains(banned), "{banned} must not be in the index");
             }
+            for m in &c.index.mods {
+                for e in std::iter::once(&m.entry).chain(&m.patches).chain(&m.addons) {
+                    if let Some(d) = &e.download {
+                        assert!(d.url.starts_with("https://"), "{}: direct links must be https", e.name);
+                        assert!(d.via.as_deref().is_some_and(|v| v.starts_with("https://")), "{}: a direct link must say where the author published it", e.name);
+                    }
+                }
+            }
         }
+    }
+
+    #[test]
+    fn a_direct_download_reaches_the_item_only_when_it_is_https() {
+        let mut e = Entry { name: "X".into(), ..Default::default() };
+        assert!(direct_of(Some(&e)).is_none());
+        e.download = Some(crate::index::Download { url: "http://insecure/x.zip".into(), ..Default::default() });
+        assert!(direct_of(Some(&e)).is_none(), "plain http is never offered");
+        e.download = Some(crate::index::Download { url: "https://host/x.zip".into(), via: Some("https://a/b.yaml".into()), size: Some(5), sha256: None });
+        let d = direct_of(Some(&e)).unwrap();
+        assert_eq!((d.url.as_str(), d.size), ("https://host/x.zip", Some(5)));
     }
 }

@@ -123,19 +123,25 @@ mod catalog are not translated yet.
 
 ### Where mods come from
 
-The launcher hosts no mods and downloads none by itself. Mods are added from a file or folder on your computer, a direct
-link, or a web page (ModDB, Nexus Mods, a mod's own site) opened in the launcher's built-in browser, where you pick the
-version and click the site's own download button. Files therefore always come from the people who published them.
-"Install" on a Discover entry does the same: it opens that mod's page. Each installed version remembers the page it was
-downloaded from.
+The launcher hosts no mods. Files always come from the people who published them, in one of two ways:
+
+- **Direct download** (a bolt icon on the Discover card): the mod's author published a direct download link in their own
+  GenLauncher manifest, and the catalog lists it. Pressing Install downloads that file, nothing else to click. If the link
+  stops working, the launcher opens the author's page instead.
+- **The author's page** (every other entry, and anything you add yourself from a link or a web page): the page (ModDB, Nexus
+  Mods, a mod's own site) opens in the launcher's built-in browser, where you pick the version and click the site's own
+  download button.
+
+You can also add a file or folder from your computer. Each installed version remembers the page it was downloaded from.
 
 ### The mod index
 
 Discover, and the patches / addons / executables listed under each mod, come from the [mod catalog](https://github.com/soheilous/generals-mod-catalog): one JSON
 file per game in its own repository, read by the launcher from GitHub (a snapshot is built into every release in
 `src-tauri/bundled/`, refreshed with `node tools/sync-catalog.mjs`, and the last copy fetched is cached, so it works
-offline). It holds pointers only (names, latest version, the page a mod is published on, cover images), never a download
-link or a file. Anyone can add or fix an entry with a pull request there.
+offline). It holds pointers (names, latest version, the page a mod is published on, cover images) and, where the author published one, the
+direct download link, never a file. Versions and links are refreshed weekly from the authors' own manifests. Anyone can add or
+fix an entry with a pull request there.
 
 ## Credits
 

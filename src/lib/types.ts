@@ -29,6 +29,8 @@ export interface Item {
   parent?: string | null; // mod id for patches/addons/exes
   dependsOn?: string | null; // e.g. an addon that needs a specific patch
   links?: Links;
+  /** A direct download the author published (shown in the catalog): installs with one click, no page to visit. */
+  direct?: { url: string; via?: string | null; size?: number | null } | null;
   deprecated?: boolean;
   // UI-only state
   progress?: number; // 0..1 while installing (0 while the size is still unknown)

@@ -8,7 +8,7 @@ already own. It is not affiliated with, endorsed by or sponsored by Electronic A
 *Command & Conquer* and *Generals* are trademarks of Electronic Arts Inc.
 
 **Your game and your mods.** You need your own copy of the game. GenLauncher does not provide the game or host any mod:
-mods come from their authors' own pages (or files you already have), and you download them yourself. Check each mod's page
+mods come from their authors (their own pages, or a direct download link that the author published and that you start by pressing Install), or from files you already have. Check each mod's page
 for its licence and conditions. You are responsible for what you install.
 
 **Your game folder.** GenLauncher changes your game folder while the game runs and restores it afterwards. It is built to

@@ -8,7 +8,7 @@ export const faq: { q: string; a: string }[] = [
   },
   {
     q: N("Where do the mods come from?"),
-    a: N("From the people who made them. GenLauncher hosts nothing and mirrors nothing: pressing Install on a mod opens its own page (ModDB, Nexus Mods, an author's site) in a built-in browser, you pick the version and click the site's own download button, and the launcher takes that file and installs it. You can also add a zip, 7z or rar you already have, or an unpacked folder."),
+    a: N("From the people who made them. GenLauncher hosts nothing and mirrors nothing. Where the author published a direct download link (marked with a bolt), pressing Install downloads that file. Otherwise it opens the mod's own page (ModDB, Nexus Mods, an author's site) in a built-in browser, you pick the version and click the site's own download button, and the launcher takes that file and installs it. You can also add a zip, 7z or rar you already have, or an unpacked folder."),
   },
   {
     q: N("Do I need administrator rights?"),

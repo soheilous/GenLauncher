@@ -138,8 +138,8 @@
           <button class="btn" onclick={() => app.cancel(mod)}><Icon name="x" size={13} /> {t("Cancel")}</button></div>
       </div>
     {:else if canInstall}
-      <button class="btn primary wide" onclick={() => app.install(mod)}>
-        <Icon name="download" size={16} /> {anyInstalled ? t("Update to {version}", { version: mod.latest }) : t("Install {version}", { version: mod.latest })}
+      <button class="btn primary wide" title={mod.direct ? t("Direct download: published by the author, installs with one click") : undefined} onclick={() => app.install(mod)}>
+        <Icon name={mod.direct ? "bolt" : "download"} size={16} /> {anyInstalled ? t("Update to {version}", { version: mod.latest }) : t("Install {version}", { version: mod.latest })}
       </button>
     {/if}
 

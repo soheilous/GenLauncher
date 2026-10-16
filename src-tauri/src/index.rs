@@ -1,9 +1,11 @@
 //! The mod catalog: a list of mods and where to find them, kept in its own repository
 //! (github.com/soheilous/generals-mod-catalog, `catalog/*.json`).
 //!
-//! It holds pointers only: names, the latest known version, the page a mod is published on, and some styling. It never
-//! contains a download link or a file: the launcher opens the page in its built-in browser and the user downloads the
-//! file from the people who published it. Anyone can improve the catalog with a pull request.
+//! It holds pointers: names, the latest known version, the page a mod is published on, and some styling. It never
+//! contains a file. For an entry whose author published a direct download link (in their own manifest, named in `via`)
+//! the link is listed too and the launcher offers a one-click install; for every other entry it opens the author's page in
+//! its built-in browser and the user downloads the file from the people who published it. Anyone can improve the catalog
+//! with a pull request.
 //!
 //! The first version of the index was converted from the mod list of GenLauncher 1.x by p0ls3r
 //! (github.com/p0ls3r/GenLauncherModsData); see the credits in the README.
@@ -14,6 +16,19 @@ pub const FORMAT: u32 = 1;
 
 fn is_false(b: &bool) -> bool {
     !*b
+}
+
+/// A direct download the author published (`via` is the manifest or page that says so).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Download {
+    pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub via: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sha256: Option<String>,
 }
 
 /// One mod, patch, addon or executable.
@@ -43,6 +58,9 @@ pub struct Entry {
     pub dependence_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub colors: Option<Colors>,
+    /// A direct download link the author published, when there is one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub download: Option<Download>,
     #[serde(skip_serializing_if = "is_false")]
     pub deprecated: bool,
     /// For an executable: the file it provides.

@@ -47,7 +47,7 @@ const messages: Messages = {
   "Features": "功能",
   "Finished installs, problems and messages stay in one place until you dismiss them.": "已完成的安装、问题和消息会集中保存在一处，直到你关闭它们。",
   "Free & open source": "免费且开源",
-  "From the people who made them. GenLauncher hosts nothing and mirrors nothing: pressing Install on a mod opens its own page (ModDB, Nexus Mods, an author's site) in a built-in browser, you pick the version and click the site's own download button, and the launcher takes that file and installs it. You can also add a zip, 7z or rar you already have, or an unpacked folder.": "来自制作者本人。GenLauncher 不托管、也不镜像任何内容：在模组上点击“安装”会在内置浏览器中打开它自己的页面（ModDB、Nexus Mods 或作者的网站），你选择版本并点击该网站自己的下载按钮，启动器接收那个文件并安装。你也可以添加已有的 zip、7z 或 rar，或者一个已解压的文件夹。",
+  "From the people who made them. GenLauncher hosts nothing and mirrors nothing. Where the author published a direct download link (marked with a bolt), pressing Install downloads that file. Otherwise it opens the mod's own page (ModDB, Nexus Mods, an author's site) in a built-in browser, you pick the version and click the site's own download button, and the launcher takes that file and installs it. You can also add a zip, 7z or rar you already have, or an unpacked folder.": "来自制作者本人。GenLauncher 不托管、也不镜像任何内容。如果作者发布了直接下载链接（带闪电标记），点击“安装”就会下载那个文件。否则，会在内置浏览器中打开该模组自己的页面（ModDB、Nexus Mods 或作者的网站），你选择版本并点击该网站自己的下载按钮，启动器接收那个文件并安装。你也可以添加已有的 zip、7z 或 rar，或者一个已解压的文件夹。",
   "Full screen": "全屏",
   "Game": "游戏",
   "Game options": "游戏选项",

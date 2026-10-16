@@ -1,7 +1,7 @@
 {
   "format": 1,
   "game": "zh",
-  "updated": "2026-10-14",
+  "updated": "2026-10-16",
   "mods": [
     {
       "name": "Rise of the Reds",
@@ -38,7 +38,12 @@
           "version": "0.7 HOTFIX V2",
           "page": "https://www.moddb.com/mods/rise-of-the-reds-anti-thesis-patch",
           "news": "https://www.moddb.com/mods/rise-of-the-reds-anti-thesis-patch",
-          "dependsOn": "Rise Of The Reds"
+          "dependsOn": "Rise Of The Reds",
+          "download": {
+            "url": "https://www.dropbox.com/scl/fi/p4n87bhu6nvjj4ihbdxdj/AntiThesisPatch-ROTR-V0.7.zip?rlkey=22k9q05xw4btigzbn7vagf5iw&st=s91x0pwa&dl=1",
+            "via": "https://raw.githubusercontent.com/FlamerYeeter/ROTR-ATP/main/AntiThesisPatch_INDIVIDUAL.yaml",
+            "size": 473279541
+          }
         },
         {
           "name": "Empire Pacific Alliance",
@@ -60,7 +65,11 @@
           "page": "https://www.moddb.com/mods/rise-of-the-reds-hanpatch",
           "discord": "https://discord.gg/REcbv37",
           "news": "https://docs.google.com/document/d/1ZMlVFDPf4SDD5Y6vYatOCtaudBBl32gdWg-YrswvnGo",
-          "dependsOn": "Hanpatch"
+          "dependsOn": "Hanpatch",
+          "download": {
+            "url": "https://gen.insave.ovh/rotr/easter-eggs/HanPatchEasterEggs.zip",
+            "via": "https://raw.githubusercontent.com/alanblack166/hanpatch-easter-egg-addon-manifest/master/GenLauncherData.yaml"
+          }
         },
         {
           "name": "RotR Navy",
@@ -72,7 +81,12 @@
           "name": "Vanilla Campaigns Remastered",
           "version": "1.871",
           "news": "https://docs.google.com/document/d/1NdmwfmHvc0PSfq5pi18LSctKQJzzPYf0/edit?usp=sharing&ouid=115439914228425694031&rtpof=true&sd=true",
-          "dependsOn": "Hanpatch"
+          "dependsOn": "Hanpatch",
+          "download": {
+            "url": "https://www.dropbox.com/scl/fi/fr2wdl9l7rvxfbqi32688/VCR-Vanilla-Campaigns-Remastered-Public-v.1.871.big?rlkey=6900m84vsmbmhdubgd8zdq4uv&st=fjx2todh&dl=1",
+            "via": "https://raw.githubusercontent.com/StanislavSaw/Vanilla-Campaigns-Remastered---Manifest-file/master/Vanilla-Campaigns-Remastered---Manifest-file.yaml",
+            "size": 117409126
+          }
         },
         {
           "name": "EPA No MechFactions",
@@ -106,71 +120,140 @@
         {
           "name": "Russian language and Leikeze hotkeys",
           "version": "10.0.2 Beta 2 Patch 1",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-patches/ContraRULeikeze.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-RUSSIAN%20LANGUAGE%20AND%20LEIKEZE%20HOTKEYS.yaml",
+            "size": 150839
+          }
         },
         {
           "name": "Russian language and Legacy hotkeys",
           "version": "10.0.2 Beta 2 Patch 1",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-patches/ContraRULegacy.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-RUSSIAN%20LANGUAGE%20AND%20LEGACY%20HOTKEYS.yaml",
+            "size": 150865
+          }
         },
         {
           "name": "English language and Leikeze hotkeys",
           "version": "10.0.2 Beta 2 Patch 1",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-patches/ContraENLeikeze.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-ENGLISH%20LANGUAGE%20AND%20LEIKEZE%20HOTKEYS.yaml",
+            "size": 98051
+          }
         }
       ],
       "addons": [
         {
           "name": "HD Cameos",
           "version": "10.0.2 Beta 2 Patch 1",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-addons/ContraCameosHD.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-CAMEOS-HD.yaml",
+            "size": 20928
+          }
         },
         {
           "name": "Control Bar Pro",
           "version": "10.0.2 Beta 2 Patch 1",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-addons/ContraControlBarPro.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-CONTROLBAR-PRO.yaml",
+            "size": 22726071
+          }
         },
         {
           "name": "Control Bar Standard ZH",
           "version": "10.0.1 Beta 2",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-addons/ContraControlBarStandard.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-CONTROLBAR-STANDARD.yaml",
+            "size": 892239
+          }
         },
         {
           "name": "Enhanced Soundtrack",
           "version": "10.0.2 Beta 2 Patch 1",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-addons/ContraMusicEnhanced.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-MUSIC-ENHANCED.yaml",
+            "size": 208603257
+          }
         },
         {
           "name": "The Score Soundtrack",
           "version": "10.0.2 Beta 2 Patch 1",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-addons/ContraMusicTheScore.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-MUSIC-THE-SCORE.yaml",
+            "size": 180711219
+          }
         },
         {
           "name": "Funny General Portraits",
           "version": "10.0.1 Beta 2",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-addons/ContraFunnyGenPics.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-FUNNY%20PORTRAITS.yaml",
+            "size": 7141509
+          }
         },
         {
           "name": "Native Unit Voices",
           "version": "10.0.2 Beta 2",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-addons/ContraNatVO.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-NATIVE%20UNIT%20VOICES.yaml",
+            "size": 83277346
+          }
         },
         {
           "name": "Disable Fog Effects",
           "version": "10.0.2 Beta 2 Patch 1",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-addons/ContraFogOff.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-FOG%20EFFECTS%20DISABLER.yaml"
+          }
         },
         {
           "name": "Disable Water Effects",
           "version": "10.0.1 Beta 2",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-addons/ContraWaterEffectsOff.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-WATER%20EFFECTS%20DISABLER.yaml",
+            "size": 79357
+          }
         },
         {
           "name": "Disable Extra Building Props",
           "version": "10.0.1 Beta 2",
-          "dependsOn": "Contra"
+          "dependsOn": "Contra",
+          "download": {
+            "url": "https://gen.insave.ovh/contra/contra-addons/ContraExtraBuildingPropsOff.rar",
+            "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR-EXTRA-BUILDING-PROPS-DISABLER.yaml",
+            "size": 2541
+          }
         }
-      ]
+      ],
+      "download": {
+        "url": "https://gen.insave.ovh/contra/mod/ContraLatestBasic.rar",
+        "via": "https://raw.githubusercontent.com/ThePredatorBG/Contra/master/GL-CTR.yaml",
+        "size": 1062953066
+      }
     },
     {
       "name": "The End of Days",
@@ -208,7 +291,12 @@
         "backgroundImage": "https://i.imgur.com/xnTxZK4.png"
       },
       "patches": [],
-      "addons": []
+      "addons": [],
+      "download": {
+        "url": "https://gen.insave.ovh/nproject/mod/n5p29-nprojectbeta-v211.zip",
+        "via": "https://raw.githubusercontent.com/ZekeDlyoung/N-Project-Mod/master/NPROJECT_MOD_Individual.yaml",
+        "size": 279568984
+      }
     },
     {
       "name": "Zero Hour Reborn",
@@ -241,7 +329,12 @@
       "image": "https://raw.githubusercontent.com/Andreas-W/ofs/main/OFS_GenlauncherBanner.png",
       "discord": "https://discord.gg/7NsTfDD",
       "patches": [],
-      "addons": []
+      "addons": [],
+      "download": {
+        "url": "https://gen.insave.ovh/operationfirestorm/mod/OFS_Alpha_0_3_17b.7z",
+        "via": "https://raw.githubusercontent.com/Andreas-W/ofs/master/OFS_GenLauncherData.yaml",
+        "size": 599494796
+      }
     },
     {
       "name": "C&C Shockwave",
@@ -272,13 +365,23 @@
           "name": "ShockWave Cursor Pack HD",
           "version": "1.3",
           "news": "https://discord.gg/7AFR2xPbyN",
-          "dependsOn": "C&C ShockWave"
+          "dependsOn": "C&C ShockWave",
+          "download": {
+            "url": "https://drive.usercontent.google.com/u/0/uc?id=17Haa3edlNHH5oX0aO_BqiBjr4bp6QpG9&export=download",
+            "via": "https://raw.githubusercontent.com/qBeay/GenLaucherAddon/master/GenLauncherData.yaml",
+            "size": 132678
+          }
         },
         {
           "name": "ShockWave Russifier",
           "version": "1.25",
           "news": "https://discord.gg/7AFR2xPbyN",
-          "dependsOn": "C&C ShockWave"
+          "dependsOn": "C&C ShockWave",
+          "download": {
+            "url": "https://drive.usercontent.google.com/u/0/uc?id=1--awud-SgaftHmLnszqzdRPwd8oZO0Iu&export=download",
+            "via": "https://raw.githubusercontent.com/qBeay/GenLaucherAddon-ShockWaveRUS/master/GenLauncherData.yaml",
+            "size": 4992873
+          }
         },
         {
           "name": "Shockwave Single Player Experience",
@@ -366,49 +469,93 @@
         {
           "name": "Infestation Valley Shellmap",
           "version": "1.9",
-          "dependsOn": "C&C Tiberian Dawn Redux"
+          "dependsOn": "C&C Tiberian Dawn Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/InfestationValleyShellmap.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Tiberian-Dawn-Redux-GZH/master-branch/InfestationValleyShellmap.yaml",
+            "size": 164627
+          }
         },
         {
           "name": "Nod Ambush Shellmap",
           "version": "1.9",
-          "dependsOn": "C&C Tiberian Dawn Redux"
+          "dependsOn": "C&C Tiberian Dawn Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/NodAmbushShellmap.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Tiberian-Dawn-Redux-GZH/master-branch/NodAmbushShellmap.yaml",
+            "size": 71643
+          }
         }
       ],
       "addons": [
         {
           "name": "TD Redux Control Bar Pro",
           "version": "1.03",
-          "dependsOn": "C&C Tiberian Dawn Redux"
+          "dependsOn": "C&C Tiberian Dawn Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/TDR_Control_Bar_Pro.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Tiberian-Dawn-Redux-GZH/master-branch/TDReduxControlBarPro.yaml",
+            "size": 16509554
+          }
         },
         {
           "name": "Tiberian Dawn Redux Campaign Movies",
           "version": "1.54",
-          "dependsOn": "C&C Tiberian Dawn Redux"
+          "dependsOn": "C&C Tiberian Dawn Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/TDReduxMovies.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Tiberian-Dawn-Redux-GZH/master-branch/TDReduxMovies.yaml"
+          }
         },
         {
           "name": "C&C 64 Music Remixes",
           "version": "1.3",
-          "dependsOn": "C&C Tiberian Dawn Redux"
+          "dependsOn": "C&C Tiberian Dawn Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/TDR2CNC64MusicConversion.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Tiberian-Dawn-Redux-GZH/master-branch/CC64Remixes.yaml",
+            "size": 121486797
+          }
         },
         {
           "name": "C&C Tiberian Dawn Redux Soundtrack Remixes",
           "version": "1.05",
-          "dependsOn": "C&C Tiberian Dawn Redux"
+          "dependsOn": "C&C Tiberian Dawn Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/CCTiberianDawnReduxSoundtrackRemixes.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Tiberian-Dawn-Redux-GZH/master-branch/CCTDRRemixes.yaml",
+            "size": 65113899
+          }
         },
         {
           "name": "C&C 2 Tiberian Sun Music Mod",
           "version": "1.2",
-          "dependsOn": "C&C Tiberian Dawn Redux"
+          "dependsOn": "C&C Tiberian Dawn Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/CC2TSMUSIC.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Tiberian-Dawn-Redux-GZH/master-branch/CCTDR2CC2TSMusic.yaml",
+            "size": 239991058
+          }
         },
         {
           "name": "C&C 3 Tiberium Wars Music Mod",
           "version": "1.2",
-          "dependsOn": "C&C Tiberian Dawn Redux"
+          "dependsOn": "C&C Tiberian Dawn Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/CC3TWMUSIC.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Tiberian-Dawn-Redux-GZH/master-branch/CCTDR2CC3TWMusic.yaml",
+            "size": 110376448
+          }
         },
         {
           "name": "Tiberian Dawn To Tiberium Wars Voice Mod",
           "version": "1.04",
-          "dependsOn": "C&C Tiberian Dawn Redux"
+          "dependsOn": "C&C Tiberian Dawn Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/TDR2TWVoiceMod.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Tiberian-Dawn-Redux-GZH/master-branch/TDR2TWVoiceMod.yaml",
+            "size": 154874135
+          }
         }
       ]
     },
@@ -458,7 +605,12 @@
         {
           "name": "Zero Hour Shell Map Remastered",
           "version": "1.05 GenLauncherFix 3",
-          "dependsOn": "C&C Generals Version 2.0"
+          "dependsOn": "C&C Generals Version 2.0",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/Shellmap1.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-C-C-Generals-Version-2.0-GZH-Mod/master-branch/ZHShellMapRemastered.yaml",
+            "size": 97725
+          }
         }
       ],
       "addons": []
@@ -495,7 +647,12 @@
           "version": "3.05 Russian Language",
           "page": "https://www.moddb.com/mods/cc-generals-revolution/downloads/russian-language-text",
           "news": "https://www.moddb.com/mods/cc-generals-revolution/downloads/russian-language-text",
-          "dependsOn": "Revolution Project"
+          "dependsOn": "Revolution Project",
+          "download": {
+            "url": "https://gen.insave.ovh/revolutionproject/0RTextENG3.04.gib",
+            "via": "https://raw.githubusercontent.com/TipaIvanReal/RevoutionProject/main/3.0%20Russian%20Language.yaml",
+            "size": 1291566
+          }
         }
       ],
       "addons": [
@@ -503,7 +660,12 @@
           "name": "Controlbar HD",
           "version": "3.06 Controlbar HD",
           "news": "https://www.moddb.com/games/cc-generals-zero-hour/addons/control-bar-pro-zero-hour-hd-control-bar-pro-generals-hd",
-          "dependsOn": "Revolution Project"
+          "dependsOn": "Revolution Project",
+          "download": {
+            "url": "https://gen.insave.ovh/revolutionproject/0RControlbarHD.big",
+            "via": "https://raw.githubusercontent.com/TipaIvanReal/RevoutionProject/main/Controlbar%20HD.yaml",
+            "size": 71133375
+          }
         }
       ]
     },
@@ -545,29 +707,54 @@
         {
           "name": "Allied Themed Shellmap",
           "version": "1.03",
-          "dependsOn": "C&C Red Alert Redux"
+          "dependsOn": "C&C Red Alert Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/RARDX_AlliedShellMap.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Red-Alert-Redux-GZH/master-branch/AlliedShellmap.yaml",
+            "size": 180663
+          }
         },
         {
           "name": "Soviet Themed Shellmap",
           "version": "1.03",
-          "dependsOn": "C&C Red Alert Redux"
+          "dependsOn": "C&C Red Alert Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/RARDX_SovietShellMap.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Red-Alert-Redux-GZH/master-branch/SovietShellmap.yaml",
+            "size": 180867
+          }
         }
       ],
       "addons": [
         {
           "name": "Realistic Camo House Color Mod",
           "version": "1.09",
-          "dependsOn": "C&C Red Alert Redux"
+          "dependsOn": "C&C Red Alert Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/TWColorMod.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Red-Alert-Redux-GZH/master-branch/RealisticCamoHCMod.yaml",
+            "size": 5334666
+          }
         },
         {
           "name": "Red Alert Classic Skin Mod",
           "version": "1.16",
-          "dependsOn": "C&C Red Alert Redux"
+          "dependsOn": "C&C Red Alert Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/RARDX_ClassicHCSkins.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Red-Alert-Redux-GZH/master-branch/RARDXClassicSkins.yaml",
+            "size": 11295719
+          }
         },
         {
           "name": "RA Redux Control Bar Pro",
           "version": "1.01",
-          "dependsOn": "C&C Red Alert Redux"
+          "dependsOn": "C&C Red Alert Redux",
+          "download": {
+            "url": "https://gen.insave.ovh/tbredux/RARDX_ControlBarPro.zip",
+            "via": "https://raw.githubusercontent.com/sgtmyers88/sgtmyers88-Red-Alert-Redux-GZH/master-branch/RAReduxControlBarPro.yaml",
+            "size": 2391540
+          }
         }
       ]
     },
@@ -675,7 +862,12 @@
       "image": "https://www.dropbox.com/scl/fi/7gnu6em2u1rh4n3mjae7v/header-500-100.jpg?rlkey=1vixpsxx0e3glhulukx8j1x4j&st=efogqzxg&raw=1",
       "news": "https://www.moddb.com/mods/generals-zero-hour-patch-12/news/patch-12-patch-notes",
       "patches": [],
-      "addons": []
+      "addons": [],
+      "download": {
+        "url": "https://www.dropbox.com/scl/fi/34howmf1czjskpsd3eyiq/Generals_ZH_1.2.04.zip?rlkey=bem8c1hqqpb7visd5ywtyndpz&st=3zb99le5&dl=1",
+        "via": "https://raw.githubusercontent.com/Float1ngFree/Generals_1.20-Rebalanced-/main/GenLauncherData.yaml",
+        "size": 4345260
+      }
     }
   ],
   "originalGame": {

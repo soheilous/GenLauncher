@@ -35,7 +35,7 @@
     <small><bdi>{discover ? `${mod.latest}${mod.sizeMb ? " · " + (mod.sizeMb / 1000).toFixed(1) + " GB" : ""}` : (mod.versions.find((v) => v.installed)?.v ?? mod.latest)}</bdi></small>
   </div>
   {#if discover}
-    <span class="btn primary get">{mod.progress !== undefined ? (mod.progress ? Math.round(mod.progress * 100) + "%" : "…") : t("Install")}</span>
+    <span class="btn primary get" title={mod.direct ? t("Direct download: published by the author, installs with one click") : undefined}>{#if mod.direct && mod.progress === undefined}<Icon name="bolt" size={12} />{/if}{mod.progress !== undefined ? (mod.progress ? Math.round(mod.progress * 100) + "%" : "…") : t("Install")}</span>
   {/if}
 </div>
 
