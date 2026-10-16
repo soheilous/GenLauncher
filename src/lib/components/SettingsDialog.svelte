@@ -2,6 +2,7 @@
   import { app } from "$lib/app.svelte";
   import Icon from "./Icon.svelte";
   import Toggle from "./Toggle.svelte";
+  import { isTauri } from "$lib/backend";
   import Select from "./Select.svelte";
   import { N, i18n, offered, t, tn } from "$lib/i18n/index.svelte";
 
@@ -52,6 +53,13 @@
       <div class="line"><span>{t("Resolution, graphics, extra arguments")}</span>
         <button class="btn" onclick={() => { app.settingsOpen = false; app.optionsOpen = true; }}><Icon name="settings" size={14} /> {t("Game options…")}</button></div>
     </div>
+    {#if isTauri}
+      <h3>{t("Background")}</h3>
+      <div class="line"><span>{t("Keep running in the tray when the window is closed")}</span>
+        <Toggle label={t("Keep running in the tray")} checked={app.closeToTray} onchange={(v) => app.setCloseToTray(v)} /></div>
+      <div class="line"><span>{t("Start with Windows (hidden in the tray)")}</span>
+        <Toggle label={t("Start with Windows")} checked={app.autostart} onchange={(v) => app.setAutostart(v)} /></div>
+    {/if}
     <h3>{t("Backup")}</h3>
     <div class="line"><span>{t("Include my custom covers")}</span><Toggle label={t("Include custom covers")} checked={withCovers} onchange={(v) => (withCovers = v)} /></div>
     <div class="line">

@@ -1,5 +1,5 @@
 import {
-  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
@@ -149,6 +149,9 @@ class AppState {
         this.say(r.warnings.length ? t("Game closed after {time}. Game folder restored ({n} notes in the log).", { time: played, n: r.warnings.length }) : t("Game closed after {time}. Game folder restored.", { time: played }));
       }
     });
+    void onTrayPlay(() => void this.play());
+    void this.syncBackground();
+    void this.refreshAutostart();
     void onCloseBlocked(() => this.say(t("The game is still running. Close it first so your game folder can be restored.")));
     void onInstallProgress((p) => {
       this.installProgress[p.id] = p;
@@ -511,6 +514,38 @@ class AppState {
 
   /** Replace this launcher's settings with those from a file (asks first), then restart the screen. */
   backups = $state<Backup[]>([]);
+
+  // --- running in the background ---
+  /** Closing the window keeps the launcher running in the tray. */
+  closeToTray = $state(load("closeToTray", true));
+  autostart = $state(false);
+
+  /** Tell the core the tray setting and the tray menu's words (in the chosen language). */
+  async syncBackground() {
+    if (!isTauri) return;
+    try { await backgroundSet(this.closeToTray, t("Open GenLauncher"), t("Play"), t("Quit")); } catch { /* the tray is a convenience */ }
+  }
+
+  setCloseToTray(v: boolean) {
+    this.closeToTray = v;
+    save("closeToTray", v);
+    void this.syncBackground();
+  }
+
+  async refreshAutostart() {
+    if (!isTauri) return;
+    try { this.autostart = await autostartStatus(); } catch { /* unknown */ }
+  }
+
+  async setAutostart(v: boolean) {
+    try {
+      await autostartSet(v);
+      this.autostart = v;
+    } catch (e) {
+      this.say(errText(e), "error");
+      await this.refreshAutostart();
+    }
+  }
 
   // --- updating GenLauncher ---
   update = $state<UpdateInfo | null>(null);

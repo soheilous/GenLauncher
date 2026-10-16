@@ -37,6 +37,16 @@ export async function onLaunchFinished(cb: (r: LaunchFinished) => void): Promise
   return listen<LaunchFinished>("launch-finished", (e) => cb(e.payload));
 }
 
+// ---- running in the background (tray icon) ----
+
+export const backgroundSet = (closeToTray: boolean, open: string, play: string, quit: string) => invoke<void>("background_set", { closeToTray, open, play, quit });
+export const autostartStatus = () => invoke<boolean>("autostart_status");
+export const autostartSet = (enabled: boolean) => invoke<void>("autostart_set", { enabled });
+export async function onTrayPlay(cb: () => void): Promise<() => void> {
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen("tray-play", () => cb());
+}
+
 export async function onCloseBlocked(cb: () => void): Promise<() => void> {
   const { listen } = await import("@tauri-apps/api/event");
   return listen("close-blocked", () => cb());

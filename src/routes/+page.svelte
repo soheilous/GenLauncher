@@ -26,6 +26,7 @@
     i18n.locale;
     i18n.dir;
     i18n.apply();
+    void app.syncBackground(); // the tray menu is in the chosen language too
   });
 
   /** Entries that were unread when the page was opened stay highlighted while it is open. */

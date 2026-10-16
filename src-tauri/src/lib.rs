@@ -1,5 +1,6 @@
 pub mod big;
 pub mod browser;
+pub mod background;
 pub mod backups;
 pub mod catalog;
 pub mod config;
@@ -57,6 +58,8 @@ struct AppState {
     google_access: Mutex<Option<(String, std::time::Instant)>>,
     /// True from the start of a launch until the game folder is restored again.
     launching: AtomicBool,
+    /// Closing the window hides it (the launcher keeps running in the tray) instead of quitting.
+    close_to_tray: AtomicBool,
     /// Installs in progress, by item id.
     downloads: std::sync::Mutex<HashMap<String, download::Cancel>>,
     /// No overall timeout (mods are gigabytes); stalls are detected per chunk instead.
@@ -1199,6 +1202,9 @@ async fn close_browser(app: AppHandle, state: State<'_, AppState>) -> Result<()>
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // a second start (a shortcut clicked while the tray icon is there) brings the running one forward
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| background::show_main(app)))
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec![background::MINIMIZED])))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -1218,6 +1224,7 @@ pub fn run() {
                     .timeout(std::time::Duration::from_secs(30))
                     .build()?,
                 launching: AtomicBool::new(false),
+                close_to_tray: AtomicBool::new(true),
                 downloads: Default::default(),
                 browser_session: Default::default(),
                 download_client: reqwest::Client::builder()
@@ -1225,6 +1232,11 @@ pub fn run() {
                     .connect_timeout(std::time::Duration::from_secs(15))
                     .build()?,
             });
+            background::setup_tray(app.handle())?;
+            // the window starts hidden (tauri.conf.json); a start with Windows keeps it that way
+            if !std::env::args().any(|a| a == background::MINIMIZED) {
+                background::show_main(app.handle());
+            }
             Ok(())
         })
         // Closing the launcher while the game runs would leave the game folder modified.
@@ -1233,7 +1245,14 @@ pub fn run() {
                 if window.label() != "main" {
                     return;
                 }
-                if window.state::<AppState>().launching.load(Ordering::SeqCst) {
+                if window.state::<AppState>().close_to_tray.load(Ordering::SeqCst) {
+                    // keep running in the tray (a running game's folder is still restored when it closes)
+                    api.prevent_close();
+                    let _ = window.hide();
+                    if let Some(browser) = window.app_handle().get_webview_window(BROWSER) {
+                        let _ = browser.hide();
+                    }
+                } else if window.state::<AppState>().launching.load(Ordering::SeqCst) {
                     api.prevent_close();
                     let _ = window.emit("close-blocked", ());
                 } else if let Some(browser) = window.app_handle().get_webview_window(BROWSER) {
@@ -1243,7 +1262,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, google_status, google_sign_in, google_sign_out, cloud_backup_create, cloud_backup_list, cloud_backup_delete, cloud_backup_restore, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
-            uninstall_version, rename_version, open_browser, close_browser, open_item_folder, update_check, update_install
+            uninstall_version, rename_version, open_browser, close_browser, open_item_folder, update_check, update_install,
+            background::background_set, background::autostart_status, background::autostart_set
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
