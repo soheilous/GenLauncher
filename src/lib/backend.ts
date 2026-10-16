@@ -58,6 +58,7 @@ export interface InstallFinished {
 }
 
 export const cancelInstall = (id: string) => invoke<void>("cancel_install", { id });
+export const renameVersion = (id: string, version: string, newVersion: string) => invoke<string>("rename_version", { id, version, newVersion });
 export const uninstallVersion = (id: string, version: string) => invoke<void>("uninstall_version", { id, version });
 
 export async function onInstallProgress(cb: (p: InstallProgress) => void): Promise<() => void> {

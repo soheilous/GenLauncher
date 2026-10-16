@@ -1003,6 +1003,25 @@ async fn uninstall_version(state: State<'_, AppState>, id: String, version: Stri
     .await
 }
 
+/// Rename one installed version (for example "1.87" to "1.87 my settings"). Returns the new name.
+#[tauri::command]
+async fn rename_version(state: State<'_, AppState>, id: String, version: String, new_version: String) -> Result<String> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game before renaming mod files"));
+    }
+    if state.downloads.lock().unwrap().contains_key(&id) {
+        return Err(Error::msg("This item is being installed right now"));
+    }
+    let (install, catalog, extras) = {
+        let inner = state.inner.lock().await;
+        (require_install(&inner)?, inner.catalog.clone().ok_or_else(|| Error::msg("Catalog not loaded"))?, inner.extras.clone())
+    };
+    let disk = scan_disk(install.dir.clone()).await?;
+    let loc = target::locate(&install.dir, &catalog, &extras, &disk, &id)?;
+    let dir = target::version_dir(&install.dir, &loc, &version)?;
+    blocking(move || library::rename_version(&dir, &new_version)).await
+}
+
 const BROWSER: &str = "browser";
 
 /// What happens in the built-in browser window, as seen by the main window.
@@ -1224,7 +1243,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, google_status, google_sign_in, google_sign_out, cloud_backup_create, cloud_backup_list, cloud_backup_delete, cloud_backup_restore, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
-            uninstall_version, open_browser, close_browser, open_item_folder, update_check, update_install
+            uninstall_version, rename_version, open_browser, close_browser, open_item_folder, update_check, update_install
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -21,6 +21,7 @@
     expand: "M9 6l6 6-6 6",
     bell: "M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4",
     refresh: "M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7",
+    edit: "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4",
     undo: "M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3",
   };
   let { name, size = 18 }: { name: keyof typeof paths | string; size?: number } = $props();

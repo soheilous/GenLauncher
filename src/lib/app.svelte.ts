@@ -1,5 +1,5 @@
 import {
-  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
@@ -855,6 +855,29 @@ class AppState {
   }
 
   /** Remove one installed version from disk (asks first). */
+  /** Give an installed version another name. Returns false when it could not be renamed (the reason is shown). */
+  async renameVersion(item: Item, version: string, newName: string): Promise<boolean> {
+    const name = newName.trim();
+    if (!name || name === version) return true;
+    if (!isTauri) {
+      const v = item.versions.find((x) => x.v === version);
+      if (v) v.v = name;
+      if (this.chosenVersions[item.id] === version) this.chosenVersions[item.id] = name;
+      return true;
+    }
+    try {
+      const final = await renameVersion(item.id, version, name);
+      if (this.chosenVersions[item.id] === version) this.chosenVersions[item.id] = final;
+      this.persist();
+      this.say(t("{name} {version} renamed to {to}", { name: item.name, version, to: final }));
+      await this.refreshLibrary();
+      return true;
+    } catch (e) {
+      this.say(errText(e), "error");
+      return false;
+    }
+  }
+
   async uninstall(item: Item, version: string) {
     const msg = t("Remove {name} {version} from your computer?", { name: item.name, version }) + "\n" + t("Its files are deleted from GenLauncher's folder; your game files are not touched.");
     if (!(await confirmDialog(msg, t("Remove {name}", { name: item.name })))) return;

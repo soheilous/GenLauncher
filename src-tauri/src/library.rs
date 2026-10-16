@@ -77,6 +77,36 @@ pub fn remove_version(dir: &Path, mods_root: &Path) -> crate::error::Result<()> 
     Ok(())
 }
 
+/// Give an installed version another name (its folder and the record of where it came from move together).
+/// Returns the new folder name. Refuses a name that is empty or already used by another version of the same item.
+pub fn rename_version(dir: &Path, new_name: &str) -> crate::error::Result<String> {
+    if new_name.trim().is_empty() {
+        return Err(crate::error::Error::msg("Type a name for this version."));
+    }
+    let name = crate::target::sanitize_component(new_name);
+    let to = dir.with_file_name(&name);
+    let same = dir.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(&name));
+    if to.exists() && !same {
+        return Err(crate::error::Error::msg(format!("Another version is already called {name}.")));
+    }
+    if dir == to {
+        return Ok(name);
+    }
+    // a change of letter case only needs a hop through a temporary name on Windows
+    if same {
+        let hop = dir.with_file_name(format!("{name}.renaming"));
+        fs::rename(dir, &hop)?;
+        fs::rename(&hop, &to)?;
+    } else {
+        fs::rename(dir, &to)?;
+    }
+    let (old_rec, new_rec) = (crate::record::path_for(dir), crate::record::path_for(&to));
+    if old_rec.exists() && old_rec != new_rec {
+        let _ = fs::rename(old_rec, new_rec);
+    }
+    Ok(name)
+}
+
 pub fn mods_root(game_dir: &Path) -> PathBuf {
     layout::mods(game_dir)
 }
@@ -109,6 +139,27 @@ mod tests {
     fn file(p: &Path) {
         fs::create_dir_all(p.parent().unwrap()).unwrap();
         fs::write(p, b"x").unwrap();
+    }
+
+    #[test]
+    fn renaming_moves_the_folder_and_its_record() {
+        let d = tempfile::tempdir().unwrap();
+        let root = d.path().join("Mod");
+        file(&root.join("1.87/a.big"));
+        file(&root.join("1.88/b.big"));
+        fs::write(crate::record::path_for(&root.join("1.87")), b"{}").unwrap();
+
+        assert_eq!(rename_version(&root.join("1.87"), "1.87 mine").unwrap(), "1.87 mine");
+        assert!(root.join("1.87 mine/a.big").is_file() && !root.join("1.87").exists());
+        assert!(crate::record::path_for(&root.join("1.87 mine")).is_file() && !crate::record::path_for(&root.join("1.87")).exists());
+
+        assert!(rename_version(&root.join("1.87 mine"), "1.88").is_err(), "another version has that name");
+        assert!(rename_version(&root.join("1.87 mine"), "  ").is_err());
+        // only the letter case changes
+        assert_eq!(rename_version(&root.join("1.88"), "1.88").unwrap(), "1.88");
+        file(&root.join("beta/c.big"));
+        assert_eq!(rename_version(&root.join("beta"), "Beta").unwrap(), "Beta");
+        assert!(root.join("Beta/c.big").is_file());
     }
 
     #[test]
