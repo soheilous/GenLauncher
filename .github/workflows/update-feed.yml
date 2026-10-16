@@ -1,0 +1,38 @@
+name: Update feed
+
+# When a release is published (not while it is a draft), copy its setup program's address and signature into
+# latest.json on the permanent "updater" release. Installed copies of GenLauncher read that one file to learn that a
+# newer version exists. Publishing is the moment the new version becomes visible to everyone.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish to the feed (for example v0.1.1)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build latest.json from the release
+        run: |
+          gh release view "$TAG" --json tagName,body,publishedAt,assets > release.json
+          node tools/make-update-feed.mjs release.json > latest.json
+          cat latest.json
+      - name: Publish it on the "updater" release
+        run: |
+          gh release view updater >/dev/null 2>&1 || gh release create updater --prerelease --title "Update feed" \
+            --notes "Not a download: latest.json here tells installed copies of GenLauncher which version is newest. Get GenLauncher from the newest v* release."
+          gh release upload updater latest.json --clobber

@@ -81,7 +81,7 @@ async function latestRelease() {
       headers: { accept: "application/vnd.github+json", "user-agent": "GenLauncher-site-build (+https://github.com/soheilous/GenLauncher)" },
     });
     if (!r.ok) throw new Error("HTTP " + r.status);
-    const rel = (await r.json()).find((x) => !x.draft);
+    const rel = (await r.json()).find((x) => !x.draft && /^v\d/.test(x.tag_name));
     const asset = rel?.assets?.find((a) => /-setup\.exe$/.test(a.name));
     return rel && asset ? { tag: rel.tag_name, version: rel.tag_name.replace(/^v/, ""), prerelease: !!rel.prerelease, page: rel.html_url, download: asset.browser_download_url, size: asset.size } : null;
   } catch (e) {

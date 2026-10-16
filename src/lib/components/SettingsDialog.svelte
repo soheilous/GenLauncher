@@ -90,6 +90,13 @@
       <div class="line"><span>{t("Keep your settings in your own Google Drive and bring them to a new PC")}</span>
         <button class="btn primary" disabled={app.googleBusy} onclick={() => app.signInGoogle()}>{app.googleBusy ? t("Waiting for the browser…") : t("Sign in with Google")}</button></div>
     {/if}
+    <h3>{t("Updates")}</h3>
+    <div class="line"><span>{app.update ? t("Version {version} is available.", { version: app.update.version }) : t("GenLauncher {version}", { version: app.appVersion || "…" })}</span>
+      {#if app.update}
+        <button class="btn primary" disabled={app.updateBusy || app.launch !== "idle"} onclick={() => app.installUpdate()}>{app.updateBusy ? t("Updating…") : t("Update and restart")}</button>
+      {:else}
+        <button class="btn" disabled={app.updateBusy} onclick={() => app.checkUpdate(true)}>{app.updateBusy ? t("Checking…") : t("Check for updates")}</button>
+      {/if}</div>
     <p class="note">{t("A configuration file holds your choices only (active mod, enabled patches, options, theme). Mod files are never included.")}</p>
   </div>
 {/if}

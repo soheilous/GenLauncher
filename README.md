@@ -50,6 +50,14 @@ npm run check            # type-check the UI
 cd src-tauri && cargo test               # unit + integration tests (offline)
 ```
 
+### Updates
+
+Installed copies check `latest.json` on the `updater` release (made by `.github/workflows/update-feed.yml` when a release is
+published) and install a newer setup program only if its signature matches the public key in `src-tauri/tauri.conf.json`.
+Release builds are signed with the private key in the `TAURI_SIGNING_PRIVATE_KEY` secret. To build the setup program on your
+own computer, `npm run tauri build` needs that variable too (any key made with `npx tauri signer generate` works for a private
+build; such a build just cannot be updated from the official feed).
+
 Some tests talk to the real mod repository and read a real game install. They are `#[ignore]`d and read-only
 unless their name says otherwise (see `src-tauri/tests/live.rs`):
 

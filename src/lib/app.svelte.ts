@@ -1,5 +1,5 @@
 import {
-  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
@@ -376,6 +376,7 @@ class AppState {
       this.phase = "ready";
       this.applyTheme();
       void this.checkAnnouncements();
+      void this.checkUpdate(false);
       void this.refreshGoogle();
       await this.ensureExtras(this.activeModId);
     } catch (e) {
@@ -509,6 +510,38 @@ class AppState {
 
   /** Replace this launcher's settings with those from a file (asks first), then restart the screen. */
   backups = $state<Backup[]>([]);
+
+  // --- updating GenLauncher ---
+  update = $state<UpdateInfo | null>(null);
+  updateBusy = $state(false);
+  appVersion = $state("");
+
+  /** Ask whether a newer version is published. Quiet at start-up; with `manual` it also says when there is none. */
+  async checkUpdate(manual: boolean) {
+    if (!isTauri) return;
+    if (manual) this.updateBusy = true;
+    try {
+      if (!this.appVersion) this.appVersion = await (await import("@tauri-apps/api/app")).getVersion();
+      this.update = await updateCheck();
+      if (this.update) this.notify(t("GenLauncher {version} is available. You can update in Settings.", { version: this.update.version }), "info", { id: `update:${this.update.version}` });
+      else if (manual) this.say(t("You have the newest version."), "success");
+    } catch (e) {
+      if (manual) this.say(errText(e), "error");
+    } finally {
+      this.updateBusy = false;
+    }
+  }
+
+  async installUpdate() {
+    this.updateBusy = true;
+    try {
+      await this.flush();
+      await updateInstall(); // the launcher closes itself and the setup program starts the new version
+    } catch (e) {
+      this.say(errText(e), "error");
+      this.updateBusy = false;
+    }
+  }
 
   // --- Google Drive ---
   google = $state<{ email: string } | null>(null);

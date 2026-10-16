@@ -21,6 +21,7 @@ pub mod migrate;
 pub mod plan;
 pub mod record;
 pub mod store;
+pub mod update;
 pub mod target;
 pub mod version;
 
@@ -446,6 +447,30 @@ async fn google_sign_in(app: AppHandle, state: State<'_, AppState>) -> Result<Ac
     let until = std::time::Instant::now() + std::time::Duration::from_secs(tokens.expires_in.saturating_sub(60).max(30));
     *state.google_access.lock().await = Some((tokens.access_token, until));
     Ok(Account { email })
+}
+
+/// Is a newer GenLauncher published? (The address and the signing key are in tauri.conf.json.)
+#[tauri::command]
+async fn update_check(app: AppHandle, state: State<'_, AppState>) -> Result<Option<update::Update>> {
+    let cfg = update::settings(&app)?;
+    update::check(&state.http, &cfg.endpoint, &app.package_info().version.to_string()).await
+}
+
+/// Download the newer version, check its signature, then run its setup program and quit so it can replace this one.
+#[tauri::command]
+async fn update_install(app: AppHandle, state: State<'_, AppState>) -> Result<()> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("The game is running. Update after it has closed so your game folder is restored first."));
+    }
+    let cfg = update::settings(&app)?;
+    let Some(up) = update::check(&state.http, &cfg.endpoint, &app.package_info().version.to_string()).await? else {
+        return Ok(());
+    };
+    let setup = update::download(&state.download_client, &up, &cfg.pubkey).await?;
+    // passive: shows progress only; /R starts the new version when it is done; /UPDATE keeps the user's choices
+    std::process::Command::new(&setup).args(["/P", "/R", "/UPDATE"]).spawn().map_err(|e| Error::msg(format!("Could not start the update: {e}")))?;
+    app.exit(0);
+    Ok(())
 }
 
 /// Forget the sign-in on this computer and tell Google to drop it. Backups already in Drive stay there.
@@ -1199,7 +1224,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, google_status, google_sign_in, google_sign_out, cloud_backup_create, cloud_backup_list, cloud_backup_delete, cloud_backup_restore, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
-            uninstall_version, open_browser, close_browser, open_item_folder
+            uninstall_version, open_browser, close_browser, open_item_folder, update_check, update_install
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

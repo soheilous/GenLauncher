@@ -181,6 +181,12 @@ export const optionsSave = (graphics: Graphics) => invoke<void>("options_save", 
 // ---- Google sign-in and Drive backups ----
 
 export interface CloudBackup { id: string; name: string; at: number; label: string; bytes: number }
+// ---- updating GenLauncher itself ----
+
+export interface UpdateInfo { version: string; notes: string; url: string }
+export const updateCheck = () => invoke<UpdateInfo | null>("update_check");
+export const updateInstall = () => invoke<void>("update_install");
+
 export const googleStatus = () => invoke<{ email: string } | null>("google_status");
 export const googleSignIn = () => invoke<{ email: string }>("google_sign_in");
 export const googleSignOut = () => invoke<void>("google_sign_out");

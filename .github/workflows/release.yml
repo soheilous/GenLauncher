@@ -27,6 +27,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # optional: lets this build offer "Sign in with Google" (see README)
           GENLAUNCHER_GOOGLE_CLIENT_SECRET: ${{ secrets.GENLAUNCHER_GOOGLE_CLIENT_SECRET }}
+          # signs the setup program so installed copies can verify an update (the public key is in tauri.conf.json)
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: GenLauncher ${{ github.ref_name }}
