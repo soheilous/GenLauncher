@@ -37,6 +37,26 @@ export async function onLaunchFinished(cb: (r: LaunchFinished) => void): Promise
   return listen<LaunchFinished>("launch-finished", (e) => cb(e.payload));
 }
 
+export const osNotify = (title: string, body: string) => invoke<void>("os_notify", { title, body });
+
+// ---- the game's saved games, replays and settings ----
+
+export interface GameDataBackup { name: string; at: number; bytes: number }
+export const gamedataList = () => invoke<GameDataBackup[]>("gamedata_list");
+export const gamedataBackup = () => invoke<GameDataBackup>("gamedata_backup");
+export const gamedataRestore = (name: string) => invoke<void>("gamedata_restore", { name });
+export const gamedataDelete = (name: string) => invoke<void>("gamedata_delete", { name });
+export const gamedataOpenFolder = () => invoke<void>("gamedata_open_folder");
+
+// ---- custom maps ----
+
+export interface MapInfo { name: string; bytes: number; modified: number }
+export interface MapImport { added: string[]; replaced: string[] }
+export const mapsList = () => invoke<MapInfo[]>("maps_list");
+export const mapsImport = (path: string) => invoke<MapImport>("maps_import", { path });
+export const mapsRemove = (name: string) => invoke<void>("maps_remove", { name });
+export const mapsOpenFolder = () => invoke<void>("maps_open_folder");
+
 // ---- presets ----
 
 export const takePendingPlay = () => invoke<string | null>("take_pending_play");
@@ -133,6 +153,17 @@ export async function pickArchiveFile(): Promise<string | null> {
     filters: [{ name: "Mod archive", extensions: ["zip", "7z", "rar", "big", "gib"] }, { name: "All files", extensions: ["*"] }],
   });
   return typeof picked === "string" ? picked : null;
+}
+
+export async function pickProgram(): Promise<string | null> {
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const picked = await open({ multiple: false, directory: false, title: "Choose a program", filters: [{ name: "Program", extensions: ["exe", "bat", "cmd"] }] });
+  return typeof picked === "string" ? picked : null;
+}
+
+export async function onExtraProgramFailed(cb: (path: string) => void): Promise<() => void> {
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<string>("extra-program-failed", (e) => cb(e.payload));
 }
 
 export async function pickModFolder(): Promise<string | null> {

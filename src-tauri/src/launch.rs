@@ -169,6 +169,25 @@ pub fn game_args(settings: &Settings) -> Vec<String> {
 
 /// Start `exe` from the game folder. On Linux the game is a Windows program, so it goes through
 /// Wine (`GENLAUNCHER_WINE` overrides the `wine` binary; prefix selection comes later).
+/// Is this a program the launcher is willing to start for the user: a real file, with an absolute path, of a program kind.
+pub fn program_ok(path: &Path) -> bool {
+    path.is_absolute() && path.is_file() && path.extension().is_some_and(|x| ["exe", "bat", "cmd", "com"].iter().any(|k| x.eq_ignore_ascii_case(k)))
+}
+
+/// Start a program the user listed (it runs from its own folder).
+pub fn spawn_program(path: &Path) -> Result<Child> {
+    if !program_ok(path) {
+        return Err(Error::msg(format!("{} is not a program that can be started", path.display())));
+    }
+    #[cfg(windows)]
+    {
+        let dir = path.parent().unwrap_or(Path::new("."));
+        Command::new(path).current_dir(dir).spawn().map_err(|e| Error::msg(format!("could not start {}: {e}", path.display())))
+    }
+    #[cfg(not(windows))]
+    Err(Error::msg("Extra programs start on Windows"))
+}
+
 pub fn spawn(game_dir: &Path, exe: &str, args: &[String]) -> Result<Child> {
     let path = find_ci(game_dir, exe).ok_or_else(|| Error::msg(format!("{exe} was not found in the game folder")))?;
     #[cfg(windows)]
@@ -246,6 +265,19 @@ mod tests {
         let s = settings("contra", &["contra/patch/hotfix", "contra/patch/other"]);
         let err = resolve(&PathBuf::from("G"), &s, &disk(), &HashMap::new(), Target::Game).unwrap_err();
         assert!(err.to_string().contains("one patch"));
+    }
+
+    #[test]
+    fn only_real_absolute_program_files_are_started() {
+        let d = tempfile::tempdir().unwrap();
+        let exe = d.path().join("scroller.exe");
+        std::fs::write(&exe, b"x").unwrap();
+        let txt = d.path().join("notes.txt");
+        std::fs::write(&txt, b"x").unwrap();
+        assert!(program_ok(&exe));
+        assert!(!program_ok(&txt), "a document is not a program");
+        assert!(!program_ok(&d.path().join("missing.exe")));
+        assert!(!program_ok(Path::new("scroller.exe")), "relative paths are refused");
     }
 
     #[test]

@@ -12,6 +12,7 @@
   import AddDialog from "$lib/components/AddDialog.svelte";
   import OptionsDialog from "$lib/components/OptionsDialog.svelte";
   import HealthDialog from "$lib/components/HealthDialog.svelte";
+  import MapsView from "$lib/components/MapsView.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { formatBytes } from "$lib/guess";
   import { i18n, t } from "$lib/i18n/index.svelte";
@@ -81,7 +82,7 @@
     <main>
       <header class="top">
         <div>
-          <h1>{app.view === "library" ? t("Library") : app.view === "discover" ? t("Discover") : app.view === "notifications" ? t("Notifications") : t("Downloads")}</h1>
+          <h1>{app.view === "library" ? t("Library") : app.view === "discover" ? t("Discover") : app.view === "maps" ? t("Maps") : app.view === "notifications" ? t("Notifications") : t("Downloads")}</h1>
           <p>
             {#if app.view === "notifications"}
               {app.unread ? t("{n} unread", { n: app.unread }) : t("Everything you were told, newest first")}
@@ -113,6 +114,9 @@
             {#if app.view === "library"}
               <button class="btn fav-filter" class:on={app.favouritesOnly} aria-pressed={app.favouritesOnly} title={t("Show favourites only")}
                 onclick={() => app.setFavouritesOnly(!app.favouritesOnly)}><Icon name="star" size={16} /> {t("Favourites")}</button>
+            {/if}
+            {#if app.view === "library" && app.updatable.length}
+              <button class="btn" title={t("Update everything that has a newer version and a direct download")} onclick={() => app.updateAll()}><Icon name="bolt" size={16} /> {t("Update all ({n})", { n: app.updatable.length })}</button>
             {/if}
             <button class="btn primary" onclick={() => app.openAdd("mod")}><Icon name="plus" size={16} /> {t("Add mod")}</button>
           </div>
@@ -160,6 +164,8 @@
           </div>
           {#if app.availableMods.length === 0}<p class="empty">{t("Everything available is already installed.")}</p>{/if}
         </div>
+      {:else if app.view === "maps"}
+        <MapsView />
       {:else if app.view === "notifications"}
         <div class="scroll">
           {#each app.notices as n (n.id)}
@@ -196,7 +202,7 @@
 
   <SettingsDialog />
   <AddDialog />
-  {#if app.dragging}<div class="dropveil" aria-hidden="true"><div class="glass"><Icon name="download" size={28} /><strong>{t("Drop to add a mod")}</strong><span>{t("zip, 7z, rar, a .big file or a folder")}</span></div></div>{/if}
+  {#if app.dragging}<div class="dropveil" aria-hidden="true"><div class="glass"><Icon name="download" size={28} /><strong>{app.view === "maps" ? t("Drop to add maps") : t("Drop to add a mod")}</strong><span>{app.view === "maps" ? t("a zip, 7z or rar file, or a folder with maps") : t("zip, 7z, rar, a .big file or a folder")}</span></div></div>{/if}
   <OptionsDialog />
   <HealthDialog />
   {#if app.toast}<div class="toast glass" role="status">{app.toast}</div>{/if}

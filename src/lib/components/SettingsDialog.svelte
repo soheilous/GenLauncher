@@ -4,11 +4,12 @@
   import Toggle from "./Toggle.svelte";
   import { isTauri } from "$lib/backend";
   import Select from "./Select.svelte";
+  import { formatBytes } from "$lib/guess";
   import { N, i18n, offered, t, tn } from "$lib/i18n/index.svelte";
 
   let dialog: HTMLDivElement | undefined = $state();
   let withCovers = $state(true);
-  $effect(() => { if (app.settingsOpen) { dialog?.focus(); void app.refreshBackups(); void app.refreshCloudBackups(); } });
+  $effect(() => { if (app.settingsOpen) { dialog?.focus(); void app.refreshBackups(); void app.refreshCloudBackups(); void app.refreshGameData(); } });
 
   const LABELS: Record<string, string> = { manual: N("Backup"), "before-import": N("Before an import"), "before-restore": N("Before a restore"), auto: N("Automatic") };
   const languageOptions = $derived([{ value: "auto", label: t("Automatic (system language)") }, ...offered().map((l) => ({ value: l.code, label: l.name }))]);
@@ -61,6 +62,8 @@
       <h3>{t("Background")}</h3>
       <div class="line"><span>{t("Keep running in the tray when the window is closed")}</span>
         <Toggle label={t("Keep running in the tray")} checked={app.closeToTray} onchange={(v) => app.setCloseToTray(v)} /></div>
+      <div class="line"><span>{t("Look for newer versions of your mods in the background")}</span>
+        <Toggle label={t("Look for mod updates")} checked={app.backgroundUpdates} onchange={(v) => app.setBackgroundUpdates(v)} /></div>
       <div class="line"><span>{t("Start with Windows (hidden in the tray)")}</span>
         <Toggle label={t("Start with Windows")} checked={app.autostart} onchange={(v) => app.setAutostart(v)} /></div>
     {/if}
@@ -83,6 +86,19 @@
         </div></div>
     {/each}
     {#if app.backups.length > 6}<p class="note">{tn(app.backups.length - 6, "{n} older backup is kept too.", "{n} older backups are kept too.")}</p>{/if}
+    <h3>{t("Saved games and replays")}</h3>
+    <div class="line"><span>{t("Back up the game's saved games, replays and settings")}</span>
+      <div class="pair">
+        <button class="btn" disabled={app.gameDataBusy} onclick={() => app.backUpGameData()}><Icon name="plus" size={14} /> {t("Back up now")}</button>
+        {#if isTauri}<button class="btn" aria-label={t("Open the game's data folder")} title={t("Open the game's data folder")} onclick={() => app.openGameDataFolder()}><Icon name="folder" size={14} /></button>{/if}
+      </div></div>
+    {#each app.gameData.slice(0, 3) as b (b.name)}
+      <div class="line bk"><span>{when(b.at)} <small>{formatBytes(b.bytes)}</small></span>
+        <div class="pair">
+          <button class="btn" disabled={app.gameDataBusy} onclick={() => app.restoreGameData(b)}><Icon name="undo" size={14} /> {t("Restore")}</button>
+          <button class="btn" aria-label={t("Delete this backup")} title={t("Delete this backup")} onclick={() => app.deleteGameData(b)}><Icon name="trash" size={14} /></button>
+        </div></div>
+    {/each}
     <h3>{t("Google Drive")}</h3>
     {#if app.google}
       <div class="line"><span>{t("Signed in as {account}", { account: app.google.email || t("your Google account") })}</span>

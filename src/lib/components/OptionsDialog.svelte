@@ -1,6 +1,6 @@
 <script lang="ts">
   import { app } from "$lib/app.svelte";
-  import { isTauri, optionsLoad, optionsSave, type Graphics } from "$lib/backend";
+  import { isTauri, optionsLoad, optionsSave, pickProgram, type Graphics } from "$lib/backend";
   import Icon from "./Icon.svelte";
   import Select from "./Select.svelte";
   import Toggle from "./Toggle.svelte";
@@ -18,6 +18,11 @@
   let exists = $state(true);
   let args = $state("");
   let hide = $state(false);
+  let programs = $state<{ path: string; onlyWindowed: boolean }[]>([]);
+  async function addProgram() {
+    const p = isTauri ? await pickProgram() : "C:\Tools\EdgeScroller.exe";
+    if (p && !programs.some((x) => x.path === p)) programs = [...programs, { path: p, onlyWindowed: true }];
+  }
   let error = $state("");
   let busy = $state(false);
   let loading = $state(false);
@@ -30,6 +35,7 @@
     error = "";
     args = app.gameParams;
     hide = app.hideLauncher;
+    programs = app.extraPrograms.map((p) => ({ ...p }));
     queueMicrotask(() => dialog?.focus());
     if (!isTauri) { g = { ...DEFAULTS }; path = "C:\\Users\\you\\Documents\\Command and Conquer Generals Zero Hour Data\\Options.ini"; return; }
     loading = true;
@@ -75,7 +81,7 @@
     busy = true;
     try {
       if (isTauri) await optionsSave(g);
-      app.setLaunchExtras(args.trim(), hide);
+      app.setLaunchExtras(args.trim(), hide, programs.filter((p) => p.path.trim()));
       app.say(t("Game options saved"), "success");
       app.optionsOpen = false;
     } catch (e) {
@@ -128,6 +134,16 @@
       <div class="line"><span>{t("Hide the launcher while the game runs")}</span><Toggle label={t("Hide launcher while playing")} checked={hide} onchange={(v) => (hide = v)} /></div>
       <label class="line col"><span>{t("Extra game arguments")}</span>
         <input bind:value={args} placeholder={t("e.g. -fps 60")} spellcheck="false" maxlength="300" /></label>
+      <div class="line col"><span>{t("Programs to start together with the game")}</span>
+        {#each programs as p, i (p.path)}
+          <div class="prog">
+            <code title={p.path}>{p.path}</code>
+            <label class="only"><Toggle label={t("Only in windowed mode")} checked={p.onlyWindowed} onchange={(v) => (programs[i].onlyWindowed = v)} /> <small>{t("Only in windowed mode")}</small></label>
+            <button class="btn" aria-label={t("Remove")} title={t("Remove")} onclick={() => (programs = programs.filter((_, j) => j !== i))}><Icon name="trash" size={14} /></button>
+          </div>
+        {/each}
+        <button class="btn" onclick={addProgram}><Icon name="plus" size={14} /> {t("Add a program…")}</button>
+      </div>
     </div>
 
     <p class="note">
@@ -152,6 +168,10 @@
   h2 { font-size: 20px; }
   h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); margin: 18px 0 4px; }
   .line { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--stroke); }
+  .prog { display: flex; align-items: center; gap: 10px; }
+  .prog code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-dim); direction: ltr; text-align: start; }
+  .only { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .only small { color: var(--text-faint); }
   .line.col { flex-direction: column; align-items: stretch; gap: 8px; }
   .line.col input { padding: 9px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--stroke); outline: none; user-select: text; }
   .line.col input:focus { border-color: var(--accent); }

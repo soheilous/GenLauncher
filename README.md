@@ -98,13 +98,14 @@ SvelteKit preset; nothing else is needed.
 
 ## Status
 
-Done: library, launching with journaled restore, installing/updating/removing, adding mods from a file, a folder, a direct link or any web page (ModDB included) through a built-in browser window that takes the download, with the source remembered next to each install, migration from 1.x, light/dark Material
-UI with per-mod covers and accent colors.
+A Windows 10/11 launcher in preview. What it does today:
 
-Next: "check for update" from the saved page, and growing the index with the community.
+- **Library and play:** mods, versions side by side, patches, add-ons and executables, favourites, sorting, **presets** (one-click start, desktop shortcuts, a command for Steam), a game folder that is restored when the game closes.
+- **Getting mods:** the author's page in a built-in browser, or a **direct download** where the author published one; files you already have by drag and drop; an offer to remove the old version after an update; background update checks and **Update all**.
+- **The game itself:** a **game health** check with reversible fixes (the usual Steam / Windows 10-11 problems), the community-fixed game executable and World Builder from the game's source-code maintainers, a game options editor, programs that start together with the game, a **map manager**, backups of saved games and replays.
+- **The launcher:** self-update with a verified signature, a tray icon (optional start with Windows), settings backups (local and in your own Google Drive), 13 languages.
 
-Not yet: in-app graphics options editor, GenTool and Vulkan handling, World Builder download, self-update,
-localisation (translations are in `reference/`) and Linux/Wine prefix selection.
+Next: Linux/Wine, more of the community's requests (see the issues).
 
 ### Translations
 

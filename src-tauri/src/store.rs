@@ -39,6 +39,15 @@ pub fn save<T: Serialize>(path: &Path, value: &T) -> Result<()> {
     Ok(())
 }
 
+/// A program the user wants started together with the game (an edge scroller for windowed mode, an overlay, a controller mapper...).
+#[derive(Debug, Clone, Default, Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ExtraProgram {
+    pub path: String,
+    /// Start it only when the game runs in a window.
+    pub only_windowed: bool,
+}
+
 /// User choices that belong to one game folder.
 #[derive(Debug, Clone, Serialize, serde::Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
@@ -54,6 +63,8 @@ pub struct Settings {
     pub auto_delete_old_versions: bool,
     pub modded_exe: bool,
     pub use_vulkan: bool,
+    /// Programs started together with the game.
+    pub extra_programs: Vec<ExtraProgram>,
     pub active_mod: Option<String>,
     /// Ids of enabled patches / addons / executables (see `catalog::item_id`).
     pub enabled: Vec<String>,
@@ -75,6 +86,7 @@ impl Default for Settings {
             auto_delete_old_versions: false,
             modded_exe: true,
             use_vulkan: false,
+            extra_programs: Vec::new(),
             active_mod: None,
             enabled: Vec::new(),
             chosen_versions: HashMap::new(),

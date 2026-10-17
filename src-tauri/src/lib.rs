@@ -10,12 +10,14 @@ pub mod extract;
 pub mod game;
 pub mod google;
 pub mod game_files;
+pub mod gamedata;
 pub mod health;
 pub mod journal;
 pub mod layout;
 pub mod launch;
 pub mod install;
 pub mod library;
+pub mod maps;
 pub mod options;
 pub mod links;
 pub mod index;
@@ -666,6 +668,13 @@ async fn begin_session(app: &AppHandle, state: &AppState, target: Target) -> Res
         }
     }
 
+    for p in settings.extra_programs.iter().filter(|p| !p.path.trim().is_empty() && (!p.only_windowed || settings.windowed)) {
+        if let Err(e) = launch::spawn_program(std::path::Path::new(p.path.trim())) {
+            log::warn!("extra program: {e}");
+            let _ = app.emit("extra-program-failed", p.path.clone());
+        }
+    }
+
     let hide = settings.hide_launcher_while_playing;
     if hide {
         if let Some(w) = app.get_webview_window("main") {
@@ -1010,6 +1019,106 @@ async fn uninstall_version(state: State<'_, AppState>, id: String, version: Stri
     .await
 }
 
+async fn maps_folder(app: &AppHandle, state: &AppState) -> Result<PathBuf> {
+    let game = require_install(&*state.inner.lock().await)?.game;
+    let documents = app.path().document_dir().map_err(|e| Error::msg(format!("Could not find your Documents folder: {e}")))?;
+    Ok(maps::maps_dir(&documents, game))
+}
+
+/// The custom maps in the game's Maps folder.
+#[tauri::command]
+async fn maps_list(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<maps::MapInfo>> {
+    let dir = maps_folder(&app, &state).await?;
+    blocking(move || Ok(maps::list(&dir))).await
+}
+
+/// Add the maps of a pack (an archive or a folder) to the game: each one in its own folder.
+#[tauri::command]
+async fn maps_import(app: AppHandle, state: State<'_, AppState>, path: String) -> Result<maps::ImportReport> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game first"));
+    }
+    let dest = maps_folder(&app, &state).await?;
+    let install = { let inner = state.inner.lock().await; require_install(&inner)? };
+    let source = PathBuf::from(path);
+    blocking(move || {
+        if source.is_dir() {
+            return maps::import_tree(&source, &dest);
+        }
+        if !extract::is_archive_name(&source.to_string_lossy()) {
+            return Err(Error::msg("Choose a zip, 7z or rar file, or a folder with maps in it."));
+        }
+        let work = layout::tmp(&install.dir).join(format!("maps-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&work);
+        let result = extract::extract(&source, &work, &|| false).and_then(|_| maps::import_tree(&work, &dest));
+        let _ = std::fs::remove_dir_all(&work);
+        result
+    })
+    .await
+}
+
+/// Delete one custom map.
+#[tauri::command]
+async fn maps_remove(app: AppHandle, state: State<'_, AppState>, name: String) -> Result<()> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game first"));
+    }
+    let dir = maps_folder(&app, &state).await?;
+    blocking(move || maps::remove(&dir, &name)).await
+}
+
+/// Open the Maps folder in the file manager.
+#[tauri::command]
+async fn maps_open_folder(app: AppHandle, state: State<'_, AppState>) -> Result<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let dir = maps_folder(&app, &state).await?;
+    std::fs::create_dir_all(&dir)?;
+    app.opener().open_path(dir.to_string_lossy(), None::<&str>).map_err(|e| Error::msg(format!("Could not open the folder: {e}")))
+}
+
+async fn gamedata_dirs(app: &AppHandle, state: &AppState) -> Result<(PathBuf, PathBuf)> {
+    let game = require_install(&*state.inner.lock().await)?.game;
+    let documents = app.path().document_dir().map_err(|e| Error::msg(format!("Could not find your Documents folder: {e}")))?;
+    let config = app.path().app_config_dir().map_err(|e| Error::msg(e.to_string()))?;
+    Ok((gamedata::data_dir(&documents, game), gamedata::backups_dir(&config, game)))
+}
+
+/// The backups of the game's saved games, replays and settings.
+#[tauri::command]
+async fn gamedata_list(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<gamedata::Backup>> {
+    let (_, backups) = gamedata_dirs(&app, &state).await?;
+    blocking(move || Ok(gamedata::list(&backups))).await
+}
+
+#[tauri::command]
+async fn gamedata_backup(app: AppHandle, state: State<'_, AppState>) -> Result<gamedata::Backup> {
+    let (data, backups) = gamedata_dirs(&app, &state).await?;
+    blocking(move || gamedata::create(&data, &backups)).await
+}
+
+#[tauri::command]
+async fn gamedata_restore(app: AppHandle, state: State<'_, AppState>, name: String) -> Result<()> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game first: it writes its saved games and settings when it exits"));
+    }
+    let (data, backups) = gamedata_dirs(&app, &state).await?;
+    blocking(move || gamedata::restore(&data, &backups, &name).map(|_| ())).await
+}
+
+#[tauri::command]
+async fn gamedata_delete(app: AppHandle, state: State<'_, AppState>, name: String) -> Result<()> {
+    let (_, backups) = gamedata_dirs(&app, &state).await?;
+    blocking(move || gamedata::delete(&backups, &name)).await
+}
+
+#[tauri::command]
+async fn gamedata_open_folder(app: AppHandle, state: State<'_, AppState>) -> Result<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let (data, _) = gamedata_dirs(&app, &state).await?;
+    std::fs::create_dir_all(&data)?;
+    app.opener().open_path(data.to_string_lossy(), None::<&str>).map_err(|e| Error::msg(format!("Could not open the folder: {e}")))
+}
+
 /// Look for the usual causes of a game that will not start or mods that look wrong.
 #[tauri::command]
 async fn health_check(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<health::Finding>> {
@@ -1234,6 +1343,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec![background::MINIMIZED])))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // GENLAUNCHER_CONFIG_DIR lets tests and side-by-side builds keep their own settings
             let config_dir = match std::env::var_os("GENLAUNCHER_CONFIG_DIR") {
@@ -1290,8 +1400,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, google_status, google_sign_in, google_sign_out, cloud_backup_create, cloud_backup_list, cloud_backup_delete, cloud_backup_restore, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
-            uninstall_version, rename_version, health_check, health_fix, open_browser, close_browser, open_item_folder, update_check, update_install,
-            background::background_set, background::autostart_status, background::autostart_set,
+            uninstall_version, rename_version, health_check, health_fix, maps_list, maps_import, maps_remove, maps_open_folder, gamedata_list, gamedata_backup, gamedata_restore, gamedata_delete, gamedata_open_folder, open_browser, close_browser, open_item_folder, update_check, update_install,
+            background::background_set, background::autostart_status, background::autostart_set, background::os_notify,
             presets::take_pending_play, presets::launcher_command, presets::create_shortcut
         ])
         .run(tauri::generate_context!())

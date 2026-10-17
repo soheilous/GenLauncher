@@ -71,6 +71,8 @@ export interface Settings {
   autoDeleteOldVersions: boolean;
   moddedExe: boolean;
   useVulkan: boolean;
+  /** Programs started together with the game. */
+  extraPrograms: { path: string; onlyWindowed: boolean }[];
   activeMod: string | null;
   enabled: string[];
   chosenVersions: Record<string, string>;

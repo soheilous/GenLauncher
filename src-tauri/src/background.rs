@@ -88,3 +88,10 @@ pub(crate) fn autostart_set(app: AppHandle, enabled: bool) -> Result<()> {
     let result = if enabled { manager.enable() } else { manager.disable() };
     result.map_err(|e| Error::msg(format!("Could not change the start with Windows setting: {e}")))
 }
+
+/// A Windows notification (for things that happen while the window is hidden, such as updates found in the background).
+#[tauri::command]
+pub(crate) fn os_notify(app: AppHandle, title: String, body: String) -> Result<()> {
+    use tauri_plugin_notification::NotificationExt;
+    app.notification().builder().title(title).body(body).show().map_err(|e| Error::msg(format!("Could not show a notification: {e}")))
+}

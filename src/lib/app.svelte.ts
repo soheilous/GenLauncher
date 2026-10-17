@@ -1,5 +1,5 @@
 import {
-  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, takePendingPlay, launcherCommand, createShortcut, onPlayPreset, healthCheck, healthFix, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, gamedataList, gamedataBackup, gamedataRestore, gamedataDelete, gamedataOpenFolder, type GameDataBackup, onExtraProgramFailed, osNotify, mapsList, mapsImport, mapsRemove, mapsOpenFolder, pickArchiveFile, pickModFolder as pickFolderForMaps, type MapInfo, takePendingPlay, launcherCommand, createShortcut, onPlayPreset, healthCheck, healthFix, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
@@ -26,7 +26,7 @@ export interface AddPreset {
   askType?: boolean;
 }
 
-export type View = "library" | "discover" | "downloads" | "notifications";
+export type View = "library" | "discover" | "maps" | "downloads" | "notifications";
 /** The catalog's community-fixed game executable (an executable of the original game). */
 const COMMUNITY_BUILD = "original-game/exe/community-build";
 
@@ -44,7 +44,7 @@ const PLACEHOLDER: Item = {
 const DEFAULT_SETTINGS: Settings = {
   windowed: true, quickStart: true, cameraHeight: 0, gameParams: "", checkModFiles: true, askBeforeCheck: true,
   hideLauncherWhilePlaying: false, gentoolAutoUpdate: true, autoDeleteOldVersions: false, moddedExe: true,
-  useVulkan: false, activeMod: null, enabled: [], chosenVersions: {},
+  useVulkan: false, extraPrograms: [], activeMod: null, enabled: [], chosenVersions: {},
 };
 
 function load<T>(key: string, fallback: T): T {
@@ -196,6 +196,7 @@ class AppState {
       }
     });
     void onTrayPlay(() => void this.play());
+    void onExtraProgramFailed((p) => this.say(t("A program you listed did not start: {path}", { path: p }), "error"));
     void this.syncBackground();
     void this.refreshAutostart();
     void onCloseBlocked(() => this.say(t("The game is still running. Close it first so your game folder can be restored.")));
@@ -207,7 +208,10 @@ class AppState {
     void onFileDrop((e) => {
       if (e.type === "enter" || e.type === "over") this.dragging = this.phase === "ready" && !this.addDialog && !this.optionsOpen;
       else this.dragging = false;
-      if (e.type === "drop" && e.paths.length && this.phase === "ready" && !this.addDialog && !this.optionsOpen) this.addDropped(e.paths);
+      if (e.type === "drop" && e.paths.length && this.phase === "ready" && !this.addDialog && !this.optionsOpen) {
+        if (this.view === "maps") void this.importMaps(e.paths[0]);
+        else this.addDropped(e.paths);
+      }
     });
   }
 
@@ -476,6 +480,10 @@ class AppState {
       void this.checkUpdate(false);
       void this.quietHealthCheck();
       void this.startPendingPreset();
+      if (isTauri) {
+        setTimeout(() => void this.checkModUpdates(), 30_000);
+        setInterval(() => void this.checkModUpdates(), 6 * 3600_000);
+      }
       void this.refreshGoogle();
       await this.ensureExtras(this.activeModId);
     } catch (e) {
@@ -621,6 +629,125 @@ class AppState {
 
   /** Replace this launcher's settings with those from a file (asks first), then restart the screen. */
   backups = $state<Backup[]>([]);
+
+  // --- the game's saved games, replays and settings ---
+  gameData = $state<GameDataBackup[]>([]);
+  gameDataBusy = $state(false);
+
+  async refreshGameData() {
+    if (!isTauri) { this.gameData = [{ name: "backup-1760000000.zip", at: 1_760_000_000, bytes: 3_400_000 }]; return; }
+    try { this.gameData = await gamedataList(); } catch { this.gameData = []; }
+  }
+
+  async backUpGameData() {
+    if (!isTauri) { this.say(t("Backing up works in the desktop app.")); return; }
+    this.gameDataBusy = true;
+    try { await gamedataBackup(); this.say(t("Saved games, replays and settings backed up."), "success"); await this.refreshGameData(); }
+    catch (e) { this.say(errText(e), "error"); }
+    finally { this.gameDataBusy = false; }
+  }
+
+  async restoreGameData(b: GameDataBackup) {
+    const when = i18n.dateTime(b.at * 1000);
+    const msg = t("Put back the saved games, replays and settings backed up on {when}?", { when }) + "\n" + t("Files with the same name are replaced. What is there now is backed up first, so you can undo this.");
+    if (!(await confirmDialog(msg, t("Restore backup"), t("Restore"), t("Cancel")))) return;
+    this.gameDataBusy = true;
+    try { await gamedataRestore(b.name); this.say(t("Saved games, replays and settings restored."), "success"); await this.refreshGameData(); }
+    catch (e) { this.say(errText(e), "error"); }
+    finally { this.gameDataBusy = false; }
+  }
+
+  async deleteGameData(b: GameDataBackup) {
+    try { await gamedataDelete(b.name); await this.refreshGameData(); } catch (e) { this.say(errText(e), "error"); }
+  }
+
+  async openGameDataFolder() {
+    try { await gamedataOpenFolder(); } catch (e) { this.say(errText(e), "error"); }
+  }
+
+  // --- updates of mods, patches and add-ons ---
+  /** Look in the background (every few hours) for newer versions of what is installed, and say so once per version. */
+  backgroundUpdates = $state(load("backgroundUpdates", true));
+  private notifiedUpdates: Record<string, string> = load("notifiedUpdates", {});
+
+  setBackgroundUpdates(v: boolean) { this.backgroundUpdates = v; save("backgroundUpdates", v); if (v) void this.checkModUpdates(); }
+
+  /** Installed things whose newest version in the catalog is not installed. */
+  outdated = $derived(
+    this.items.filter((i) => i.id !== "original-game" && !i.deprecated && i.versions.some((v) => v.installed) && !(i.versions.find((v) => v.v === i.latest)?.installed ?? false))
+  );
+  /** Of those, the ones the author offers as a direct download: they can all be updated with one click. */
+  updatable = $derived(this.outdated.filter((i) => i.direct));
+
+  /** Fetch the catalog again, read what the installed mods have, and tell the user about versions they have not been told of. */
+  async checkModUpdates() {
+    if (!isTauri || !this.backgroundUpdates || this.phase !== "ready" || this.launch !== "idle") return;
+    try {
+      await backend.catalogLoad();
+      await this.refreshLibrary();
+      for (const m of this.mods.filter((x) => x.id !== "original-game" && x.versions.some((v) => v.installed))) await this.ensureExtras(m.id);
+    } catch { return; /* offline: try again later */ }
+    const fresh = this.outdated.filter((i) => this.notifiedUpdates[i.id] !== i.latest);
+    if (!fresh.length) return;
+    for (const i of fresh) this.notifiedUpdates[i.id] = i.latest;
+    save("notifiedUpdates", this.notifiedUpdates);
+    const names = fresh.slice(0, 4).map((i) => `${i.name} ${i.latest}`).join(", ") + (fresh.length > 4 ? "…" : "");
+    const text = tn(fresh.length, "A newer version is available: {names}", "{n} newer versions are available: {names}", { names });
+    this.notify(text, "info", { id: `updates:${fresh.map((i) => i.id + i.latest).join("|")}`.slice(0, 200) });
+    // the window is hidden or in the background: a Windows notification too
+    if (!document.hasFocus()) { try { await osNotify("GenLauncher", text); } catch { /* the in-app message is there */ } }
+  }
+
+  /** Update everything that can be updated with one click. */
+  async updateAll() {
+    const list = this.updatable.filter((i) => !this.installProgress[i.id]);
+    if (!list.length) return;
+    const names = list.map((i) => `${i.name} ${i.latest}`);
+    const msg = tn(list.length, "Update this to its newest version?", "Update these {n} to their newest versions?") + "\n" + names.slice(0, 12).join("\n") + (names.length > 12 ? "\n…" : "");
+    if (!(await confirmDialog(msg, t("Update all"), t("Update"), t("Cancel")))) return;
+    for (const i of list) await this.install(i);
+  }
+
+  // --- custom maps ---
+  maps = $state<MapInfo[]>([]);
+  mapsBusy = $state(false);
+
+  async refreshMaps() {
+    if (!isTauri) { this.maps = [{ name: "Alpine Assault", bytes: 4_200_000, modified: 1_760_000_000 }, { name: "Desert Crossing", bytes: 1_100_000, modified: 1_750_000_000 }]; return; }
+    this.mapsBusy = true;
+    try { this.maps = await mapsList(); } catch (e) { this.say(errText(e), "error"); } finally { this.mapsBusy = false; }
+  }
+
+  async importMaps(path: string) {
+    if (!isTauri) { this.say(t("Adding maps works in the desktop app.")); return; }
+    this.mapsBusy = true;
+    try {
+      const r = await mapsImport(path);
+      const n = r.added.length + r.replaced.length;
+      this.say(tn(n, "{n} map added", "{n} maps added", { n }) + (r.replaced.length ? " " + t("({count} replaced an older copy)", { count: r.replaced.length }) : ""), "success");
+      this.maps = await mapsList();
+    } catch (e) {
+      this.say(errText(e), "error");
+    } finally {
+      this.mapsBusy = false;
+    }
+  }
+
+  /** Pick a pack (a zip, 7z or rar file, or a folder) and add its maps. */
+  async addMaps(folder: boolean) {
+    const path = isTauri ? (folder ? await pickFolderForMaps() : await pickArchiveFile()) : "C:\Downloads\Maps.zip";
+    if (path) await this.importMaps(path);
+  }
+
+  async removeMap(name: string) {
+    if (!(await confirmDialog(t("Delete the map {name} from your computer?", { name }), t("Delete {name}", { name }), t("Delete"), t("Keep")))) return;
+    if (!isTauri) { this.maps = this.maps.filter((m) => m.name !== name); return; }
+    try { await mapsRemove(name); this.maps = await mapsList(); } catch (e) { this.say(errText(e), "error"); }
+  }
+
+  async openMapsFolder() {
+    try { await mapsOpenFolder(); } catch (e) { this.say(errText(e), "error"); }
+  }
 
   // --- presets ---
   presets = $state<Preset[]>(load("presets", []));
@@ -1042,8 +1169,9 @@ class AppState {
   /** Launch options kept in the settings file but edited in the game options window. */
   get gameParams() { return this.rest.gameParams; }
   get hideLauncher() { return this.rest.hideLauncherWhilePlaying; }
-  setLaunchExtras(gameParams: string, hideLauncherWhilePlaying: boolean) {
-    this.rest = { ...this.rest, gameParams, hideLauncherWhilePlaying };
+  get extraPrograms() { return this.rest.extraPrograms ?? []; }
+  setLaunchExtras(gameParams: string, hideLauncherWhilePlaying: boolean, extraPrograms: { path: string; onlyWindowed: boolean }[] = this.extraPrograms) {
+    this.rest = { ...this.rest, gameParams, hideLauncherWhilePlaying, extraPrograms };
     this.persist();
   }
 
