@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.12.0.schema.json
 PackageIdentifier: Soheilous.GenLauncher
-PackageVersion: 0.1.0
+PackageVersion: 0.1.6
 InstallerLocale: en-US
 Platform:
 - Windows.Desktop
@@ -15,10 +15,10 @@ InstallerSwitches:
   Silent: /S
   SilentWithProgress: /S
 UpgradeBehavior: install
-ReleaseDate: 2026-10-15
+ReleaseDate: 2026-10-17
 Installers:
 - Architecture: x64
-  InstallerUrl: https://github.com/soheilous/GenLauncher/releases/download/v0.1.0/GenLauncher_0.1.0_x64-setup.exe
-  InstallerSha256: 67A70BBBFC45D3898C44F11518FB62EDCA921562E168B5974EE54F53F6C73621
+  InstallerUrl: https://github.com/soheilous/GenLauncher/releases/download/v0.1.6/GenLauncher_0.1.6_x64-setup.exe
+  InstallerSha256: 8CCAA173C4C2BAE0018A803A448637D857990D274CE325EC1C7C1B318778A4E9
 ManifestType: installer
 ManifestVersion: 1.12.0
