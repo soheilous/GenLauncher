@@ -41,6 +41,8 @@
         <Toggle label={t("Accent follows mod")} checked={app.accentFromMod} onchange={(v) => app.setPref("accentFromMod", v)} /></div>
 
       <h3>{t("Game")}</h3>
+      <div class="line"><span>{t("Look for problems that stop the game or break mods")}</span>
+        <button class="btn" onclick={() => { app.settingsOpen = false; app.healthOpen = true; }}><Icon name="tool" size={14} /> {t("Game health…")}</button></div>
       <div class="line"><span>{t("Ask to remove the old version after an update")}</span>
         <Toggle label={t("Ask to remove the old version")} checked={app.askRemoveOld} onchange={(v) => app.setAskRemoveOld(v)} /></div>
       <div class="line"><span>{t("Camera height")}</span>

@@ -11,6 +11,7 @@
   import SettingsDialog from "$lib/components/SettingsDialog.svelte";
   import AddDialog from "$lib/components/AddDialog.svelte";
   import OptionsDialog from "$lib/components/OptionsDialog.svelte";
+  import HealthDialog from "$lib/components/HealthDialog.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { formatBytes } from "$lib/guess";
   import { i18n, t } from "$lib/i18n/index.svelte";
@@ -197,6 +198,7 @@
   <AddDialog />
   {#if app.dragging}<div class="dropveil" aria-hidden="true"><div class="glass"><Icon name="download" size={28} /><strong>{t("Drop to add a mod")}</strong><span>{t("zip, 7z, rar, a .big file or a folder")}</span></div></div>{/if}
   <OptionsDialog />
+  <HealthDialog />
   {#if app.toast}<div class="toast glass" role="status">{app.toast}</div>{/if}
 </div>
 

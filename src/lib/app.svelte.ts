@@ -1,10 +1,11 @@
 import {
-  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, healthCheck, healthFix, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
 } from "./backend";
 import { storeKey } from "./env";
+import { needsAttention, type Finding } from "./health";
 import pkg from "../../package.json";
 import { slugify } from "./guess";
 import { N, i18n, t, tn } from "./i18n/index.svelte";
@@ -464,6 +465,7 @@ class AppState {
       this.applyTheme();
       void this.checkAnnouncements();
       void this.checkUpdate(false);
+      void this.quietHealthCheck();
       void this.refreshGoogle();
       await this.ensureExtras(this.activeModId);
     } catch (e) {
@@ -597,6 +599,53 @@ class AppState {
 
   /** Replace this launcher's settings with those from a file (asks first), then restart the screen. */
   backups = $state<Backup[]>([]);
+
+  // --- game health ---
+  healthOpen = $state(false);
+  health = $state<Finding[]>([]);
+  healthBusy = $state(false);
+
+  async runHealthCheck() {
+    this.healthBusy = true;
+    try {
+      this.health = isTauri ? await healthCheck() : this.sampleHealth;
+    } catch (e) {
+      this.say(errText(e), "error");
+    } finally {
+      this.healthBusy = false;
+    }
+  }
+
+  /** What the preview (no desktop app) shows. */
+  private sampleHealth: Finding[] = [
+    { id: "dbghelp", level: "warn", args: {}, fix: "disable-dbghelp" },
+    { id: "registry-missing", level: "info", args: {}, fix: null },
+    { id: "gentool", level: "info", args: {}, fix: null },
+  ];
+
+  async applyHealthFix(fix: string) {
+    this.healthBusy = true;
+    try {
+      if (isTauri) await healthFix(fix);
+      else this.sampleHealth = fix === "disable-dbghelp" ? [{ id: "dbghelp-disabled", level: "info", args: {}, fix: "restore-dbghelp" }, ...this.sampleHealth.slice(1)] : [{ id: "dbghelp", level: "warn", args: {}, fix: "disable-dbghelp" }, ...this.sampleHealth.slice(1)];
+      this.health = isTauri ? await healthCheck() : this.sampleHealth;
+    } catch (e) {
+      this.say(errText(e), "error");
+    } finally {
+      this.healthBusy = false;
+    }
+  }
+
+  /** At start-up: look quietly, and tell the user once when something is likely to cause trouble. */
+  async quietHealthCheck() {
+    if (!isTauri) return;
+    try {
+      const found = needsAttention(await healthCheck());
+      if (!found.length) return;
+      const key = found.map((f) => f.id).sort().join(",");
+      this.notify(t("Your game folder has {n} things that may cause trouble. Open Settings, Game health, to see them.", { n: found.length }), "info", { id: `health:${key}` });
+    } catch { /* a check that cannot run is not worth a message */ }
+  }
 
   // --- running in the background ---
   /** Closing the window keeps the launcher running in the tray. */
@@ -1045,8 +1094,18 @@ class AppState {
     }
   }
 
+  /** Mods the user already agreed to start although the catalog says they are no longer maintained. */
+  private deprecatedOk: string[] = load("deprecatedOk", []);
+
   async play(target: LaunchTarget = "game") {
     if (this.launch !== "idle") return;
+    const mod = this.activeMod;
+    if (mod.deprecated && !this.deprecatedOk.includes(mod.id)) {
+      const msg = t("{name} is no longer maintained. It may not work with the current game or with newer mods.", { name: mod.name }) + "\n" + t("Start it anyway?");
+      if (!(await confirmDialog(msg, t("Old mod"), t("Play anyway"), t("Cancel")))) return;
+      this.deprecatedOk = [...this.deprecatedOk, mod.id];
+      save("deprecatedOk", this.deprecatedOk);
+    }
     if (this.activeModId) { this.lastPlayed = { ...this.lastPlayed, [this.activeModId]: Date.now() }; save("lastPlayed", this.lastPlayed); }
     if (isTauri) {
       this.launch = "preparing";

@@ -10,6 +10,7 @@ pub mod extract;
 pub mod game;
 pub mod google;
 pub mod game_files;
+pub mod health;
 pub mod journal;
 pub mod layout;
 pub mod launch;
@@ -1006,6 +1007,26 @@ async fn uninstall_version(state: State<'_, AppState>, id: String, version: Stri
     .await
 }
 
+/// Look for the usual causes of a game that will not start or mods that look wrong.
+#[tauri::command]
+async fn health_check(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<health::Finding>> {
+    let install = { let inner = state.inner.lock().await; require_install(&inner)? };
+    let options = options_file(&app, &state).await.ok();
+    // while a game is running its mods are linked into the folder: that is not a problem to report
+    let unfinished = journal::journal_path(&install.dir).exists() || state.launching.load(Ordering::SeqCst);
+    blocking(move || Ok(health::check(&install, options.as_deref(), unfinished))).await
+}
+
+/// Apply one of the fixes the check offered.
+#[tauri::command]
+async fn health_fix(state: State<'_, AppState>, id: String) -> Result<String> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game first"));
+    }
+    let install = { let inner = state.inner.lock().await; require_install(&inner)? };
+    blocking(move || health::fix(&install, &id)).await
+}
+
 /// Rename one installed version (for example "1.87" to "1.87 my settings"). Returns the new name.
 #[tauri::command]
 async fn rename_version(state: State<'_, AppState>, id: String, version: String, new_version: String) -> Result<String> {
@@ -1262,7 +1283,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, google_status, google_sign_in, google_sign_out, cloud_backup_create, cloud_backup_list, cloud_backup_delete, cloud_backup_restore, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
-            uninstall_version, rename_version, open_browser, close_browser, open_item_folder, update_check, update_install,
+            uninstall_version, rename_version, health_check, health_fix, open_browser, close_browser, open_item_folder, update_check, update_install,
             background::background_set, background::autostart_status, background::autostart_set
         ])
         .run(tauri::generate_context!())

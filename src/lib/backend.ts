@@ -37,6 +37,11 @@ export async function onLaunchFinished(cb: (r: LaunchFinished) => void): Promise
   return listen<LaunchFinished>("launch-finished", (e) => cb(e.payload));
 }
 
+// ---- game health ----
+
+export const healthCheck = () => invoke<import("./health").Finding[]>("health_check");
+export const healthFix = (id: string) => invoke<string>("health_fix", { id });
+
 // ---- running in the background (tray icon) ----
 
 export const backgroundSet = (closeToTray: boolean, open: string, play: string, quit: string) => invoke<void>("background_set", { closeToTray, open, play, quit });
