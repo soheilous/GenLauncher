@@ -1,11 +1,12 @@
 import {
-  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, healthCheck, healthFix, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, takePendingPlay, launcherCommand, createShortcut, onPlayPreset, healthCheck, healthFix, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
 } from "./backend";
 import { storeKey } from "./env";
 import { needsAttention, type Finding } from "./health";
+import type { Preset } from "./types";
 import pkg from "../../package.json";
 import { slugify } from "./guess";
 import { N, i18n, t, tn } from "./i18n/index.svelte";
@@ -474,6 +475,7 @@ class AppState {
       void this.checkAnnouncements();
       void this.checkUpdate(false);
       void this.quietHealthCheck();
+      void this.startPendingPreset();
       void this.refreshGoogle();
       await this.ensureExtras(this.activeModId);
     } catch (e) {
@@ -571,6 +573,7 @@ class AppState {
   private uiBundle(includeCovers: boolean) {
     return {
       theme: this.theme, sidebarCollapsed: this.sidebarCollapsed, accentFromMod: this.accentFromMod, coverBackdrop: this.coverBackdrop,
+      presets: this.presets, favourites: this.favourites,
       ...(includeCovers ? { customCovers: this.customCovers } : {}),
     };
   }
@@ -581,6 +584,17 @@ class AppState {
     const u = ui as Record<string, unknown>;
     if (u.theme === "dark" || u.theme === "light") save("theme", u.theme);
     for (const k of ["sidebarCollapsed", "accentFromMod", "coverBackdrop"]) if (typeof u[k] === "boolean") save(k, u[k]);
+    // presets and favourites of a configuration file are added to the ones here (the same preset id is not added twice)
+    if (Array.isArray(u.presets)) {
+      const have = new Set(this.presets.map((p) => p.id));
+      const ok = (p: unknown): p is Preset => {
+        const x = p as Preset;
+        return !!x && typeof x.id === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(x.id) && typeof x.name === "string" && (x.game === "zh" || x.game === "generals")
+          && typeof x.mod === "string" && Array.isArray(x.enabled) && x.enabled.every((e) => typeof e === "string") && typeof x.windowed === "boolean" && typeof x.quickStart === "boolean";
+      };
+      save("presets", [...this.presets, ...(u.presets as unknown[]).filter(ok).filter((p) => !have.has(p.id))]);
+    }
+    if (Array.isArray(u.favourites)) save("favourites", [...new Set([...this.favourites, ...u.favourites.filter((f): f is string => typeof f === "string")])]);
     if (u.customCovers && typeof u.customCovers === "object") {
       const covers: Record<string, { cover: string; hue: number }> = {};
       for (const [id, c] of Object.entries(u.customCovers as Record<string, { cover?: unknown; hue?: unknown }>)) {
@@ -607,6 +621,93 @@ class AppState {
 
   /** Replace this launcher's settings with those from a file (asks first), then restart the screen. */
   backups = $state<Backup[]>([]);
+
+  // --- presets ---
+  presets = $state<Preset[]>(load("presets", []));
+
+  private savePresets() { save("presets", this.presets); }
+
+  /** Remember what is switched on right now (the active mod, its version and extras, windowed, quick start) under a name. */
+  addPreset(name: string): Preset | null {
+    const n = name.trim();
+    if (!n || !this.activeModId) return null;
+    const mod = this.activeModId;
+    const p: Preset = {
+      id: "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+      name: n,
+      game: this.game,
+      mod,
+      version: this.chosenVersions[mod],
+      enabled: this.enabled.filter((id) => id.startsWith(mod + "/")),
+      windowed: this.windowed,
+      quickStart: this.quickStart,
+    };
+    this.presets = [...this.presets, p];
+    this.savePresets();
+    return p;
+  }
+
+  removePreset(id: string) { this.presets = this.presets.filter((p) => p.id !== id); this.savePresets(); }
+  renamePreset(id: string, name: string) {
+    const n = name.trim();
+    if (!n) return;
+    this.presets = this.presets.map((p) => (p.id === id ? { ...p, name: n } : p));
+    this.savePresets();
+  }
+
+  /** Put a preset's choices on screen (switching game and mod when needed). Returns false when its mod is not installed. */
+  async applyPreset(p: Preset): Promise<boolean> {
+    if (p.game !== this.game) await this.switchGame(p.game);
+    await this.ensureExtras(p.mod);
+    const mod = this.mods.find((m) => m.id === p.mod);
+    if (!mod || !mod.versions.some((v) => v.installed)) {
+      this.say(t("{name} is not installed, so the preset \"{preset}\" cannot start.", { name: mod?.name ?? p.mod, preset: p.name }), "error");
+      return false;
+    }
+    await this.selectMod(p.mod);
+    if (p.version) this.chosenVersions[p.mod] = p.version;
+    // only the extras that are still installed are switched on
+    const installed = new Set(this.items.filter((i) => i.parent === p.mod && i.versions.some((v) => v.installed)).map((i) => i.id));
+    const want = p.enabled.filter((id) => installed.has(id));
+    this.enabled = [...this.enabled.filter((id) => !id.startsWith(p.mod + "/")), ...want];
+    for (const i of this.items) if (i.parent === p.mod) i.selected = this.enabled.includes(i.id);
+    this.windowed = p.windowed;
+    this.quickStart = p.quickStart;
+    this.persist();
+    if (want.length < p.enabled.length) this.say(t("Some parts of the preset \"{preset}\" are no longer installed and were left out.", { preset: p.name }));
+    return true;
+  }
+
+  async playPreset(id: string) {
+    const p = this.presets.find((x) => x.id === id);
+    if (!p) { this.say(t("That preset does not exist (any more)."), "error"); return; }
+    if (await this.applyPreset(p)) await this.play("game");
+  }
+
+  /** The desktop shortcut that starts a preset. */
+  async makeShortcut(p: Preset) {
+    try {
+      await createShortcut(p.id, p.name);
+      this.say(t("A shortcut for \"{preset}\" is on your desktop.", { preset: p.name }), "success");
+    } catch (e) {
+      this.say(errText(e), "error");
+    }
+  }
+
+  /** The command line to paste into Steam (Add a non-Steam game, Launch options) so a preset starts from Steam. */
+  async commandFor(p: Preset): Promise<string> {
+    try { return await launcherCommand(p.id); } catch (e) { this.say(errText(e), "error"); return ""; }
+  }
+
+  /** Started with a shortcut (`--play <id>`): play that preset as soon as the library is ready. */
+  private async startPendingPreset() {
+    if (!isTauri) return;
+    void onPlayPreset((id) => void this.playPreset(id));
+    try {
+      const id = await takePendingPlay();
+      if (id) await this.playPreset(id);
+    } catch { /* nothing pending */ }
+  }
 
   // --- game health ---
   healthOpen = $state(false);

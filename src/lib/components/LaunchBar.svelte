@@ -4,6 +4,7 @@
   import { t } from "$lib/i18n/index.svelte";
   import { modName } from "$lib/names";
   import Toggle from "./Toggle.svelte";
+  import PresetsMenu from "./PresetsMenu.svelte";
 
   const picked = $derived(app.children.filter((c) => c.selected));
   const label = $derived(app.launch === "idle" ? t("Play") : app.launch === "preparing" ? t("Preparing files…") : t("Game running"));
@@ -20,6 +21,7 @@
   <div class="opt"><Toggle label={t("Windowed")} checked={app.windowed} onchange={(v) => app.setPref("windowed", v)} /> {t("Windowed")}</div>
   <div class="opt"><Toggle label={t("Quick start")} checked={app.quickStart} onchange={(v) => app.setPref("quickStart", v)} /> {t("Quick start")}</div>
 
+  <PresetsMenu />
   <button class="btn" disabled={app.launch !== "idle"} onclick={() => app.play("worldbuilder")}><Icon name="tool" size={16} /> {t("World Builder")}</button>
   <button class="btn primary play" disabled={app.launch !== "idle"} onclick={() => app.play("game")}>
     <Icon name="play" size={18} /> {label}

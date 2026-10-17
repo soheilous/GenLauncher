@@ -21,6 +21,7 @@ pub mod links;
 pub mod index;
 pub mod migrate;
 pub mod plan;
+pub mod presets;
 pub mod record;
 pub mod store;
 pub mod update;
@@ -67,6 +68,8 @@ struct AppState {
     download_client: reqwest::Client,
     /// What the built-in browser's single download is doing; an install can wait for it to finish.
     browser_session: std::sync::Mutex<BrowserSession>,
+    /// A preset the program was started to play (`--play <id>`), taken by the interface once it is ready.
+    pending_play: std::sync::Mutex<Option<String>>,
 }
 
 /// State of the file the built-in browser is receiving, shared between the window's download hooks and
@@ -1224,7 +1227,10 @@ async fn close_browser(app: AppHandle, state: State<'_, AppState>) -> Result<()>
 pub fn run() {
     tauri::Builder::default()
         // a second start (a shortcut clicked while the tray icon is there) brings the running one forward
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| background::show_main(app)))
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            background::show_main(app);
+            presets::play_in_running(app, &args);
+        }))
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec![background::MINIMIZED])))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -1248,6 +1254,7 @@ pub fn run() {
                 close_to_tray: AtomicBool::new(true),
                 downloads: Default::default(),
                 browser_session: Default::default(),
+                pending_play: std::sync::Mutex::new(presets::play_arg(&std::env::args().collect::<Vec<_>>())),
                 download_client: reqwest::Client::builder()
                     .user_agent(concat!("GenLauncher/", env!("CARGO_PKG_VERSION")))
                     .connect_timeout(std::time::Duration::from_secs(15))
@@ -1284,7 +1291,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, google_status, google_sign_in, google_sign_out, cloud_backup_create, cloud_backup_list, cloud_backup_delete, cloud_backup_restore, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
             uninstall_version, rename_version, health_check, health_fix, open_browser, close_browser, open_item_folder, update_check, update_install,
-            background::background_set, background::autostart_status, background::autostart_set
+            background::background_set, background::autostart_status, background::autostart_set,
+            presets::take_pending_play, presets::launcher_command, presets::create_shortcut
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

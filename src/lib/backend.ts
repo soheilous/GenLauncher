@@ -37,6 +37,16 @@ export async function onLaunchFinished(cb: (r: LaunchFinished) => void): Promise
   return listen<LaunchFinished>("launch-finished", (e) => cb(e.payload));
 }
 
+// ---- presets ----
+
+export const takePendingPlay = () => invoke<string | null>("take_pending_play");
+export const launcherCommand = (preset: string) => invoke<string>("launcher_command", { preset });
+export const createShortcut = (preset: string, name: string) => invoke<string>("create_shortcut", { preset, name });
+export async function onPlayPreset(cb: (id: string) => void): Promise<() => void> {
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<string>("play-preset", (e) => cb(e.payload));
+}
+
 // ---- game health ----
 
 export const healthCheck = () => invoke<import("./health").Finding[]>("health_check");

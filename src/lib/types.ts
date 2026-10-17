@@ -8,6 +8,19 @@ export interface Version {
   page?: string | null;
 }
 
+/** A named combination to start with one click: a mod, its version, the patches / add-ons / executables switched on, and two options. */
+export interface Preset {
+  id: string;
+  name: string;
+  game: Game;
+  mod: string;
+  version?: string;
+  /** Ids of the mod's patches, add-ons and executables. */
+  enabled: string[];
+  windowed: boolean;
+  quickStart: boolean;
+}
+
 export interface Links {
   moddb?: string | null;
   discord?: string | null;
