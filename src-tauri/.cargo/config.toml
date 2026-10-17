@@ -1,0 +1,5 @@
+# Link the C/C++ runtime into the program instead of depending on the "Visual C++ Redistributable" being installed
+# (msvcp140.dll, vcruntime140.dll). A clean Windows machine does not have them, and the program would not start
+# (exit code 0xC0000135). The rar reader (unrar) is C++ and is what needs msvcp140.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
