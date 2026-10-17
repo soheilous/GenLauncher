@@ -481,7 +481,7 @@ mod tests {
         assert!(direct_of(Some(&e)).is_none());
         e.download = Some(crate::index::Download { url: "http://insecure/x.zip".into(), ..Default::default() });
         assert!(direct_of(Some(&e)).is_none(), "plain http is never offered");
-        e.download = Some(crate::index::Download { url: "https://host/x.zip".into(), via: Some("https://a/b.yaml".into()), size: Some(5), sha256: None });
+        e.download = Some(crate::index::Download { url: "https://host/x.zip".into(), via: Some("https://a/b.yaml".into()), size: Some(5), sha256: None, asset: None });
         let d = direct_of(Some(&e)).unwrap();
         assert_eq!((d.url.as_str(), d.size), ("https://host/x.zip", Some(5)));
     }

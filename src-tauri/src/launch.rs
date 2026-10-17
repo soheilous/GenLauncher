@@ -90,7 +90,11 @@ pub fn resolve(
 
                 if kind == Kind::Exe {
                     if let Some(info) = exe_infos.get(&id) {
-                        let file = info.executable_file_name.clone().filter(|f| !f.is_empty());
+                        let file = match target {
+                            Target::WorldBuilder => info.wb_file_name.clone().or_else(|| info.executable_file_name.clone()),
+                            Target::Game => info.executable_file_name.clone(),
+                        }
+                        .filter(|f| !f.is_empty());
                         let replaces = match target {
                             Target::Game => info.replaces_game_exe,
                             Target::WorldBuilder => info.replaces_wb_exe,
@@ -256,6 +260,11 @@ mod tests {
         // World Builder ignores a game-exe replacement
         let wb = resolve(&PathBuf::from("G"), &s, &disk(), &infos, Target::WorldBuilder).unwrap();
         assert_eq!(wb.exe, "WorldBuilder.exe");
+        // one download can carry the game exe and its own World Builder
+        infos.insert("contra/exe/tool".to_string(), Entry { executable_file_name: Some("game.exe".into()), wb_file_name: Some("wb.exe".into()), replaces_game_exe: true, replaces_wb_exe: true, ..Default::default() });
+        let both = settings("contra", &["contra/exe/tool"]);
+        assert_eq!(resolve(&PathBuf::from("G"), &both, &disk(), &infos, Target::Game).unwrap().exe, "game.exe");
+        assert_eq!(resolve(&PathBuf::from("G"), &both, &disk(), &infos, Target::WorldBuilder).unwrap().exe, "wb.exe");
         // two replacements conflict
         infos.insert("contra/exe/tool".to_string(), Entry { executable_file_name: Some("t.exe".into()), replaces_game_exe: true, ..Default::default() });
         assert!(resolve(&PathBuf::from("G"), &s, &disk(), &infos, Target::Game).unwrap_err().to_string().contains("More than one"));

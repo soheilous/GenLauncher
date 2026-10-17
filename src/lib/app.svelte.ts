@@ -26,6 +26,9 @@ export interface AddPreset {
 }
 
 export type View = "library" | "discover" | "downloads" | "notifications";
+/** The catalog's community-fixed game executable (an executable of the original game). */
+const COMMUNITY_BUILD = "original-game/exe/community-build";
+
 export type LibrarySort = "name" | "nameDesc" | "updates" | "recent";
 export type DiscoverSort = "name" | "nameDesc" | "direct";
 export type LaunchState = "idle" | "preparing" | "running";
@@ -279,6 +282,7 @@ class AppState {
     delete this.pending[r.id];
     const direct = this.directStarted[r.id];
     delete this.directStarted[r.id];
+    const switchOn = this.enableAfterInstall.delete(r.id) && r.ok;
     this.applyProgress();
     const name = this.items.find((i) => i.id === r.id)?.name ?? "Item";
     if (!r.ok) {
@@ -300,6 +304,10 @@ class AppState {
     }
     this.say(t("{name} {version} installed", { name, version: r.version ?? "" }).replace(/\s+/g, " ").trim(), "success");
     await this.refreshLibrary();
+    if (switchOn) {
+      this.useCommunityBuild(true);
+      this.notify(t("The community build is installed and switched on for the original game. You can switch it off in Game health."), "success");
+    }
     const older = (this.installedBefore[r.id] ?? []).filter((v) => v !== r.version);
     delete this.installedBefore[r.id];
     const item = this.items.find((i) => i.id === r.id);
@@ -605,10 +613,38 @@ class AppState {
   health = $state<Finding[]>([]);
   healthBusy = $state(false);
 
+  /** The community-fixed game executable, as a suggestion, when the catalog offers it as a direct download. */
+  private async communityBuildFinding(): Promise<Finding | null> {
+    await this.ensureExtras("original-game");
+    const item = this.items.find((i) => i.id === COMMUNITY_BUILD);
+    if (!item?.direct) return null;
+    const have = item.versions.find((v) => v.installed)?.v;
+    if (!have) return { id: "community-build", level: "info", args: { version: item.latest }, fix: "install-community-build" };
+    if (have !== item.latest) return { id: "community-build-update", level: "info", args: { version: item.latest, current: have }, fix: "update-community-build" };
+    if (this.enabled.includes(COMMUNITY_BUILD)) return { id: "community-build-active", level: "info", args: { version: have }, fix: "stop-community-build" };
+    return { id: "community-build-installed", level: "info", args: {}, fix: "use-community-build" };
+  }
+
+  /** Items to switch on as soon as their install finishes (the community build, when it was installed from the health check). */
+  private enableAfterInstall = new Set<string>();
+
+  private useCommunityBuild(on: boolean) {
+    this.enabled = this.enabled.filter((id) => !id.startsWith("original-game/exe/"));
+    if (on) this.enabled = [...this.enabled, COMMUNITY_BUILD];
+    for (const i of this.items) if (i.id.startsWith("original-game/exe/")) i.selected = on && i.id === COMMUNITY_BUILD;
+    this.persist();
+  }
+
   async runHealthCheck() {
     this.healthBusy = true;
     try {
-      this.health = isTauri ? await healthCheck() : this.sampleHealth;
+      if (isTauri) {
+        const found = await healthCheck();
+        const build = await this.communityBuildFinding();
+        this.health = build ? [...found.filter((f) => f.id !== "all-good"), build] : found;
+      } else {
+        this.health = this.sampleHealth;
+      }
     } catch (e) {
       this.say(errText(e), "error");
     } finally {
@@ -624,6 +660,7 @@ class AppState {
   ];
 
   async applyHealthFix(fix: string) {
+    if (fix.endsWith("-community-build")) { await this.applyCommunityBuildFix(fix); return; }
     this.healthBusy = true;
     try {
       if (isTauri) await healthFix(fix);
@@ -634,6 +671,20 @@ class AppState {
     } finally {
       this.healthBusy = false;
     }
+  }
+
+  private async applyCommunityBuildFix(fix: string) {
+    const item = this.items.find((i) => i.id === COMMUNITY_BUILD);
+    if (!item) return;
+    if (fix === "use-community-build" || fix === "stop-community-build") {
+      this.useCommunityBuild(fix === "use-community-build");
+      await this.runHealthCheck();
+      return;
+    }
+    // install or update: it is switched on once it has arrived
+    this.enableAfterInstall.add(COMMUNITY_BUILD);
+    this.healthOpen = false;
+    await this.install(item);
   }
 
   /** At start-up: look quietly, and tell the user once when something is likely to cause trouble. */

@@ -1,7 +1,7 @@
 {
   "format": 1,
   "game": "generals",
-  "updated": "2026-10-14",
+  "updated": "2026-10-17",
   "mods": [
     {
       "name": "Project Tomahawk Storm",
@@ -39,5 +39,22 @@
     "patches": [],
     "addons": []
   },
-  "executables": []
+  "executables": [
+    {
+      "name": "Community build",
+      "dependsOn": "Original Game",
+      "page": "https://github.com/TheSuperHackers/GeneralsGameCode/releases",
+      "executableFileName": "generalsv.exe",
+      "worldBuilderFileName": "WorldBuilderV.exe",
+      "replacesGameExe": true,
+      "replacesWorldBuilderExe": true,
+      "download": {
+        "asset": "generals-weekly-*.zip",
+        "via": "https://api.github.com/repos/TheSuperHackers/GeneralsGameCode/releases/latest",
+        "url": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-10-16/generals-weekly-2026-10-16.zip",
+        "size": 31987764
+      },
+      "version": "weekly-2026-10-16"
+    }
+  ]
 }

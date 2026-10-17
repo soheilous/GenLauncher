@@ -23,6 +23,10 @@ fn is_false(b: &bool) -> bool {
 #[serde(default)]
 pub struct Download {
     pub url: String,
+    /// Files published as releases of a project change name with every release (`game-weekly-2026-10-16.zip`): the pattern
+    /// (`game-weekly-*.zip`) the catalog tools use to find the newest one and fill in `url`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asset: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub via: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,6 +70,9 @@ pub struct Entry {
     /// For an executable: the file it provides.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub executable_file_name: Option<String>,
+    /// For an executable that also replaces World Builder: the file to start for it (one download can carry both programs).
+    #[serde(rename = "worldBuilderFileName", skip_serializing_if = "Option::is_none")]
+    pub wb_file_name: Option<String>,
     #[serde(rename = "replacesGameExe", skip_serializing_if = "is_false")]
     pub replaces_game_exe: bool,
     #[serde(rename = "replacesWorldBuilderExe", skip_serializing_if = "is_false")]

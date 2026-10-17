@@ -1,7 +1,7 @@
 {
   "format": 1,
   "game": "zh",
-  "updated": "2026-10-16",
+  "updated": "2026-10-17",
   "mods": [
     {
       "name": "Rise of the Reds",
@@ -875,6 +875,22 @@
     "addons": []
   },
   "executables": [
+    {
+      "name": "Community build",
+      "dependsOn": "Original Game",
+      "page": "https://github.com/TheSuperHackers/GeneralsGameCode/releases",
+      "executableFileName": "generalszh.exe",
+      "worldBuilderFileName": "WorldBuilderZH.exe",
+      "replacesGameExe": true,
+      "replacesWorldBuilderExe": true,
+      "download": {
+        "asset": "generalszh-weekly-*.zip",
+        "via": "https://api.github.com/repos/TheSuperHackers/GeneralsGameCode/releases/latest",
+        "url": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-10-16/generalszh-weekly-2026-10-16.zip",
+        "size": 33838193
+      },
+      "version": "weekly-2026-10-16"
+    },
     {
       "name": "ModdedExe",
       "version": "1.0.0",

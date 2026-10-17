@@ -26,6 +26,10 @@ const WORDS: Record<string, Words> = {
   "never-started": { title: N("The game has not been started yet"), detail: N("Start Generals or Zero Hour once without a mod so that it creates its settings, then check again. Some fixes and tools expect that.") },
   "registry-missing": { title: N("Windows does not know where the game is"), detail: N("The game's registry entry is missing. Many Steam installs lack it; some tools and mods need it. The Windows 10/11 fix in GenPatcher adds it.") },
   "registry-other-folder": { title: N("Windows points to another game folder"), detail: N("The registry says the game is at {path}, but you are using a different folder. Tools that read the registry look at the other one.") },
+  "community-build": { title: N("A community-fixed game executable is available"), detail: N("The community build ({version}) from the people who maintain the game's source code fixes crashes and other bugs of the original game and brings its own World Builder. It is a weekly build and is only used when switched on. Installing it downloads about 33 MB from the project's GitHub page.") },
+  "community-build-installed": { title: N("The community build is installed"), detail: N("Switch it on to play the original game with it. Its World Builder is used too.") },
+  "community-build-active": { title: N("Playing with the community build"), detail: N("The original game starts with the community build ({version}) and its World Builder.") },
+  "community-build-update": { title: N("A newer community build is available"), detail: N("{version} is out; you have {current}.") },
   "gentool": { title: N("GenTool is installed"), detail: N("GenTool (d3d8.dll) was found. It adds widescreen and fixes. Turn it off for LAN play if you see desyncs.") },
 };
 
@@ -34,6 +38,10 @@ export const FIX_LABELS: Record<string, string> = {
   "restore-dbghelp": N("Restore it"),
   "park-foreign": N("Move them aside"),
   "restore-foreign": N("Move them back"),
+  "install-community-build": N("Install and use it"),
+  "use-community-build": N("Use it"),
+  "stop-community-build": N("Stop using it"),
+  "update-community-build": N("Update it"),
 };
 
 export function describe(f: Finding): Words {
