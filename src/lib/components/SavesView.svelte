@@ -11,7 +11,7 @@
   $effect(() => { void app.refreshProfiles(); });
   const files = $derived(app.profileFileList.filter((f) => f.kind === kind));
   const when = (secs: number) => (secs ? i18n.date(secs * 1000) : "");
-  const targets = $derived(app.profileTargets().filter((k) => k !== app.profileSelected));
+  const targets = $derived(app.profileTargetsFor(app.profileSelected));
   const targetOptions = $derived([{ value: "", label: t("Move to…") }, ...targets.map((k) => ({ value: k, label: app.profileLabel(k) }))]);
 </script>
 
@@ -24,10 +24,10 @@
     <Toggle label={t("Keep each mod's saved games and replays apart")} checked={app.savesByMod} onchange={(v) => app.setSavesByMod(v)} />
   </div>
 
-  {#if app.profiles.length > 1}
+  {#if app.mergeable}
     <div class="merge">
-      <span>{t("There are several sets. You can bring them all together into the selected one.")}</span>
-      <button class="btn" onclick={() => app.mergeProfiles()}><Icon name="plus" size={14} /> {t("Merge all sets into the selected one")}</button>
+      <span>{t("This mod has several versions with saved files. You can bring them together into the selected one.")}</span>
+      <button class="btn" onclick={() => app.mergeProfiles()}><Icon name="plus" size={14} /> {t("Merge the versions into the selected one")}</button>
     </div>
   {/if}
 

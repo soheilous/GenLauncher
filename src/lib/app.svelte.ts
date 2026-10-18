@@ -662,6 +662,20 @@ class AppState {
     return [...keys];
   }
 
+  /** Where a file of a set can go: another version of the same mod (a save of one mod does not work in another). The unsorted pile can go anywhere. */
+  profileTargetsFor(from: string): string[] {
+    const mod = (k: string) => k.split("@")[0];
+    return this.profileTargets().filter((k) => k !== from && k !== "everything-before" && (from === "everything-before" || mod(k) === mod(from)));
+  }
+
+  /** Other versions of the selected set's mod that have files (what merging would bring together). */
+  mergeable = $derived.by(() => {
+    const sel = this.profileSelected;
+    if (!sel) return 0;
+    const mod = (k: string) => k.split("@")[0];
+    return this.profiles.filter((p) => p.key !== sel && (sel === "everything-before" || mod(p.key) === mod(sel))).length;
+  });
+
   async refreshProfiles() {
     if (!isTauri) {
       this.profiles = [{ key: "contra@009 Beta 3", active: true, saves: 3, replays: 12, bytes: 2_400_000, modified: 1_760_000_000 }, { key: "everything-before", active: false, saves: 7, replays: 31, bytes: 9_100_000, modified: 1_750_000_000 }];
@@ -695,8 +709,8 @@ class AppState {
   /** Bring every set together into the selected one (nothing is deleted). */
   async mergeProfiles() {
     const into = this.profileSelected;
-    if (!into || this.profiles.length < 2) return;
-    const msg = t("Put every set of saved games and replays together into \"{name}\"?", { name: this.profileLabel(into) }) + "\n" + t("Nothing is deleted. A file whose name is already taken is kept under another name. Afterwards the sets are one, and turning the switch off leaves everything in the game's own folders.");
+    if (!into || !this.mergeable) return;
+    const msg = t("Put the saved games and replays of every version of this mod together into \"{name}\"?", { name: this.profileLabel(into) }) + "\n" + t("Nothing is deleted. A file whose name is already taken is kept under another name. Afterwards the sets are one, and turning the switch off leaves everything in the game's own folders.");
     if (!(await confirmDialog(msg, t("Merge the sets"), t("Merge"), t("Cancel")))) return;
     if (!isTauri) { this.say(t("Merging works in the desktop app.")); return; }
     try {

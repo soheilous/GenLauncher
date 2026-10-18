@@ -241,8 +241,14 @@ fn free_name(dir: &Path, name: &str) -> String {
     (2..).map(|n| format!("{stem} ({n}){ext}")).find(|c| !dir.join(c).exists()).unwrap_or_else(|| name.to_string())
 }
 
-/// Bring every set together into `into`, which becomes the one set in the game's folders. Nothing is deleted; a file whose name is
-/// already taken keeps both (the incoming one gets ` (2)`). The emptied set folders are removed.
+/// The mod a set belongs to: the key without its version ("contra@009 Beta 3" -> "contra").
+pub fn mod_of(key: &str) -> &str {
+    key.split('@').next().unwrap_or(key)
+}
+
+/// Bring the other versions of the same mod together into `into`, which becomes the set in the game's folders (merging into the
+/// unsorted pile takes every set). A save of one mod does not work in another, so other mods' sets are left alone. Nothing is
+/// deleted; a file whose name is already taken keeps both (the incoming one gets ` (2)`). The emptied set folders are removed.
 pub fn merge_into(data: &Path, into: &str) -> Result<MergeReport> {
     let into = clean_key(into);
     activate(data, &into)?; // the game's folders are now `into`'s
@@ -251,6 +257,7 @@ pub fn merge_into(data: &Path, into: &str) -> Result<MergeReport> {
         .flatten()
         .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
         .map(|e| e.path())
+        .filter(|p| into == SHARED || mod_of(&p.file_name().unwrap_or_default().to_string_lossy()) == mod_of(&into))
         .collect();
     for set in others {
         for kind in [SAVE, REPLAYS] {
@@ -351,7 +358,7 @@ mod tests {
     }
 
     #[test]
-    fn merging_brings_every_set_into_one_and_keeps_both_files_of_the_same_name() {
+    fn merging_brings_the_versions_of_one_mod_together_and_keeps_both_files_of_the_same_name() {
         let d = tempfile::tempdir().unwrap();
         let data = d.path();
         put(data, "Save/a.sav", "shared a");
@@ -359,21 +366,29 @@ mod tests {
         activate(data, "contra@009").unwrap();
         put(data, "Save/c.sav", "contra");
         put(data, "Replays/Last Replay.rep", "contra replay");
+        activate(data, "contra@010").unwrap();
+        put(data, "Save/c2.sav", "contra 10");
+        put(data, "Replays/Last Replay.rep", "contra 10 replay");
         activate(data, "rotr@1.87").unwrap();
         put(data, "Save/r.sav", "rotr");
 
         let r = merge_into(data, "contra@009").unwrap();
         assert_eq!(active(data).as_deref(), Some("contra@009"));
-        // everything is in the game's folders; the two replays with the same name are both there
+        // both versions of the mod are in the game's folders; the two replays with the same name are both there
         let names: Vec<String> = files(data, "contra@009").into_iter().map(|f| f.name).collect();
-        for want in ["a.sav", "c.sav", "r.sav", "Last Replay.rep"] {
+        for want in ["c.sav", "c2.sav", "Last Replay.rep"] {
             assert!(names.iter().any(|n| n == want), "{want} in {names:?}");
         }
         assert_eq!(names.iter().filter(|n| n.starts_with("Last Replay")).count(), 2);
-        assert!(r.moved >= 3 && r.renamed == 1, "{r:?}");
-        // no other set is left
+        assert!(!names.iter().any(|n| n == "r.sav" || n == "a.sav"), "other mods stay out: {names:?}");
+        assert!(r.moved == 2 && r.renamed == 1, "{r:?}");
+        // the other mod and the unsorted pile keep their own sets
+        let left: Vec<String> = list(data).into_iter().map(|p| p.key).collect();
+        assert!(left.contains(&"rotr@1.87".to_string()) && left.contains(&SHARED.to_string()) && !left.contains(&"contra@010".to_string()), "{left:?}");
+
+        // merging into the unsorted pile takes everything
+        merge_into(data, SHARED).unwrap();
         assert_eq!(list(data).len(), 1);
-        assert!(fs::read_dir(root(data)).unwrap().flatten().all(|e| e.file_name() == ".active"));
     }
 
     #[test]
