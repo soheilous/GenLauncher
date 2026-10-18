@@ -11,9 +11,40 @@
   let root: HTMLDivElement | undefined = $state();
   const current = $derived(options.find((o) => o.value === value) ?? options[0]);
 
+  let trigger: HTMLButtonElement | undefined = $state();
+  let menuEl: HTMLUListElement | undefined = $state();
+  /** The menu lives directly in <body>: inside a dialog that is centred with a transform, "fixed" would be relative to the dialog, not the screen. */
+  function toBody(node: HTMLElement) {
+    document.body.appendChild(node);
+    return { destroy: () => node.remove() };
+  }
+  const inside = (t: EventTarget | null) => t instanceof Node && (!!root?.contains(t) || !!menuEl?.contains(t));
+  /** Where the menu goes. It is placed on the screen (fixed) from the button's position, so it never makes a page or a panel scroll. */
+  let place = $state("");
+  function position() {
+    if (!trigger) return;
+    const r = trigger.getBoundingClientRect();
+    const below = innerHeight - r.bottom - 12;
+    const above = r.top - 12;
+    const down = below >= Math.min(240, options.length * 42 + 16) || below >= above;
+    const rtl = getComputedStyle(trigger).direction === "rtl";
+    place = [
+      "position: fixed",
+      down ? `top: ${r.bottom + 6}px` : `bottom: ${innerHeight - r.top + 6}px`,
+      rtl ? `right: ${Math.max(8, innerWidth - r.right)}px` : `left: ${Math.max(8, r.left)}px`,
+      `min-width: ${r.width}px`,
+      `max-height: ${Math.max(120, Math.min(240, down ? below : above))}px`,
+    ].join("; ");
+  }
   function toggle() {
     open = !open;
-    if (open) active = Math.max(0, options.findIndex((o) => o.value === value));
+    if (open) {
+      active = Math.max(0, options.findIndex((o) => o.value === value));
+      // a dialog may still be sliding into place when its select is opened: follow the button for a moment
+      const start = performance.now();
+      const follow = () => { position(); if (open && performance.now() - start < 400) requestAnimationFrame(follow); };
+      follow();
+    }
   }
   function pick(o: Option) { onchange(o.value); open = false; }
 
@@ -31,21 +62,25 @@
 
   $effect(() => {
     if (!open) return;
-    const close = (e: PointerEvent) => { if (root && !root.contains(e.target as Node)) open = false; };
+    const close = (e: PointerEvent) => { if (!inside(e.target)) open = false; };
+    // scrolling or resizing moves the button away from the menu: close it (a scroll inside the menu itself does not count)
+    const away = (e: Event) => { if (!inside(e.target)) open = false; };
     document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
+    window.addEventListener("scroll", away, true);
+    window.addEventListener("resize", away);
+    return () => { document.removeEventListener("pointerdown", close); window.removeEventListener("scroll", away, true); window.removeEventListener("resize", away); };
   });
 </script>
 
 <div class="sel" bind:this={root}>
-  <button class="trigger" class:open aria-haspopup="listbox" aria-expanded={open} aria-label={label} onclick={toggle} onkeydown={onkey}>
+  <button class="trigger" bind:this={trigger} class:open aria-haspopup="listbox" aria-expanded={open} aria-label={label} onclick={toggle} onkeydown={onkey}>
     <span class="cur"><bdi>{current?.label}</bdi></span>
     {#if current?.hint}<span class="hint" class:warn={current.muted}>{current.hint}</span>{/if}
     <span class="chev" class:flip={open}><Icon name="chevron" size={14} /></span>
   </button>
 
   {#if open}
-    <ul class="menu" role="listbox" aria-label={label}>
+    <ul class="menu" role="listbox" aria-label={label} style={place} bind:this={menuEl} use:toBody>
       {#each options as o, i (o.value)}
         <li role="option" aria-selected={o.value === value} class:active={i === active} class:sel={o.value === value}
           onpointerenter={() => (active = i)} onclick={() => pick(o)} onkeydown={onkey} tabindex="-1">
@@ -71,8 +106,8 @@
   .chev { display: grid; color: var(--text-faint); transition: transform .2s var(--ease); }
   .chev.flip { transform: rotate(180deg); }
 
-  .menu { position: absolute; z-index: 15; inset-inline-start: 0; min-width: 100%; width: max-content; max-width: min(340px, 86vw); top: calc(100% + 6px); margin: 0; padding: 6px; list-style: none;
-    max-height: 240px; overflow-y: auto; border-radius: var(--r-md);
+  .menu { position: fixed; z-index: 40; width: max-content; max-width: min(340px, 86vw); margin: 0; padding: 6px; list-style: none;
+    overflow-y: auto; border-radius: var(--r-md);
     background: var(--surface-solid); border: 1px solid var(--stroke-hi); box-shadow: var(--shadow);
     backdrop-filter: var(--blur); animation: drop .16s var(--ease); transform-origin: top; }
   li { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 10px; cursor: pointer; color: var(--text-dim); transition: background .12s; }
