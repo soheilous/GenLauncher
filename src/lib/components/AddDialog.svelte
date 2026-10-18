@@ -46,6 +46,17 @@
   let ackSameName = $state(false);
   /** Opened from a catalog entry's Install/Update: adding another version of it is what was asked for. */
   const isUpdate = $derived(!!app.addDialog?.preset?.update);
+  /** A catalog entry: its name is not for the user to change, and the version it expects is offered as the default. */
+  const fixedName = $derived(!!app.addDialog?.preset?.fixedName);
+  const expected = $derived(app.addDialog?.preset?.expectedVersion?.trim() ?? "");
+  /** Is the file the version the catalog calls the newest, or another one? (Guessed from the file name; the user decides.) */
+  let versionChoice = $state<"newest" | "other">("newest");
+  let guessedVersion = $state("");
+  const same = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]+/g, "") === b.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  function chooseVersion(c: "newest" | "other") {
+    versionChoice = c;
+    version = c === "newest" ? expected : guessedVersion;
+  }
   const targetId = $derived(kind === "mod" ? slugify(name) : `${parent}/${kind}/${slugify(name)}`);
   const sameItem = $derived(slugify(name) ? app.items.find((i) => i.id === targetId) : undefined);
   const installedVersions = $derived(sameItem?.versions.filter((v) => v.installed).map((v) => v.v) ?? []);
@@ -157,7 +168,8 @@
   const parentOptions = $derived(app.mods.filter((m) => m.versions.some((v) => v.installed)).map((m) => ({ value: m.id, label: modName(m) })));
   const parentName = $derived((() => { const m = app.mods.find((x) => x.id === parent); return m ? modName(m) : ""; })());
   const title = $derived(
-    kind === "mod" ? t("Add a mod")
+    fixedName ? (isUpdate ? t("Add a new version of {name}", { name }) : t("Add {name}", { name }))
+    : kind === "mod" ? t("Add a mod")
     : parentName
       ? kind === "exe" ? t("Add an executable for {mod}", { mod: parentName }) : kind === "addon" ? t("Add an add-on for {mod}", { mod: parentName }) : t("Add a patch for {mod}", { mod: parentName })
       : kind === "exe" ? t("Add an executable") : kind === "addon" ? t("Add an add-on") : t("Add a patch")
@@ -167,8 +179,15 @@
 
   function toDetails(guess: { name: string; version: string }, src: Source) {
     source = src;
-    if (!name.trim()) name = guess.name;
+    if (!name.trim() || fixedName) name = fixedName ? name : guess.name;
     version = guess.version;
+    guessedVersion = guess.version;
+    if (expected) {
+      // the file's own name says which version it is: if that is not the catalog's newest, do not pretend it is
+      const differs = !!guess.version && !same(guess.version, expected);
+      versionChoice = differs ? "other" : "newest";
+      version = differs ? guess.version : expected;
+    }
     error = "";
     step = "details";
   }
@@ -389,14 +408,29 @@
             </div>
           {/if}
         {/if}
-        <label class="field">
-          <span>{t("Name")}</span>
-          <input bind:value={name} spellcheck="false" onkeydown={(e) => e.key === "Enter" && submit()} />
-        </label>
-        <label class="field narrow">
-          <span>{t("Version")}</span>
-          <input bind:value={version} spellcheck="false" onkeydown={(e) => e.key === "Enter" && submit()} />
-        </label>
+        {#if !fixedName}
+          <label class="field">
+            <span>{t("Name")}</span>
+            <input bind:value={name} spellcheck="false" onkeydown={(e) => e.key === "Enter" && submit()} />
+          </label>
+        {/if}
+        {#if expected}
+          <div class="field">
+            <span id="ver-label">{t("Which version is this file?")}</span>
+            <div class="choice" role="radiogroup" aria-labelledby="ver-label">
+              <label><input type="radio" name="vchoice" checked={versionChoice === "newest"} onchange={() => chooseVersion("newest")} /> {t("The newest version: {version}", { version: expected })}</label>
+              <label><input type="radio" name="vchoice" checked={versionChoice === "other"} onchange={() => chooseVersion("other")} /> {t("Another version")}</label>
+            </div>
+            {#if versionChoice === "other"}
+              <input class="narrow-input" bind:value={version} spellcheck="false" aria-label={t("Version")} onkeydown={(e) => e.key === "Enter" && submit()} />
+            {/if}
+          </div>
+        {:else}
+          <label class="field narrow">
+            <span>{t("Version")}</span>
+            <input bind:value={version} spellcheck="false" onkeydown={(e) => e.key === "Enter" && submit()} />
+          </label>
+        {/if}
       </div>
       {#if reserved}
         <div class="alert danger" role="alert"><strong>{t('"Original Game" is reserved for the stock game.')}</strong> {t("Choose another name.")}</div>
@@ -436,6 +470,10 @@
 {/if}
 
 <style>
+  .choice { display: grid; gap: 6px; margin: 4px 0 6px; }
+  .choice label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .choice input { accent-color: var(--accent); }
+  .narrow-input { width: 12rem; padding: 9px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--stroke); outline: none; color: var(--text); font: inherit; user-select: text; }
   .scrim { position: fixed; inset: 0; background: var(--scrim); backdrop-filter: blur(4px); z-index: 20; animation: fade .2s; }
   .dlg { position: fixed; z-index: 21; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 32px));
     padding: 22px; background: var(--surface-solid); animation: pop .25s var(--ease); outline: none; max-height: calc(100vh - 32px); overflow: auto; }

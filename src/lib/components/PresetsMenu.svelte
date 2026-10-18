@@ -36,7 +36,7 @@
 <div class="presets" bind:this={root} onkeydown={(e) => { if (e.key === "Escape") open = false; }} role="presentation">
   <button class="btn" aria-haspopup="dialog" aria-expanded={open} onclick={() => (open = !open)}><Icon name="star" size={16} /> {t("Presets")}</button>
   {#if open}
-    <div class="menu glass" role="dialog" aria-label={t("Presets")}>
+    <div class="menu" role="dialog" aria-label={t("Presets")}>
       <p class="hint">{t("A preset remembers the mod, its version, the patches and add-ons you switched on, and the windowed / quick start options.")}</p>
       {#each list as p (p.id)}
         <div class="item">
@@ -62,7 +62,9 @@
 
 <style>
   .presets { position: relative; }
-  .menu { position: absolute; bottom: calc(100% + 12px); inset-inline-end: 0; width: min(420px, 90vw); padding: 14px; display: grid; gap: 8px; z-index: 12; max-height: 60vh; overflow: auto; }
+  /* solid, not the translucent "glass": it opens over the mod covers and must stay readable */
+  .menu { position: absolute; bottom: calc(100% + 12px); inset-inline-end: 0; width: min(420px, 90vw); padding: 14px; display: grid; gap: 8px; z-index: 12; max-height: 60vh; overflow: auto;
+    background: var(--surface-solid); backdrop-filter: none; border: 1px solid var(--stroke-hi); box-shadow: var(--shadow); }
   .hint, .empty { margin: 0; color: var(--text-faint); font-size: 12px; }
   .item { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px; background: var(--surface); border: 1px solid var(--stroke); }
   .who { flex: 1; min-width: 0; display: flex; flex-direction: column; }

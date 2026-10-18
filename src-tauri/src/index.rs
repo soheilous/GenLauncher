@@ -35,6 +35,24 @@ pub struct Download {
     pub sha256: Option<String>,
 }
 
+/// Another version of an entry than the newest (which is the entry itself): older releases, a beta, a version for a different game build.
+/// Each may have its own page, picture and direct download.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct VersionInfo {
+    pub version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<String>,
+    /// A picture of this version (when it looks different from the mod's usual cover).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub download: Option<Download>,
+    /// When it came out, `YYYY-MM-DD`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date: Option<String>,
+}
+
 /// One mod, patch, addon or executable.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -65,6 +83,9 @@ pub struct Entry {
     /// A direct download link the author published, when there is one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub download: Option<Download>,
+    /// Other versions than the newest one.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub versions: Vec<VersionInfo>,
     #[serde(skip_serializing_if = "is_false")]
     pub deprecated: bool,
     /// For an executable: the file it provides.

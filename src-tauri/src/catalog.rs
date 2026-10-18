@@ -5,7 +5,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::Result;
 use crate::library::{Extra, InstalledMod};
-use crate::index::{Entry, Index, ModEntry};
+use crate::index::{Entry, Index, ModEntry, VersionInfo};
 use crate::version;
 
 pub const ORIGINAL_GAME: &str = "Original Game";
@@ -61,6 +61,14 @@ pub struct VersionDto {
     /// The web page this version was downloaded from (saved in its source record), when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<String>,
+    /// A picture of this version, when the catalog has one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    /// The author's direct download of this very version, when there is one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub direct: Option<Direct>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -73,7 +81,7 @@ pub struct Links {
 }
 
 /// A direct download from the catalog (the file's address is the author's, `via` names where they published it).
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Direct {
     pub url: String,
     pub via: Option<String>,
@@ -151,17 +159,30 @@ fn hue_for(info: Option<&Entry>, name: &str) -> u16 {
         .unwrap_or_else(|| name_hue(name))
 }
 
-fn versions_dto(installed: &[String], latest: Option<&str>) -> (Vec<VersionDto>, String) {
+/// `others`: the versions the catalog lists besides the newest (they are offered even when not installed).
+fn versions_dto(installed: &[String], latest: Option<&str>, others: &[VersionInfo]) -> (Vec<VersionDto>, String) {
     let mut all: Vec<String> = installed.to_vec();
-    if let Some(l) = latest {
-        if !all.iter().any(|v| v.eq_ignore_ascii_case(l)) {
-            all.push(l.to_string());
+    for v in latest.into_iter().chain(others.iter().map(|o| o.version.as_str())).filter(|v| !v.trim().is_empty()) {
+        if !all.iter().any(|a| a.eq_ignore_ascii_case(v)) {
+            all.push(v.to_string());
         }
     }
     version::sort_desc(&mut all);
     let dto = all
         .iter()
-        .map(|v| VersionDto { v: v.clone(), installed: installed.iter().any(|i| i.eq_ignore_ascii_case(v)), page: None })
+        .map(|v| {
+            let listed = others.iter().find(|o| o.version.eq_ignore_ascii_case(v));
+            let is_installed = installed.iter().any(|i| i.eq_ignore_ascii_case(v));
+            VersionDto {
+                v: v.clone(),
+                installed: is_installed,
+                // for an installed version the page is filled in later from its source record; a version not installed yet offers the catalog's page for it
+                page: if is_installed { None } else { listed.and_then(|o| o.page.clone()) },
+                image: listed.and_then(|o| o.image.clone()),
+                direct: listed.and_then(|o| o.download.as_ref()).filter(|d| d.url.starts_with("https://")).map(|d| Direct { url: d.url.clone(), via: d.via.clone(), size: d.size }),
+                date: listed.and_then(|o| o.date.clone()),
+            }
+        })
         .collect::<Vec<_>>();
     let newest = latest.map(str::to_string).or_else(|| all.first().cloned()).unwrap_or_default();
     (dto, newest)
@@ -195,7 +216,7 @@ pub fn mod_items(catalog: &Catalog, disk: &[InstalledMod]) -> Vec<Item> {
         }
         let installed = on_disk.map(|d| d.versions.clone()).unwrap_or_default();
         let latest = m.entry.version.as_deref();
-        let (versions, latest) = versions_dto(&installed, latest);
+        let (versions, latest) = versions_dto(&installed, latest, &m.entry.versions);
         items.push(Item {
             id: slug(display),
             kind: Kind::Mod,
@@ -214,7 +235,7 @@ pub fn mod_items(catalog: &Catalog, disk: &[InstalledMod]) -> Vec<Item> {
     }
 
     for d in disk.iter().filter(|d| !matched.contains(&d.name.as_str()) && !d.versions.is_empty()) {
-        let (versions, latest) = versions_dto(&d.versions, None);
+        let (versions, latest) = versions_dto(&d.versions, None, &[]);
         items.push(Item {
             id: slug(&d.name),
             kind: Kind::Mod,
@@ -238,7 +259,7 @@ pub fn mod_items(catalog: &Catalog, disk: &[InstalledMod]) -> Vec<Item> {
         name: ORIGINAL_GAME.into(),
         summary: String::new(),
         hue: 220,
-        versions: vec![VersionDto { v: "Stock".into(), installed: true, page: None }],
+        versions: vec![VersionDto { v: "Stock".into(), installed: true, page: None, image: None, direct: None, date: None }],
         latest: "Stock".into(),
         parent: None,
         depends_on: None,
@@ -270,7 +291,7 @@ fn extra_item(mod_id: &str, kind: Kind, info: &Entry, disks: &[&[Extra]]) -> Ite
             }
         }
     }
-    let (versions, latest) = versions_dto(&installed, info.version.as_deref());
+    let (versions, latest) = versions_dto(&installed, info.version.as_deref(), &info.versions);
     Item {
         id: extra_id(mod_id, kind, &info.name),
         kind,
@@ -379,6 +400,23 @@ mod tests {
     }
 
     #[test]
+    fn the_catalogs_other_versions_are_offered_with_their_own_picture_and_download() {
+        use crate::index::{Download, VersionInfo};
+        let others = vec![
+            VersionInfo { version: "1.5".into(), image: Some("https://i/x.png".into()), page: Some("https://p/1.5".into()), ..Default::default() },
+            VersionInfo { version: "1.0".into(), download: Some(Download { url: "https://h/1.0.zip".into(), ..Default::default() }), ..Default::default() },
+        ];
+        let (v, latest) = versions_dto(&["1.0".to_string()], Some("2.0"), &others);
+        assert_eq!(latest, "2.0");
+        assert_eq!(v.iter().map(|x| x.v.as_str()).collect::<Vec<_>>(), ["2.0", "1.5", "1.0"]);
+        let v15 = &v[1];
+        assert!(!v15.installed && v15.image.as_deref() == Some("https://i/x.png") && v15.page.as_deref() == Some("https://p/1.5"));
+        // an installed version keeps no catalog page (its own source record fills it in) but still has its download offered for a reinstall
+        let v10 = &v[2];
+        assert!(v10.installed && v10.page.is_none() && v10.direct.as_ref().is_some_and(|d| d.url == "https://h/1.0.zip"));
+    }
+
+    #[test]
     fn slugs_are_stable() {
         assert_eq!(slug("Rise Of The Reds"), "rise-of-the-reds");
         assert_eq!(slug("  C&C: Contra (009) "), "c-c-contra-009");
@@ -408,8 +446,8 @@ mod tests {
         assert_eq!(contra.hue, 120);
         assert_eq!(contra.latest, "009 Final");
         assert_eq!(contra.versions, [
-            VersionDto { v: "009 Final".into(), installed: false, page: None },
-            VersionDto { v: "009 Beta 3".into(), installed: true, page: None },
+            VersionDto { v: "009 Final".into(), installed: false, page: None, image: None, direct: None, date: None },
+            VersionDto { v: "009 Beta 3".into(), installed: true, page: None, image: None, direct: None, date: None },
         ]);
 
         let shock = items.iter().find(|i| i.id == "shockwave").unwrap();

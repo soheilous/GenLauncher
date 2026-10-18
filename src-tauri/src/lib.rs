@@ -1057,6 +1057,14 @@ async fn maps_import(app: AppHandle, state: State<'_, AppState>, path: String) -
     .await
 }
 
+/// The preview picture (a .tga) of one map, as raw bytes.
+#[tauri::command]
+async fn maps_preview(app: AppHandle, state: State<'_, AppState>, name: String) -> Result<tauri::ipc::Response> {
+    let dir = maps_folder(&app, &state).await?;
+    let bytes = blocking(move || maps::preview(&dir, &name)).await?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
 /// Delete one custom map.
 #[tauri::command]
 async fn maps_remove(app: AppHandle, state: State<'_, AppState>, name: String) -> Result<()> {
@@ -1400,7 +1408,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, google_status, google_sign_in, google_sign_out, cloud_backup_create, cloud_backup_list, cloud_backup_delete, cloud_backup_restore, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
-            uninstall_version, rename_version, health_check, health_fix, maps_list, maps_import, maps_remove, maps_open_folder, gamedata_list, gamedata_backup, gamedata_restore, gamedata_delete, gamedata_open_folder, open_browser, close_browser, open_item_folder, update_check, update_install,
+            uninstall_version, rename_version, health_check, health_fix, maps_list, maps_import, maps_remove, maps_preview, maps_open_folder, gamedata_list, gamedata_backup, gamedata_restore, gamedata_delete, gamedata_open_folder, open_browser, close_browser, open_item_folder, update_check, update_install,
             background::background_set, background::autostart_status, background::autostart_set, background::os_notify,
             presets::take_pending_play, presets::launcher_command, presets::create_shortcut
         ])

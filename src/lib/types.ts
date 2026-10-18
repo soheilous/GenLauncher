@@ -4,8 +4,13 @@ export type ModKind = "mod" | "patch" | "addon" | "exe";
 export interface Version {
   v: string;
   installed: boolean;
-  /** The web page this version was downloaded from, when it was added from one. */
+  /** The web page this version was downloaded from, when it was added from one (for a version not installed: the catalog's page for it). */
   page?: string | null;
+  /** A picture of this very version, when the catalog has one. */
+  image?: string | null;
+  /** The author's direct download of this very version, when there is one. */
+  direct?: { url: string; via?: string | null; size?: number | null } | null;
+  date?: string | null;
 }
 
 /** A named combination to start with one click: a mod, its version, the patches / add-ons / executables switched on, and two options. */

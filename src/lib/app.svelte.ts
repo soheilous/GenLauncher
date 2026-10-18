@@ -20,6 +20,9 @@ export interface AddPreset {
   pageUrl: string | null;
   /** Another version of something already installed: no "same name" confirmation needed. */
   update: boolean;
+  /** The catalog entry this is for: its name is fixed (the dialog does not let it be edited) and its newest version is what is expected. */
+  fixedName?: boolean;
+  expectedVersion?: string;
   /** A file or folder already chosen (dropped onto the window). */
   file?: string;
   /** Nothing says what it is (a dropped file), so the dialog asks: mod, patch, add-on or executable, and for which mod. */
@@ -303,7 +306,7 @@ class AppState {
       if (direct?.links?.moddb) {
         // the author's link did not work (moved, removed): fall back to the page the author publishes the mod on
         this.notify(t("The direct download of {name} did not work. Its page is open instead.", { name }), "info");
-        this.openAdd(direct.kind, direct.kind === "mod" ? null : (direct.parent ?? this.activeModId), { name: direct.name, pageUrl: direct.links.moddb, update: direct.versions.some((v) => v.installed) });
+        this.openAdd(direct.kind, direct.kind === "mod" ? null : (direct.parent ?? this.activeModId), { name: direct.name, pageUrl: direct.links.moddb, update: direct.versions.some((v) => v.installed), fixedName: true, expectedVersion: direct.latest });
       }
       return;
     }
@@ -329,7 +332,7 @@ class AppState {
   }
   /** Reopen the page an installed version came from, ready to add a newer version of it. */
   checkForUpdate(item: Item, pageUrl: string) {
-    this.openAdd("mod", null, { name: item.name, pageUrl, update: true });
+    this.openAdd(item.kind, item.kind === "mod" ? null : (item.parent ?? this.activeModId), { name: item.name, pageUrl, update: true, fixedName: true, expectedVersion: item.latest });
   }
 
   closeAdd() {
@@ -710,6 +713,9 @@ class AppState {
 
   // --- custom maps ---
   maps = $state<MapInfo[]>([]);
+  /** The maps as picture cards or as a list. */
+  mapsView = $state<"cards" | "list">(load("mapsView", "cards"));
+  setMapsView(v: "cards" | "list") { this.mapsView = v; save("mapsView", v); }
   mapsBusy = $state(false);
 
   async refreshMaps() {
@@ -1290,21 +1296,28 @@ class AppState {
    * "Install" / "Update" on a catalog entry. The launcher never downloads a mod by itself: it opens the mod's own page
    * in the built-in browser so the download comes from the people who published it.
    */
-  async install(item: Item) {
+  async install(item: Item, version?: string) {
     if (isTauri) {
       if (this.installProgress[item.id]) return;
-      if (item.direct) {
+      // a version other than the newest, when the catalog lists it (with its own page and download)
+      const other = version && version !== item.latest ? item.versions.find((v) => v.v === version) : undefined;
+      const wanted = other?.v ?? item.latest;
+      const direct = other ? other.direct : item.direct;
+      const page = (other ? other.page : null) || item.links?.moddb || null;
+      if (direct) {
         // the author published a direct link: no page to visit
         const parent = item.kind === "mod" ? null : (item.parent ?? this.activeModId);
         this.directStarted[item.id] = item;
-        const ok = await this.add({ source: { type: "link", url: item.direct.url, pageUrl: item.links?.moddb ?? null }, name: item.name, version: item.latest, kind: item.kind, parent });
+        const ok = await this.add({ source: { type: "link", url: direct.url, pageUrl: page }, name: item.name, version: wanted, kind: item.kind, parent });
         if (!ok) delete this.directStarted[item.id];
         return;
       }
       this.openAdd(item.kind, item.kind === "mod" ? null : (item.parent ?? this.activeModId), {
         name: item.name,
-        pageUrl: item.links?.moddb || null,
+        pageUrl: page,
         update: item.versions.some((v) => v.installed),
+        fixedName: true,
+        expectedVersion: wanted,
       });
       return;
     }

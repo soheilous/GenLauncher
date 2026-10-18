@@ -188,9 +188,10 @@
           {#each app.downloading as d (d.id)}
             <div class="glass dl">
               <div class="dlinfo"><strong>{d.name}</strong><small>{app.versionLabel(d)} · {app.phaseLabel(d)}{d.bytes ? " · " + t("{size} received", { size: formatBytes(d.bytes) }) : ""}</small>
-                <div class="bar"><i style:width="{(d.progress ?? 0) * 100}%"></i></div></div>
-              <span>{Math.round((d.progress ?? 0) * 100)}%</span>
-              <button class="btn" aria-label={t("Cancel download")} onclick={() => app.cancel(d)}><Icon name="x" size={14} /></button>
+                <div class="bar" class:unknown={!d.progress}><i style:width="{Math.max(d.progress ?? 0, 0.02) * 100}%"></i></div></div>
+              <!-- the size of some downloads is not known in advance: then there is no percentage to show -->
+              <span class="pct">{d.progress ? Math.round(d.progress * 100) + "%" : d.bytes ? formatBytes(d.bytes) : "…"}</span>
+              <button class="btn" aria-label={t("Stop this download")} title={t("Stop this download")} onclick={() => app.cancel(d)}><Icon name="x" size={14} /> {t("Stop")}</button>
             </div>
           {:else}
             <p class="empty">{t("No active downloads. Install something from Discover.")}</p>
@@ -241,6 +242,9 @@
   .dlinfo small { color: var(--text-faint); }
   .bar { height: 6px; border-radius: 6px; background: var(--stroke); overflow: hidden; margin-top: 6px; }
   .bar i { display: block; height: 100%; background: var(--accent); transition: width .14s linear; }
+  .bar.unknown i { width: 35% !important; animation: slide 1.1s ease-in-out infinite alternate; }
+  .pct { min-width: 4.5rem; text-align: end; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  @keyframes slide { from { transform: translateX(0); } to { transform: translateX(185%); } }
   .note { display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px; border-radius: var(--r-md); }
   .note.fresh { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
   .note .ico { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--surface-hi); color: var(--text-dim); }

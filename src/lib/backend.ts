@@ -54,6 +54,8 @@ export interface MapInfo { name: string; bytes: number; modified: number }
 export interface MapImport { added: string[]; replaced: string[] }
 export const mapsList = () => invoke<MapInfo[]>("maps_list");
 export const mapsImport = (path: string) => invoke<MapImport>("maps_import", { path });
+/** The map's preview picture as the bytes of a .tga file. */
+export const mapsPreview = (name: string) => invoke<ArrayBuffer>("maps_preview", { name });
 export const mapsRemove = (name: string) => invoke<void>("maps_remove", { name });
 export const mapsOpenFolder = () => invoke<void>("maps_open_folder");
 

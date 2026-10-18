@@ -31,7 +31,13 @@
   const selectedInstalled = $derived(mod.versions.some((v) => v.v === selectedVersion && v.installed));
   const latestInstalled = $derived(mod.versions.some((v) => v.v === mod.latest && v.installed));
   const anyInstalled = $derived(mod.versions.some((v) => v.installed));
-  const canInstall = $derived(!!mod.latest && !latestInstalled && mod.id !== "original-game");
+  const selectedInfo = $derived(mod.versions.find((v) => v.v === selectedVersion));
+  /** What the install button does: get the version that is selected (when it is not installed), else update to the newest. */
+  const installTarget = $derived(mod.id === "original-game" ? "" : !selectedInstalled && selectedInfo ? selectedVersion : !latestInstalled ? mod.latest : "");
+  const canInstall = $derived(!!installTarget);
+  /** The picture of the selected version, when the catalog has one for it; else the mod's usual cover. */
+  const heroItem = $derived(selectedInfo?.image ? { ...mod, cover: selectedInfo.image } : mod);
+  const installDirect = $derived(installTarget === mod.latest ? mod.direct : selectedInfo?.direct);
   let renaming = $state(false);
   let draft = $state("");
   function startRename() { draft = selectedVersion; renaming = true; }
@@ -82,7 +88,7 @@
     ondragover={(e) => { e.preventDefault(); dragOver = true; }}
     ondragleave={() => (dragOver = false)}
     ondrop={(e) => { e.preventDefault(); dragOver = false; applyCover(e.dataTransfer?.files[0]); }}>
-    <CoverArt item={mod} pad={34} />
+    <CoverArt item={heroItem} pad={34} />
     <div class="fade"></div>
     <h2><bdi>{modName(mod)}</bdi></h2>
     <div class="cover-actions">
@@ -102,7 +108,6 @@
     {#if mod.summary}<p class="sum">{mod.summary}</p>{/if}
 
     <div class="row2">
-      <span class="lbl">{t("Version")}</span>
       {#if renaming}
         <!-- svelte-ignore a11y_autofocus -->
         <input class="rename" aria-label={t("New name for this version")} bind:value={draft} autofocus
@@ -138,8 +143,8 @@
           <button class="btn" onclick={() => app.cancel(mod)}><Icon name="x" size={13} /> {t("Cancel")}</button></div>
       </div>
     {:else if canInstall}
-      <button class="btn primary wide" title={mod.direct ? t("Direct download: published by the author, installs with one click") : undefined} onclick={() => app.install(mod)}>
-        <Icon name={mod.direct ? "bolt" : "download"} size={16} /> {anyInstalled ? t("Update to {version}", { version: mod.latest }) : t("Install {version}", { version: mod.latest })}
+      <button class="btn primary wide" title={installDirect ? t("Direct download: published by the author, installs with one click") : undefined} onclick={() => app.install(mod, installTarget)}>
+        <Icon name={installDirect ? "bolt" : "download"} size={16} /> {anyInstalled && installTarget === mod.latest ? t("Update to {version}", { version: installTarget }) : t("Install {version}", { version: installTarget })}
       </button>
     {/if}
 
@@ -199,7 +204,6 @@
   .body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 14px; min-height: 0; flex: 1; }
   .sum { color: var(--text-dim); }
   .row2 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .row2 .lbl { color: var(--text-faint); font-size: 12px; }
   .icon { padding: 8px; }
   .icon.danger:hover { color: var(--danger); border-color: var(--danger); }
   .wide { width: 100%; justify-content: center; }

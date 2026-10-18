@@ -76,6 +76,24 @@ pub fn list(dir: &Path) -> Vec<MapInfo> {
     out
 }
 
+/// The preview picture of a map: `<Name>/<Name>.tga` (the file is returned as it is; the interface decodes it).
+pub fn preview(dir: &Path, name: &str) -> Result<Vec<u8>> {
+    let single = {
+        let mut c = Path::new(name).components();
+        matches!((c.next(), c.next()), (Some(std::path::Component::Normal(_)), None))
+    };
+    if !single {
+        return Err(Error::msg("not a map name"));
+    }
+    let folder = dir.join(name);
+    let wanted = format!("{}.tga", name.to_lowercase());
+    let file = fs::read_dir(&folder)?.flatten().find(|e| e.file_name().to_string_lossy().to_lowercase() == wanted).ok_or_else(|| Error::msg("this map has no preview"))?;
+    if file.metadata()?.len() > 8 * 1024 * 1024 {
+        return Err(Error::msg("the preview is too large"));
+    }
+    Ok(fs::read(file.path())?)
+}
+
 /// Delete one map (its folder). The name must be a plain folder name inside `dir`.
 pub fn remove(dir: &Path, name: &str) -> Result<()> {
     let single = {
@@ -229,6 +247,17 @@ mod tests {
         assert_eq!(import_tree(src.path(), dst.path()).unwrap().added, ["Delta"]);
         let again = import_tree(src.path(), dst.path()).unwrap();
         assert!(again.added.is_empty() && again.replaced == ["Delta"]);
+    }
+
+    #[test]
+    fn a_preview_is_read_from_the_maps_own_folder() {
+        let d = tempfile::tempdir().unwrap();
+        put(d.path(), "Eta/Eta.map");
+        put(d.path(), "Eta/ETA.TGA");
+        put(d.path(), "Theta/Theta.map");
+        assert_eq!(preview(d.path(), "Eta").unwrap(), b"data");
+        assert!(preview(d.path(), "Theta").is_err(), "no picture");
+        assert!(preview(d.path(), "../Eta").is_err());
     }
 
     #[test]
