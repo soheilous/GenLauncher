@@ -13,6 +13,7 @@
   import OptionsDialog from "$lib/components/OptionsDialog.svelte";
   import HealthDialog from "$lib/components/HealthDialog.svelte";
   import MapsView from "$lib/components/MapsView.svelte";
+  import SavesView from "$lib/components/SavesView.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { formatBytes } from "$lib/guess";
   import { i18n, t } from "$lib/i18n/index.svelte";
@@ -82,7 +83,7 @@
     <main>
       <header class="top">
         <div>
-          <h1>{app.view === "library" ? t("Library") : app.view === "discover" ? t("Discover") : app.view === "maps" ? t("Maps") : app.view === "notifications" ? t("Notifications") : t("Downloads")}</h1>
+          <h1>{app.view === "library" ? t("Library") : app.view === "discover" ? t("Discover") : app.view === "maps" ? t("Maps") : app.view === "saves" ? t("Saved games and replays") : app.view === "notifications" ? t("Notifications") : t("Downloads")}</h1>
           <p>
             {#if app.view === "notifications"}
               {app.unread ? t("{n} unread", { n: app.unread }) : t("Everything you were told, newest first")}
@@ -166,6 +167,8 @@
         </div>
       {:else if app.view === "maps"}
         <MapsView />
+      {:else if app.view === "saves"}
+        <SavesView />
       {:else if app.view === "notifications"}
         <div class="scroll">
           {#each app.notices as n (n.id)}

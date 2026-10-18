@@ -137,6 +137,7 @@
   h2 { font-size: 20px; }
   h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); margin: 18px 0 4px; }
   .line { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--stroke); }
+  .line > .btn, .line > .pair { flex: none; white-space: nowrap; }
   .seg { display: flex; padding: 3px; gap: 3px; border-radius: 999px; background: var(--surface); border: 1px solid var(--stroke); }
   .seg button { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 13px; color: var(--text-dim); }
   .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }

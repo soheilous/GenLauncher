@@ -78,6 +78,8 @@ export interface Settings {
   useVulkan: boolean;
   /** Programs started together with the game. */
   extraPrograms: { path: string; onlyWindowed: boolean }[];
+  /** Keep each mod version's saved games and replays apart. */
+  savesByMod: boolean;
   activeMod: string | null;
   enabled: string[];
   chosenVersions: Record<string, string>;

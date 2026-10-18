@@ -1,5 +1,5 @@
 import {
-  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, gamedataList, gamedataBackup, gamedataRestore, gamedataDelete, gamedataOpenFolder, type GameDataBackup, onExtraProgramFailed, osNotify, mapsList, mapsImport, mapsRemove, mapsOpenFolder, pickArchiveFile, pickModFolder as pickFolderForMaps, type MapInfo, takePendingPlay, launcherCommand, createShortcut, onPlayPreset, healthCheck, healthFix, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, profilesList, profileFiles, profileMove, profileDelete, profileOpen, type SaveProfile, type SaveFile, gamedataList, gamedataBackup, gamedataRestore, gamedataDelete, gamedataOpenFolder, type GameDataBackup, onExtraProgramFailed, osNotify, mapsList, mapsImport, mapsRemove, mapsOpenFolder, pickArchiveFile, pickModFolder as pickFolderForMaps, type MapInfo, takePendingPlay, launcherCommand, createShortcut, onPlayPreset, healthCheck, healthFix, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
@@ -29,7 +29,7 @@ export interface AddPreset {
   askType?: boolean;
 }
 
-export type View = "library" | "discover" | "maps" | "downloads" | "notifications";
+export type View = "library" | "discover" | "maps" | "saves" | "downloads" | "notifications";
 /** The catalog's community-fixed game executable (an executable of the original game). */
 const COMMUNITY_BUILD = "original-game/exe/community-build";
 
@@ -47,7 +47,7 @@ const PLACEHOLDER: Item = {
 const DEFAULT_SETTINGS: Settings = {
   windowed: true, quickStart: true, cameraHeight: 0, gameParams: "", checkModFiles: true, askBeforeCheck: true,
   hideLauncherWhilePlaying: false, gentoolAutoUpdate: true, autoDeleteOldVersions: false, moddedExe: true,
-  useVulkan: false, extraPrograms: [], activeMod: null, enabled: [], chosenVersions: {},
+  useVulkan: false, extraPrograms: [], savesByMod: false, activeMod: null, enabled: [], chosenVersions: {},
 };
 
 function load<T>(key: string, fallback: T): T {
@@ -632,6 +632,65 @@ class AppState {
 
   /** Replace this launcher's settings with those from a file (asks first), then restart the screen. */
   backups = $state<Backup[]>([]);
+
+  // --- saved games and replays per mod version ---
+  get savesByMod() { return this.rest.savesByMod ?? false; }
+  setSavesByMod(v: boolean) { this.rest = { ...this.rest, savesByMod: v }; this.persist(); void this.refreshProfiles(); }
+  profiles = $state<SaveProfile[]>([]);
+  profileSelected = $state("");
+  profileFileList = $state<SaveFile[]>([]);
+
+  /** What a profile key means to the user: "Contra 009 Beta 3", "Original Game", or the files from before the launcher kept them apart. */
+  profileLabel(key: string): string {
+    if (key === "everything-before") return t("Everything from before the launcher kept them apart");
+    if (key === "original-game") return t("Original Game");
+    const at = key.indexOf("@");
+    const id = at < 0 ? key : key.slice(0, at);
+    const mod = this.mods.find((m) => m.id === id);
+    return at < 0 ? (mod?.name ?? key) : `${mod?.name ?? id} ${key.slice(at + 1)}`;
+  }
+
+  /** The profiles one can put a save into: every one that exists, and every installed mod version. */
+  profileTargets(): string[] {
+    const keys = new Set(this.profiles.map((p) => p.key));
+    keys.add("original-game");
+    for (const m of this.mods) for (const v of m.versions) if (v.installed && m.id !== "original-game") keys.add(`${m.id}@${v.v}`);
+    return [...keys];
+  }
+
+  async refreshProfiles() {
+    if (!isTauri) {
+      this.profiles = [{ key: "contra@009 Beta 3", active: true, saves: 3, replays: 12, bytes: 2_400_000, modified: 1_760_000_000 }, { key: "everything-before", active: false, saves: 7, replays: 31, bytes: 9_100_000, modified: 1_750_000_000 }];
+    } else {
+      try { this.profiles = await profilesList(); } catch (e) { this.say(errText(e), "error"); return; }
+    }
+    if (!this.profiles.some((p) => p.key === this.profileSelected)) this.profileSelected = this.profiles[0]?.key ?? "";
+    await this.refreshProfileFiles();
+  }
+
+  async selectProfile(key: string) { this.profileSelected = key; await this.refreshProfileFiles(); }
+
+  async refreshProfileFiles() {
+    if (!this.profileSelected) { this.profileFileList = []; return; }
+    if (!isTauri) { this.profileFileList = [{ kind: "save", name: "Mission 3.sav", bytes: 410_000, modified: 1_760_000_000 }, { kind: "replay", name: "Last Replay.rep", bytes: 120_000, modified: 1_759_000_000 }]; return; }
+    try { this.profileFileList = await profileFiles(this.profileSelected); } catch { this.profileFileList = []; }
+  }
+
+  async moveSaveFile(f: SaveFile, to: string) {
+    if (!to || to === this.profileSelected) return;
+    if (!isTauri) { this.say(t("Moving works in the desktop app.")); return; }
+    try { await profileMove(this.profileSelected, f.kind, f.name, to); await this.refreshProfiles(); } catch (e) { this.say(errText(e), "error"); }
+  }
+
+  async deleteSaveFile(f: SaveFile) {
+    if (!(await confirmDialog(t("Delete {name} from your computer?", { name: f.name }), t("Delete {name}", { name: f.name }), t("Delete"), t("Keep")))) return;
+    if (!isTauri) { this.profileFileList = this.profileFileList.filter((x) => x !== f); return; }
+    try { await profileDelete(this.profileSelected, f.kind, f.name); await this.refreshProfiles(); } catch (e) { this.say(errText(e), "error"); }
+  }
+
+  async openProfileFolder() {
+    try { await profileOpen(this.profileSelected); } catch (e) { this.say(errText(e), "error"); }
+  }
 
   // --- the game's saved games, replays and settings ---
   gameData = $state<GameDataBackup[]>([]);

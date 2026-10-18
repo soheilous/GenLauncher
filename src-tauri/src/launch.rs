@@ -27,6 +27,23 @@ pub struct Resolved {
     pub helpers: Vec<String>,
 }
 
+/// The profile (see `profiles`) a launch belongs to: the mod and the version that will be used (`original-game` for the stock game).
+pub fn profile_key(settings: &Settings, disk: &[InstalledMod]) -> String {
+    let mod_id = settings.active_mod.as_deref().filter(|m| !m.is_empty()).unwrap_or(ORIGINAL_GAME_ID);
+    if mod_id == ORIGINAL_GAME_ID {
+        return mod_id.to_string();
+    }
+    let version = disk
+        .iter()
+        .find(|d| slug(&d.name) == mod_id)
+        .filter(|m| !m.versions.is_empty())
+        .map(|m| settings.chosen_versions.get(mod_id).and_then(|want| m.versions.iter().find(|v| v.eq_ignore_ascii_case(want))).unwrap_or(&m.versions[0]).clone());
+    match version {
+        Some(v) => format!("{mod_id}@{v}"),
+        None => mod_id.to_string(),
+    }
+}
+
 /// `exe_infos`: catalog records of the active mod's executables, keyed by item id.
 pub fn resolve(
     game_dir: &Path,
@@ -265,6 +282,16 @@ mod tests {
         let s = settings("contra", &["contra/patch/hotfix", "contra/patch/other"]);
         let err = resolve(&PathBuf::from("G"), &s, &disk(), &HashMap::new(), Target::Game).unwrap_err();
         assert!(err.to_string().contains("one patch"));
+    }
+
+    #[test]
+    fn the_profile_of_a_launch_is_the_mod_and_its_chosen_or_newest_version() {
+        let mut s = settings("contra", &[]);
+        assert_eq!(profile_key(&s, &disk()), "contra@10.0");
+        s.chosen_versions.insert("contra".into(), "9.0".into());
+        assert_eq!(profile_key(&s, &disk()), "contra@9.0");
+        assert_eq!(profile_key(&settings("", &[]), &disk()), "original-game");
+        assert_eq!(profile_key(&settings("ghost", &[]), &disk()), "ghost");
     }
 
     #[test]

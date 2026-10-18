@@ -13,7 +13,7 @@ use crate::error::{Error, Result};
 use crate::game::Game;
 
 /// What is saved (relative to the data folder): two folders and two files.
-const FOLDERS: &[&str] = &["Save", "Replays"];
+const FOLDERS: &[&str] = &["Save", "Replays", "GenLauncher Profiles"];
 const FILES: &[&str] = &["Options.ini", "Skirmish.ini"];
 const KEEP: usize = 12;
 

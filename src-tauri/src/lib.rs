@@ -24,6 +24,7 @@ pub mod index;
 pub mod migrate;
 pub mod plan;
 pub mod presets;
+pub mod profiles;
 pub mod record;
 pub mod store;
 pub mod update;
@@ -640,12 +641,22 @@ async fn begin_session(app: &AppHandle, state: &AppState, target: Target) -> Res
     let settings: Settings = store::load(&settings_path(&install));
     let (dir, game) = (install.dir.clone(), install.game);
 
+    // saved games and replays per mod: only when it is switched on and only for the game itself
+    let profile_dir = if settings.saves_by_mod && target == Target::Game {
+        app.path().document_dir().ok().map(|d| gamedata::data_dir(&d, game))
+    } else {
+        None
+    };
     let resolved = {
-        let (dir, settings) = (dir.clone(), settings.clone());
+        let (dir, settings, profile_dir) = (dir.clone(), settings.clone(), profile_dir.clone());
         blocking(move || {
             // Clear anything an earlier session left behind before planning on top of it.
             journal::recover(&dir)?;
             let disk = library::scan(&dir);
+            if let Some(data) = &profile_dir {
+                // this mod version's saved games and replays go where the game looks (moves, never copies or deletes)
+                profiles::activate(data, &launch::profile_key(&settings, &disk))?;
+            }
             let resolved = launch::resolve(&dir, &settings, &disk, &exe_infos, target)?;
             let ops = plan::build(&dir, game, &resolved.layers, settings.camera_height)?;
             journal::apply(&dir, ops)?;
@@ -1127,6 +1138,52 @@ async fn gamedata_open_folder(app: AppHandle, state: State<'_, AppState>) -> Res
     app.opener().open_path(data.to_string_lossy(), None::<&str>).map_err(|e| Error::msg(format!("Could not open the folder: {e}")))
 }
 
+async fn profile_data_dir(app: &AppHandle, state: &AppState) -> Result<PathBuf> {
+    let game = require_install(&*state.inner.lock().await)?.game;
+    let documents = app.path().document_dir().map_err(|e| Error::msg(format!("Could not find your Documents folder: {e}")))?;
+    Ok(gamedata::data_dir(&documents, game))
+}
+
+/// The saved-game profiles (one per mod version), with how many saves and replays each holds.
+#[tauri::command]
+async fn profiles_list(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<profiles::Profile>> {
+    let data = profile_data_dir(&app, &state).await?;
+    blocking(move || Ok(profiles::list(&data))).await
+}
+
+#[tauri::command]
+async fn profile_files(app: AppHandle, state: State<'_, AppState>, key: String) -> Result<Vec<profiles::FileInfo>> {
+    let data = profile_data_dir(&app, &state).await?;
+    blocking(move || Ok(profiles::files(&data, &key))).await
+}
+
+#[tauri::command]
+async fn profile_move(app: AppHandle, state: State<'_, AppState>, from: String, kind: String, name: String, to: String) -> Result<()> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game first"));
+    }
+    let data = profile_data_dir(&app, &state).await?;
+    blocking(move || profiles::move_file(&data, &from, &kind, &name, &to)).await
+}
+
+#[tauri::command]
+async fn profile_delete(app: AppHandle, state: State<'_, AppState>, key: String, kind: String, name: String) -> Result<()> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game first"));
+    }
+    let data = profile_data_dir(&app, &state).await?;
+    blocking(move || profiles::delete_file(&data, &key, &kind, &name)).await
+}
+
+#[tauri::command]
+async fn profile_open(app: AppHandle, state: State<'_, AppState>, key: String) -> Result<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let data = profile_data_dir(&app, &state).await?;
+    let path = profiles::open_path(&data, &key);
+    std::fs::create_dir_all(&path)?;
+    app.opener().open_path(path.to_string_lossy(), None::<&str>).map_err(|e| Error::msg(format!("Could not open the folder: {e}")))
+}
+
 /// Look for the usual causes of a game that will not start or mods that look wrong.
 #[tauri::command]
 async fn health_check(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<health::Finding>> {
@@ -1408,7 +1465,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, google_status, google_sign_in, google_sign_out, cloud_backup_create, cloud_backup_list, cloud_backup_delete, cloud_backup_restore, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
-            uninstall_version, rename_version, health_check, health_fix, maps_list, maps_import, maps_remove, maps_preview, maps_open_folder, gamedata_list, gamedata_backup, gamedata_restore, gamedata_delete, gamedata_open_folder, open_browser, close_browser, open_item_folder, update_check, update_install,
+            uninstall_version, rename_version, health_check, health_fix, maps_list, maps_import, maps_remove, maps_preview, maps_open_folder, gamedata_list, gamedata_backup, gamedata_restore, gamedata_delete, gamedata_open_folder, profiles_list, profile_files, profile_move, profile_delete, profile_open, open_browser, close_browser, open_item_folder, update_check, update_install,
             background::background_set, background::autostart_status, background::autostart_set, background::os_notify,
             presets::take_pending_play, presets::launcher_command, presets::create_shortcut
         ])

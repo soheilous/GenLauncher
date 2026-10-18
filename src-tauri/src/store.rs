@@ -65,6 +65,8 @@ pub struct Settings {
     pub use_vulkan: bool,
     /// Programs started together with the game.
     pub extra_programs: Vec<ExtraProgram>,
+    /// Keep each mod version's saved games and replays apart (see `profiles`).
+    pub saves_by_mod: bool,
     pub active_mod: Option<String>,
     /// Ids of enabled patches / addons / executables (see `catalog::item_id`).
     pub enabled: Vec<String>,
@@ -87,6 +89,7 @@ impl Default for Settings {
             modded_exe: true,
             use_vulkan: false,
             extra_programs: Vec::new(),
+            saves_by_mod: false,
             active_mod: None,
             enabled: Vec::new(),
             chosen_versions: HashMap::new(),

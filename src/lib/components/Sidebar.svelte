@@ -8,6 +8,7 @@
     { id: "library", label: N("Library"), icon: "library" },
     { id: "discover", label: N("Discover"), icon: "discover" },
     { id: "maps", label: N("Maps"), icon: "map" },
+    { id: "saves", label: N("Saves"), icon: "save" },
     { id: "downloads", label: N("Downloads"), icon: "download" },
     { id: "notifications", label: N("Notifications"), icon: "bell" },
   ];

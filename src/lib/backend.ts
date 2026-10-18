@@ -48,6 +48,16 @@ export const gamedataRestore = (name: string) => invoke<void>("gamedata_restore"
 export const gamedataDelete = (name: string) => invoke<void>("gamedata_delete", { name });
 export const gamedataOpenFolder = () => invoke<void>("gamedata_open_folder");
 
+// ---- saved games and replays per mod version ----
+
+export interface SaveProfile { key: string; active: boolean; saves: number; replays: number; bytes: number; modified: number }
+export interface SaveFile { kind: "save" | "replay"; name: string; bytes: number; modified: number }
+export const profilesList = () => invoke<SaveProfile[]>("profiles_list");
+export const profileFiles = (key: string) => invoke<SaveFile[]>("profile_files", { key });
+export const profileMove = (from: string, kind: string, name: string, to: string) => invoke<void>("profile_move", { from, kind, name, to });
+export const profileDelete = (key: string, kind: string, name: string) => invoke<void>("profile_delete", { key, kind, name });
+export const profileOpen = (key: string) => invoke<void>("profile_open", { key });
+
 // ---- custom maps ----
 
 export interface MapInfo { name: string; bytes: number; modified: number }
