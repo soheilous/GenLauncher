@@ -29,7 +29,7 @@ export interface AddPreset {
   askType?: boolean;
 }
 
-export type View = "library" | "discover" | "maps" | "saves" | "downloads" | "notifications";
+export type View = "library" | "discover" | "maps" | "saves" | "replays" | "downloads" | "notifications";
 /** The catalog's community-fixed game executable (an executable of the original game). */
 const COMMUNITY_BUILD = "original-game/exe/community-build";
 

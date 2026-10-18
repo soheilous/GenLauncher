@@ -5,9 +5,11 @@
   import Select from "./Select.svelte";
   import Toggle from "./Toggle.svelte";
   import { formatBytes } from "$lib/guess";
-  import { i18n, t } from "$lib/i18n/index.svelte";
+  import { i18n, t, tn } from "$lib/i18n/index.svelte";
 
+  let { kind }: { kind: "save" | "replay" } = $props();
   $effect(() => { void app.refreshProfiles(); });
+  const files = $derived(app.profileFileList.filter((f) => f.kind === kind));
   const when = (secs: number) => (secs ? i18n.date(secs * 1000) : "");
   const targets = $derived(app.profileTargets().filter((k) => k !== app.profileSelected));
   const targetOptions = $derived([{ value: "", label: t("Move to…") }, ...targets.map((k) => ({ value: k, label: app.profileLabel(k) }))]);
@@ -34,11 +36,11 @@
       {#each app.profiles as p (p.key)}
         <button class="glass profile" class:on={p.key === app.profileSelected} onclick={() => app.selectProfile(p.key)}>
           <strong><bdi>{app.profileLabel(p.key)}</bdi></strong>
-          <small>{t("{saves} saved games, {replays} replays", { saves: p.saves, replays: p.replays })} · {formatBytes(p.bytes)}</small>
+          <small>{kind === "save" ? tn(p.saves, "{n} saved game", "{n} saved games") : tn(p.replays, "{n} replay", "{n} replays")}</small>
           {#if p.active}<span class="chip ok">{t("In the game's folder now")}</span>{/if}
         </button>
       {:else}
-        <p class="empty">{t("No saved games or replays yet.")}</p>
+        <p class="empty">{kind === "save" ? t("No saved games yet.") : t("No replays yet.")}</p>
       {/each}
     </div>
 
@@ -48,7 +50,7 @@
           <h3><bdi>{app.profileLabel(app.profileSelected)}</bdi></h3>
           {#if isTauri}<button class="btn" onclick={() => app.openProfileFolder()}><Icon name="folder" size={14} /> {t("Open the folder")}</button>{/if}
         </div>
-        {#each app.profileFileList as f (f.kind + f.name)}
+        {#each files as f (f.kind + f.name)}
           <div class="glass row">
             <span class="kind" title={f.kind === "save" ? t("Saved game") : t("Replay")}><Icon name={f.kind === "save" ? "save" : "play"} size={14} /></span>
             <div class="who"><strong><bdi>{f.name}</bdi></strong><small>{formatBytes(f.bytes)}{f.modified ? " · " + when(f.modified) : ""}</small></div>

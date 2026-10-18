@@ -84,7 +84,7 @@
     <main>
       <header class="top">
         <div>
-          <h1>{app.view === "library" ? t("Library") : app.view === "discover" ? t("Discover") : app.view === "maps" ? t("Maps") : app.view === "saves" ? t("Saved games and replays") : app.view === "notifications" ? t("Notifications") : t("Downloads")}</h1>
+          <h1>{app.view === "library" ? t("Library") : app.view === "discover" ? t("Discover") : app.view === "maps" ? t("Maps") : app.view === "saves" ? t("Saved games") : app.view === "replays" ? t("Replays") : app.view === "notifications" ? t("Notifications") : t("Downloads")}</h1>
           <p>
             {#if app.view === "notifications"}
               {app.unread ? t("{n} unread", { n: app.unread }) : t("Everything you were told, newest first")}
@@ -183,7 +183,9 @@
       {:else if app.view === "maps"}
         <MapsView />
       {:else if app.view === "saves"}
-        <SavesView />
+        <SavesView kind="save" />
+      {:else if app.view === "replays"}
+        <SavesView kind="replay" />
       {:else if app.view === "notifications"}
         <div class="scroll">
           {#each app.notices as n (n.id)}
