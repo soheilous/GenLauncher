@@ -415,6 +415,7 @@ class AppState {
 
   private applySettings(s: Settings) {
     this.rest = { ...s };
+    this.savesByMod = s.savesByMod ?? false;
     this.windowed = s.windowed;
     this.quickStart = s.quickStart;
     this.cameraHeight = s.cameraHeight;
@@ -548,6 +549,7 @@ class AppState {
   private currentSettings(): Settings {
     return {
       ...this.rest,
+      savesByMod: this.savesByMod,
       windowed: this.windowed,
       quickStart: this.quickStart,
       cameraHeight: this.cameraHeight,
@@ -634,8 +636,9 @@ class AppState {
   backups = $state<Backup[]>([]);
 
   // --- saved games and replays per mod version ---
-  get savesByMod() { return this.rest.savesByMod ?? false; }
-  setSavesByMod(v: boolean) { this.rest = { ...this.rest, savesByMod: v }; this.persist(); void this.refreshProfiles(); }
+  /** (a $state of its own: `rest` is a plain object, so a switch bound to it would not redraw) */
+  savesByMod = $state(false);
+  setSavesByMod(v: boolean) { this.savesByMod = v; this.persist(); void this.refreshProfiles(); }
   profiles = $state<SaveProfile[]>([]);
   profileSelected = $state("");
   profileFileList = $state<SaveFile[]>([]);
