@@ -112,25 +112,29 @@
         <!-- svelte-ignore a11y_autofocus -->
         <input class="rename" aria-label={t("New name for this version")} bind:value={draft} autofocus
           onkeydown={(e) => { if (e.key === "Enter") void finishRename(); else if (e.key === "Escape") renaming = false; }} />
-        <button class="btn icon" title={t("Save the name")} aria-label={t("Save the name")} onclick={() => finishRename()}><Icon name="check" size={15} /></button>
-        <button class="btn icon" title={t("Cancel")} aria-label={t("Cancel")} onclick={() => (renaming = false)}><Icon name="x" size={15} /></button>
+        <div class="rename-actions">
+          <button class="btn" onclick={() => (renaming = false)}><Icon name="x" size={14} /> {t("Cancel")}</button>
+          <button class="btn primary" title={t("Save the name")} onclick={() => finishRename()}><Icon name="check" size={14} /> {t("Save")}</button>
+        </div>
       {:else}
         <Select label={t("Version")} options={versionOptions} value={selectedVersion} onchange={(v) => app.setChosenVersion(mod.id, v)} />
       {/if}
-      {#if pageUrl}
+      {#if pageUrl && !renaming}
         <button class="btn icon" title={pageLabel} aria-label={pageLabel} onclick={() => app.openPage(pageUrl)}><Icon name="link" size={15} /></button>
       {/if}
-      {#if versionPage && selectedInstalled}
+      {#if versionPage && selectedInstalled && !renaming}
         <button class="btn icon" title={t("Check for a newer version (opens the page this version came from)")} aria-label={t("Check for a newer version")}
           onclick={() => app.checkForUpdate(mod, versionPage)}><Icon name="refresh" size={15} /></button>
       {/if}
+      {#if !renaming}
       <button class="btn icon" title={anyInstalled || mod.id === "original-game" ? t("Show the installed files") : t("Not installed yet")}
         aria-label={t("Show the installed files")} disabled={!anyInstalled && mod.id !== "original-game"}
         onclick={() => app.openFolder(mod, selectedVersion)}><Icon name="folder" size={15} /></button>
+      {/if}
       {#if canRemove && !renaming}
         <button class="btn icon" title={t("Rename this version")} aria-label={t("Rename this version")} disabled={mod.progress !== undefined} onclick={startRename}><Icon name="edit" size={15} /></button>
       {/if}
-      {#if canRemove}
+      {#if canRemove && !renaming}
         <button class="btn icon danger" title={t("Remove version {version}", { version: selectedVersion })} aria-label={t("Remove version {version}", { version: selectedVersion })}
           disabled={mod.progress !== undefined} onclick={() => app.uninstall(mod, selectedVersion)}><Icon name="trash" size={15} /></button>
       {/if}
@@ -215,7 +219,8 @@
   .meter.unknown i { width: 35% !important; animation: slide 1.1s ease-in-out infinite alternate; }
   @keyframes slide { from { transform: translateX(0); } to { transform: translateX(185%); } }
   button.chip { cursor: pointer; }
-  .rename { flex: 1; min-width: 0; height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--accent); background: var(--surface); color: var(--text); font: inherit; outline: none; }
+  .rename-actions { flex: 1 1 100%; display: flex; justify-content: flex-end; gap: 8px; }
+  .rename { flex: 1 1 100%; min-width: 0; height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--accent); background: var(--surface); color: var(--text); font: inherit; outline: none; }
   .chip.trash { padding: 6px; display: inline-grid; place-items: center; }
   .chip.trash:hover { color: var(--danger); border-color: var(--danger); }
   .row:has(.trash) { gap: 8px; }
