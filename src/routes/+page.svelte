@@ -13,6 +13,7 @@
   import OptionsDialog from "$lib/components/OptionsDialog.svelte";
   import HealthDialog from "$lib/components/HealthDialog.svelte";
   import MapsView from "$lib/components/MapsView.svelte";
+  import MapOffers from "$lib/components/MapOffers.svelte";
   import SavesView from "$lib/components/SavesView.svelte";
   import Icon from "$lib/components/Icon.svelte";
   import { formatBytes } from "$lib/guess";
@@ -99,9 +100,15 @@
           <div class="tools">
             <label class="search glass">
               <Icon name="search" size={16} />
-              <input placeholder={t("Search mods")} bind:value={app.search} aria-label={t("Search mods")} />
+              <input placeholder={app.view === "discover" && app.discoverKind === "maps" ? t("Search maps") : t("Search mods")} bind:value={app.search} aria-label={t("Search")} />
             </label>
-            <div class="sortbox">
+            {#if app.view === "discover"}
+              <div class="seg" role="group" aria-label={t("What to look for")}>
+                <button class:on={app.discoverKind === "mods"} aria-pressed={app.discoverKind === "mods"} onclick={() => app.showDiscover("mods")}>{t("Mods")}</button>
+                <button class:on={app.discoverKind === "maps"} aria-pressed={app.discoverKind === "maps"} onclick={() => app.showDiscover("maps")}>{t("Maps")}</button>
+              </div>
+            {/if}
+            <div class="sortbox" style:display={app.view === "discover" && app.discoverKind === "maps" ? "none" : undefined}>
               {#if app.view === "library"}
                 <Select label={t("Sort")} value={app.librarySort} onchange={(v) => app.setLibrarySort(v as LibrarySort)} options={[
                   { value: "name", label: t("Name (A to Z)") }, { value: "nameDesc", label: t("Name (Z to A)") },
@@ -119,7 +126,11 @@
             {#if app.view === "library" && app.updatable.length}
               <button class="btn" title={t("Update everything that has a newer version and a direct download")} onclick={() => app.updateAll()}><Icon name="bolt" size={16} /> {t("Update all ({n})", { n: app.updatable.length })}</button>
             {/if}
-            <button class="btn primary" onclick={() => app.openAdd("mod")}><Icon name="plus" size={16} /> {t("Add mod")}</button>
+            {#if app.view === "discover" && app.discoverKind === "maps"}
+              <button class="btn primary" onclick={() => (app.view = "maps")}><Icon name="plus" size={16} /> {t("Add maps from a file…")}</button>
+            {:else}
+              <button class="btn primary" onclick={() => app.openAdd("mod")}><Icon name="plus" size={16} /> {t("Add mod")}</button>
+            {/if}
           </div>
         {:else if app.phase === "ready" && app.view === "notifications"}
           <div class="tools">
@@ -160,10 +171,14 @@
         <LaunchBar />
       {:else if app.view === "discover"}
         <div class="scroll">
-          <div class="grid">
-            {#each app.availableMods as m (m.id)}<ModCard mod={m} discover />{/each}
-          </div>
-          {#if app.availableMods.length === 0}<p class="empty">{t("Everything available is already installed.")}</p>{/if}
+          {#if app.discoverKind === "maps"}
+            <MapOffers />
+          {:else}
+            <div class="grid">
+              {#each app.availableMods as m (m.id)}<ModCard mod={m} discover />{/each}
+            </div>
+            {#if app.availableMods.length === 0}<p class="empty">{t("Everything available is already installed.")}</p>{/if}
+          {/if}
         </div>
       {:else if app.view === "maps"}
         <MapsView />
@@ -196,9 +211,18 @@
               <span class="pct">{d.progress ? Math.round(d.progress * 100) + "%" : d.bytes ? formatBytes(d.bytes) : "…"}</span>
               <button class="btn" aria-label={t("Stop this download")} title={t("Stop this download")} onclick={() => app.cancel(d)}><Icon name="x" size={14} /> {t("Stop")}</button>
             </div>
-          {:else}
-            <p class="empty">{t("No active downloads. Install something from Discover.")}</p>
           {/each}
+          {#each app.mapJobList as j (j.id)}
+            <div class="glass dl">
+              <div class="dlinfo"><strong>{j.name}</strong><small>{t("Maps")} · {j.p ? app.phaseLabel(j.p) : t("Preparing")}{j.p && !j.p.total && j.p.done ? " · " + t("{size} received", { size: formatBytes(j.p.done) }) : ""}</small>
+                <div class="bar" class:unknown={!j.p?.total}><i style:width="{Math.max(j.p?.total ? j.p.done / j.p.total : 0, 0.02) * 100}%"></i></div></div>
+              <span class="pct">{j.p?.total ? Math.round((j.p.done / j.p.total) * 100) + "%" : "…"}</span>
+              <button class="btn" aria-label={t("Stop this download")} title={t("Stop this download")} onclick={() => app.cancelMapJob(j.id)}><Icon name="x" size={14} /> {t("Stop")}</button>
+            </div>
+          {/each}
+          {#if !app.downloading.length && !app.mapJobList.length}
+            <p class="empty">{t("No active downloads. Install something from Discover.")}</p>
+          {/if}
         </div>
       {/if}
     </main>
@@ -240,6 +264,9 @@
   .big-logo { width: 56px; height: 56px; border-radius: 18px; margin: 0 auto; }
   .skeleton { height: 190px; border-radius: var(--r-md); animation: pulse 1.4s ease-in-out infinite; box-shadow: none; }
   @keyframes pulse { 50% { opacity: .45; } }
+  .seg { display: flex; padding: 3px; gap: 3px; border-radius: 999px; background: var(--surface); border: 1px solid var(--stroke); }
+  .seg button { padding: 6px 14px; border-radius: 999px; font-size: 13px; color: var(--text-dim); }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
   .dl { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: var(--r-md); }
   .dlinfo { flex: 1; display: flex; flex-direction: column; gap: 4px; }
   .dlinfo small { color: var(--text-faint); }

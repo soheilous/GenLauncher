@@ -139,6 +139,28 @@ pub struct Extras {
     pub addons: Vec<Entry>,
 }
 
+/// A custom map or a map pack offered in the Maps section of Discover.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MapEntry {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Where the author publishes it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub page: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    /// A direct download the author published (an archive with the maps in it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub download: Option<Download>,
+    /// The folder inside the archive that holds the maps to add (the rest of it, such as unfinished maps and documents, is left alone).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subfolder: Option<String>,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Index {
@@ -150,6 +172,8 @@ pub struct Index {
     pub mods: Vec<ModEntry>,
     pub original_game: Extras,
     pub executables: Vec<ExeEntry>,
+    /// Custom maps and map packs.
+    pub maps: Vec<MapEntry>,
 }
 
 /// A message from the project, shown in the launcher's Notifications page (`catalog/announcements.json` in the catalog repository).

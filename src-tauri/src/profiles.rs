@@ -223,6 +223,59 @@ pub fn delete_file(data: &Path, key: &str, kind: &str, name: &str) -> Result<()>
     Ok(())
 }
 
+#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
+pub struct MergeReport {
+    pub moved: u32,
+    /// Files that met a file of the same name and were kept under another name.
+    pub renamed: u32,
+}
+
+/// A name for `name` that is free in `dir`: `name`, else `stem (2).ext`, `stem (3).ext`...
+fn free_name(dir: &Path, name: &str) -> String {
+    if !dir.join(name).exists() {
+        return name.to_string();
+    }
+    let p = Path::new(name);
+    let stem = p.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+    let ext = p.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
+    (2..).map(|n| format!("{stem} ({n}){ext}")).find(|c| !dir.join(c).exists()).unwrap_or_else(|| name.to_string())
+}
+
+/// Bring every set together into `into`, which becomes the one set in the game's folders. Nothing is deleted; a file whose name is
+/// already taken keeps both (the incoming one gets ` (2)`). The emptied set folders are removed.
+pub fn merge_into(data: &Path, into: &str) -> Result<MergeReport> {
+    let into = clean_key(into);
+    activate(data, &into)?; // the game's folders are now `into`'s
+    let mut report = MergeReport::default();
+    let others: Vec<PathBuf> = fs::read_dir(root(data))?
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+        .map(|e| e.path())
+        .collect();
+    for set in others {
+        for kind in [SAVE, REPLAYS] {
+            let from = set.join(kind);
+            if !from.is_dir() {
+                continue;
+            }
+            let to = data.join(kind);
+            fs::create_dir_all(&to)?;
+            for e in fs::read_dir(&from)?.flatten() {
+                let name = e.file_name().to_string_lossy().into_owned();
+                let target = free_name(&to, &name);
+                fs::rename(e.path(), to.join(&target))?;
+                report.moved += 1;
+                if target != name {
+                    report.renamed += 1;
+                }
+            }
+            let _ = fs::remove_dir(&from);
+        }
+        let _ = fs::remove_dir(&set);
+    }
+    Ok(report)
+}
+
 /// The folder to show the user for a profile.
 pub fn open_path(data: &Path, key: &str) -> PathBuf {
     let key = clean_key(key);
@@ -295,6 +348,32 @@ mod tests {
         assert_eq!(files(data, "contra@009").len(), 1);
         assert!(delete_file(data, "contra@009", "save", "../x").is_err());
         assert!(move_file(data, SHARED, "other", "a", "b").is_err());
+    }
+
+    #[test]
+    fn merging_brings_every_set_into_one_and_keeps_both_files_of_the_same_name() {
+        let d = tempfile::tempdir().unwrap();
+        let data = d.path();
+        put(data, "Save/a.sav", "shared a");
+        put(data, "Replays/Last Replay.rep", "shared replay");
+        activate(data, "contra@009").unwrap();
+        put(data, "Save/c.sav", "contra");
+        put(data, "Replays/Last Replay.rep", "contra replay");
+        activate(data, "rotr@1.87").unwrap();
+        put(data, "Save/r.sav", "rotr");
+
+        let r = merge_into(data, "contra@009").unwrap();
+        assert_eq!(active(data).as_deref(), Some("contra@009"));
+        // everything is in the game's folders; the two replays with the same name are both there
+        let names: Vec<String> = files(data, "contra@009").into_iter().map(|f| f.name).collect();
+        for want in ["a.sav", "c.sav", "r.sav", "Last Replay.rep"] {
+            assert!(names.iter().any(|n| n == want), "{want} in {names:?}");
+        }
+        assert_eq!(names.iter().filter(|n| n.starts_with("Last Replay")).count(), 2);
+        assert!(r.moved >= 3 && r.renamed == 1, "{r:?}");
+        // no other set is left
+        assert_eq!(list(data).len(), 1);
+        assert!(fs::read_dir(root(data)).unwrap().flatten().all(|e| e.file_name() == ".active"));
     }
 
     #[test]

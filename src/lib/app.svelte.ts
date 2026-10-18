@@ -1,5 +1,5 @@
 import {
-  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, profilesList, profileFiles, profileMove, profileDelete, profileOpen, type SaveProfile, type SaveFile, gamedataList, gamedataBackup, gamedataRestore, gamedataDelete, gamedataOpenFolder, type GameDataBackup, onExtraProgramFailed, osNotify, mapsList, mapsImport, mapsRemove, mapsOpenFolder, pickArchiveFile, pickModFolder as pickFolderForMaps, type MapInfo, takePendingPlay, launcherCommand, createShortcut, onPlayPreset, healthCheck, healthFix, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
+  addItem, backend, cloudBackupCreate, cloudBackupDelete, cloudBackupList, cloudBackupRestore, profilesMerge, profilesList, profileFiles, profileMove, profileDelete, profileOpen, type SaveProfile, type SaveFile, gamedataList, gamedataBackup, gamedataRestore, gamedataDelete, gamedataOpenFolder, type GameDataBackup, onExtraProgramFailed, osNotify, mapsList, mapsCatalog, mapsInstall, onMapsFinished, type MapOffer, type MapsFinished, mapsImport, mapsRemove, mapsOpenFolder, pickArchiveFile, pickModFolder as pickFolderForMaps, type MapInfo, takePendingPlay, launcherCommand, createShortcut, onPlayPreset, healthCheck, healthFix, backgroundSet, autostartStatus, autostartSet, onTrayPlay, renameVersion, updateCheck, updateInstall, type UpdateInfo, googleSignIn, googleSignOut, googleStatus, backupCreate, backupDelete, backupList, backupRestore, cancelInstall, exportConfig, onFileDrop, importConfig, loadAnnouncements, pickConfigFile, pickConfigSavePath, confirmDialog, isTauri, launchGame, migrateLegacy, onCloseBlocked, onInstallFinished,
   openInBrowser, openItemFolder,
   onInstallProgress, onLaunchFinished, pickFolder, uninstallVersion, type InstallFinished, type InstallProgress,
   type AddRequest, type Backup, type CloudBackup, type LaunchTarget,
@@ -208,6 +208,7 @@ class AppState {
       this.applyProgress();
     });
     void onInstallFinished((r) => void this.installFinished(r));
+    void onMapsFinished((r) => void this.mapsFinished(r));
     void onFileDrop((e) => {
       if (e.type === "enter" || e.type === "over") this.dragging = this.phase === "ready" && !this.addDialog && !this.optionsOpen;
       else this.dragging = false;
@@ -691,6 +692,20 @@ class AppState {
     try { await profileDelete(this.profileSelected, f.kind, f.name); await this.refreshProfiles(); } catch (e) { this.say(errText(e), "error"); }
   }
 
+  /** Bring every set together into the selected one (nothing is deleted). */
+  async mergeProfiles() {
+    const into = this.profileSelected;
+    if (!into || this.profiles.length < 2) return;
+    const msg = t("Put every set of saved games and replays together into \"{name}\"?", { name: this.profileLabel(into) }) + "\n" + t("Nothing is deleted. A file whose name is already taken is kept under another name. Afterwards the sets are one, and turning the switch off leaves everything in the game's own folders.");
+    if (!(await confirmDialog(msg, t("Merge the sets"), t("Merge"), t("Cancel")))) return;
+    if (!isTauri) { this.say(t("Merging works in the desktop app.")); return; }
+    try {
+      const r = await profilesMerge(into);
+      this.say(tn(r.moved, "{n} file brought together", "{n} files brought together", { n: r.moved }), "success");
+      await this.refreshProfiles();
+    } catch (e) { this.say(errText(e), "error"); }
+  }
+
   async openProfileFolder() {
     try { await profileOpen(this.profileSelected); } catch (e) { this.say(errText(e), "error"); }
   }
@@ -784,6 +799,66 @@ class AppState {
     if (!isTauri) { this.maps = [{ name: "Alpine Assault", bytes: 4_200_000, modified: 1_760_000_000 }, { name: "Desert Crossing", bytes: 1_100_000, modified: 1_750_000_000 }]; return; }
     this.mapsBusy = true;
     try { this.maps = await mapsList(); } catch (e) { this.say(errText(e), "error"); } finally { this.mapsBusy = false; }
+  }
+
+  /** Discover shows mods or maps. */
+  discoverKind = $state<"mods" | "maps">("mods");
+  mapOffers = $state<MapOffer[]>([]);
+  /** Map packs being downloaded: id -> name (their progress is in `installProgress`). */
+  mapJobs = $state<Record<string, string>>({});
+  mapJobList = $derived(Object.entries(this.mapJobs).map(([id, name]) => ({ id, name, p: this.installProgress[id] })));
+  shownMapOffers = $derived.by(() => {
+    const q = this.search.trim().toLowerCase();
+    return this.mapOffers.filter((m) => !q || (m.name + " " + (m.author ?? "") + " " + (m.description ?? "")).toLowerCase().includes(q));
+  });
+
+  async showDiscover(kind: "mods" | "maps") {
+    this.discoverKind = kind;
+    if (kind === "maps") await this.refreshMapOffers();
+  }
+
+  async refreshMapOffers() {
+    if (!isTauri) {
+      this.mapOffers = [
+        { name: "Ranked maps", author: "SuperHackers", description: "The maps used in ranked games.", page: "https://github.com/TheSuperHackers/GeneralsRankedMaps", image: null, direct: { url: "https://example.org/ranked.zip", via: "https://github.com/", size: null }, subfolder: "release" },
+        { name: "Epic Showdown 707", author: "Someone", description: "A big skirmish map.", page: "https://www.moddb.com/", image: null, direct: null, subfolder: null },
+      ];
+      return;
+    }
+    try { this.mapOffers = await mapsCatalog(); } catch (e) { this.say(errText(e), "error"); }
+  }
+
+  async installMapPack(m: MapOffer) {
+    if (!m.direct) { if (m.page) await this.openPage(m.page); return; }
+    const id = "map:" + m.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    if (this.mapJobs[id]) return;
+    if (!isTauri) {
+      this.mapJobs[id] = m.name;
+      this.installProgress[id] = { id, phase: "downloading", done: 1, total: 3 };
+      setTimeout(() => { delete this.mapJobs[id]; delete this.installProgress[id]; this.say(t("{name}: {n} maps added", { name: m.name, n: 12 }), "success"); }, 1500);
+      return;
+    }
+    try {
+      const real = await mapsInstall(m.name, m.direct.url, m.subfolder);
+      this.mapJobs[real] = m.name;
+    } catch (e) { this.say(errText(e), "error"); }
+  }
+
+  private async mapsFinished(r: MapsFinished) {
+    delete this.mapJobs[r.id];
+    delete this.installProgress[r.id];
+    if (r.cancelled) this.say(t("The download was stopped."));
+    else if (!r.ok) this.notify(t("{name} could not be added: {error}", { name: r.name, error: r.error ?? "" }), "error");
+    else {
+      const n = r.added.length + r.replaced.length;
+      this.notify(tn(n, "{name}: {n} map added", "{name}: {n} maps added", { name: r.name }) + (r.replaced.length ? " " + t("({count} replaced an older copy)", { count: r.replaced.length }) : ""), "success");
+    }
+    try { this.maps = await mapsList(); } catch { /* the Maps page reloads them */ }
+  }
+
+  async cancelMapJob(id: string) {
+    if (!isTauri) { delete this.mapJobs[id]; delete this.installProgress[id]; return; }
+    try { await cancelInstall(id); } catch (e) { this.say(errText(e), "error"); }
   }
 
   async importMaps(path: string) {

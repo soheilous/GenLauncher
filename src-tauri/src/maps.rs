@@ -144,6 +144,19 @@ fn belongs_to(file_name: &str, stem: &str) -> bool {
 /// Files a map keeps under the same name whatever the map is called (the real maps have a `map.str`, a `map.ini`, a `solo.ini`).
 const SHARED_NAMES: &[&str] = &["map.str", "map.ini", "solo.ini"];
 
+/// The part of an unpacked archive that holds the maps: all of it, or the `subfolder` of it. A GitHub zip has one folder around everything
+/// (`Repo-main/`); it is looked through, so `release` finds `Repo-main/release`.
+pub fn pack_root(unpacked: &Path, subfolder: Option<&str>) -> Result<PathBuf> {
+    let Some(sub) = subfolder.map(str::trim).filter(|s| !s.is_empty()) else { return Ok(unpacked.to_path_buf()) };
+    if Path::new(sub).components().any(|c| !matches!(c, std::path::Component::Normal(_))) {
+        return Err(Error::msg("not a folder inside the archive"));
+    }
+    let entries: Vec<_> = fs::read_dir(unpacked)?.flatten().collect();
+    let base = if entries.len() == 1 && entries[0].file_type().is_ok_and(|t| t.is_dir()) { entries[0].path() } else { unpacked.to_path_buf() };
+    let target = base.join(sub);
+    if target.is_dir() { Ok(target) } else { Err(Error::msg(format!("The archive has no folder called {sub}"))) }
+}
+
 /// Put every map found in `source` (an unpacked pack: a folder with maps in any layout) into `dest` as `<Name>/<Name>.map` with its
 /// companion files. Existing maps of the same name are overwritten.
 pub fn import_tree(source: &Path, dest: &Path) -> Result<ImportReport> {
@@ -258,6 +271,21 @@ mod tests {
         assert_eq!(preview(d.path(), "Eta").unwrap(), b"data");
         assert!(preview(d.path(), "Theta").is_err(), "no picture");
         assert!(preview(d.path(), "../Eta").is_err());
+    }
+
+    #[test]
+    fn only_the_subfolder_of_a_pack_is_imported() {
+        let src = tempfile::tempdir().unwrap();
+        let dst = tempfile::tempdir().unwrap();
+        put(src.path(), "Repo-main/release/Good/Good.map");
+        put(src.path(), "Repo-main/backlog/Unfinished/Unfinished.map");
+        put(src.path(), "Repo-main/README.md");
+        let root = pack_root(src.path(), Some("release")).unwrap();
+        assert_eq!(import_tree(&root, dst.path()).unwrap().added, ["Good"]);
+        assert!(pack_root(src.path(), Some("nope")).is_err());
+        assert!(pack_root(src.path(), Some("../x")).is_err());
+        // without a subfolder everything is taken
+        assert_eq!(import_tree(&pack_root(src.path(), None).unwrap(), tempfile::tempdir().unwrap().path()).unwrap().added.len(), 2);
     }
 
     #[test]

@@ -973,5 +973,28 @@
       "version": "8.9",
       "dependsOn": "Original Game"
     }
+  ],
+  "maps": [
+    {
+      "name": "Ranked maps",
+      "author": "TheSuperHackers",
+      "description": "The Zero Hour ranked multiplayer maps (1v1 to 4v4, and a fun set) kept by the community patch team, about 280 maps. Fair layouts, working AI on every spawn point.",
+      "page": "https://github.com/TheSuperHackers/GeneralsRankedMaps",
+      "download": {
+        "url": "https://github.com/TheSuperHackers/GeneralsRankedMaps/archive/refs/heads/main.zip",
+        "via": "https://github.com/TheSuperHackers/GeneralsRankedMaps"
+      },
+      "subfolder": "release"
+    },
+    {
+      "name": "C&C Epic Showdown 707 mappack",
+      "description": "A big multiplayer map pack (hundreds of maps by many makers), published on ModDB.",
+      "page": "https://www.moddb.com/mods/cc-epic-showdown-707-mappack"
+    },
+    {
+      "name": "Pack of 3 skirmish maps (better effects)",
+      "description": "Three skirmish maps from Generals with improved effects, published on ModDB.",
+      "page": "https://www.moddb.com/addons/packmaps1-3-maps"
+    }
   ]
 }

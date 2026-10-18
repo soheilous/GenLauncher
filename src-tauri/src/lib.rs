@@ -1076,6 +1076,136 @@ async fn maps_preview(app: AppHandle, state: State<'_, AppState>, name: String) 
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+/// What the catalog offers as custom maps and map packs.
+#[derive(Serialize)]
+struct MapOffer {
+    name: String,
+    author: Option<String>,
+    description: Option<String>,
+    page: Option<String>,
+    image: Option<String>,
+    direct: Option<catalog::Direct>,
+    subfolder: Option<String>,
+}
+
+#[tauri::command]
+async fn maps_catalog(state: State<'_, AppState>) -> Result<Vec<MapOffer>> {
+    let inner = state.inner.lock().await;
+    let maps = inner.catalog.as_ref().map(|c| c.index.maps.clone()).unwrap_or_default();
+    Ok(maps
+        .into_iter()
+        .map(|m| MapOffer {
+            direct: m.download.as_ref().filter(|d| d.url.starts_with("https://")).map(|d| catalog::Direct { url: d.url.clone(), via: d.via.clone(), size: d.size }),
+            name: m.name,
+            author: m.author,
+            description: m.description,
+            page: m.page,
+            image: m.image,
+            subfolder: m.subfolder,
+        })
+        .collect())
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct MapsFinished {
+    id: String,
+    name: String,
+    ok: bool,
+    cancelled: bool,
+    error: Option<String>,
+    added: Vec<String>,
+    replaced: Vec<String>,
+}
+
+/// Download a map pack the catalog offers and put its maps where the game looks. Progress arrives as `install-progress` events
+/// under the returned id (it can be stopped with `cancel_install`), the result as `maps-finished`.
+#[tauri::command]
+async fn maps_install(app: AppHandle, state: State<'_, AppState>, name: String, url: String, subfolder: Option<String>) -> Result<String> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game first"));
+    }
+    if !url.starts_with("https://") {
+        return Err(Error::msg("Only https downloads are accepted"));
+    }
+    let dest = maps_folder(&app, &state).await?;
+    let install = { let inner = state.inner.lock().await; require_install(&inner)? };
+    let id = format!("map:{}", catalog::slug(&name));
+    let cancel = download::Cancel::new();
+    {
+        let mut running = state.downloads.lock().unwrap();
+        if running.contains_key(&id) {
+            return Err(Error::msg("This is already being downloaded"));
+        }
+        running.insert(id.clone(), cancel.clone());
+    }
+    let client = state.download_client.clone();
+    let work = layout::tmp(&install.dir).join(format!("maps-{}", catalog::slug(&name)));
+    let app2 = app.clone();
+    let (id2, name2) = (id.clone(), name.clone());
+    tauri::async_runtime::spawn(async move {
+        let (app, id, name) = (app2, id2, name2);
+        let emit = |phase: install::Phase, done: u64, total: u64| {
+            let _ = app.emit("install-progress", InstallProgress { id: id.clone(), phase, done, total });
+        };
+        let result: Result<maps::ImportReport> = async {
+            let _ = std::fs::remove_dir_all(&work);
+            std::fs::create_dir_all(&work)?;
+            emit(install::Phase::Preparing, 0, 0);
+            let part = work.join("download.part");
+            let done = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+            let total = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+            let last = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+            let started = Instant::now();
+            let progress = {
+                let (app, id, done, total, last) = (app.clone(), id.clone(), done.clone(), total.clone(), last.clone());
+                move || {
+                    // at most a few updates a second
+                    let ms = started.elapsed().as_millis() as u64;
+                    if ms.saturating_sub(last.load(Ordering::Relaxed)) < 150 {
+                        return;
+                    }
+                    last.store(ms, Ordering::Relaxed);
+                    let _ = app.emit("install-progress", InstallProgress { id: id.clone(), phase: install::Phase::Downloading, done: done.load(Ordering::Relaxed), total: total.load(Ordering::Relaxed) });
+                }
+            };
+            let (d1, p1) = (done.clone(), progress.clone());
+            let (t1, p2) = (total.clone(), progress.clone());
+            let got = download::fetch(
+                &client,
+                &url,
+                &part,
+                &cancel,
+                &move |n| {
+                    if n >= 0 { d1.fetch_add(n as u64, Ordering::Relaxed); } else { d1.fetch_sub((-n) as u64, Ordering::Relaxed); }
+                    p1();
+                },
+                &move |tot| { t1.store(tot, Ordering::Relaxed); p2(); },
+                false,
+                &download::Options::default(),
+            )
+            .await?;
+            let file = work.join(&got.file_name);
+            std::fs::rename(&part, &file)?;
+            emit(install::Phase::Extracting, 0, 0);
+            let (work2, dest2, cancel2) = (work.clone(), dest.clone(), cancel.clone());
+            blocking(move || {
+                let out = work2.join("content");
+                extract::extract(&file, &out, &|| cancel2.is_cancelled())?;
+                maps::import_tree(&maps::pack_root(&out, subfolder.as_deref())?, &dest2)
+            })
+            .await
+        }
+        .await;
+        let _ = std::fs::remove_dir_all(&work);
+        app.state::<AppState>().downloads.lock().unwrap().remove(&id);
+        let cancelled = matches!(result, Err(Error::Cancelled));
+        let (added, replaced) = result.as_ref().map(|r| (r.added.clone(), r.replaced.clone())).unwrap_or_default();
+        let _ = app.emit("maps-finished", MapsFinished { id, name, ok: result.is_ok(), cancelled, error: result.as_ref().err().filter(|_| !cancelled).map(|e| e.to_string()), added, replaced });
+    });
+    Ok(id)
+}
+
 /// Delete one custom map.
 #[tauri::command]
 async fn maps_remove(app: AppHandle, state: State<'_, AppState>, name: String) -> Result<()> {
@@ -1173,6 +1303,16 @@ async fn profile_delete(app: AppHandle, state: State<'_, AppState>, key: String,
     }
     let data = profile_data_dir(&app, &state).await?;
     blocking(move || profiles::delete_file(&data, &key, &kind, &name)).await
+}
+
+/// Put every set of saved games and replays together into one.
+#[tauri::command]
+async fn profiles_merge(app: AppHandle, state: State<'_, AppState>, into: String) -> Result<profiles::MergeReport> {
+    if state.launching.load(Ordering::SeqCst) {
+        return Err(Error::msg("Close the game first"));
+    }
+    let data = profile_data_dir(&app, &state).await?;
+    blocking(move || profiles::merge_into(&data, &into)).await
 }
 
 #[tauri::command]
@@ -1465,7 +1605,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             bootstrap, select_install, catalog_load, catalog_reload, load_extras, announcements_load, options_load, options_save, config_export, config_import, backup_create, google_status, google_sign_in, google_sign_out, cloud_backup_create, cloud_backup_list, cloud_backup_delete, cloud_backup_restore, backup_list, backup_delete, backup_restore, save_settings, launch_game, add_item, cancel_install, migrate_legacy,
-            uninstall_version, rename_version, health_check, health_fix, maps_list, maps_import, maps_remove, maps_preview, maps_open_folder, gamedata_list, gamedata_backup, gamedata_restore, gamedata_delete, gamedata_open_folder, profiles_list, profile_files, profile_move, profile_delete, profile_open, open_browser, close_browser, open_item_folder, update_check, update_install,
+            uninstall_version, rename_version, health_check, health_fix, maps_list, maps_catalog, maps_install, maps_import, maps_remove, maps_preview, maps_open_folder, gamedata_list, gamedata_backup, gamedata_restore, gamedata_delete, gamedata_open_folder, profiles_list, profile_files, profile_move, profile_delete, profile_open, profiles_merge, open_browser, close_browser, open_item_folder, update_check, update_install,
             background::background_set, background::autostart_status, background::autostart_set, background::os_notify,
             presets::take_pending_play, presets::launcher_command, presets::create_shortcut
         ])

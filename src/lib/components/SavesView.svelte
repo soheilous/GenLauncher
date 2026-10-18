@@ -22,6 +22,13 @@
     <Toggle label={t("Keep each mod's saved games and replays apart")} checked={app.savesByMod} onchange={(v) => app.setSavesByMod(v)} />
   </div>
 
+  {#if app.profiles.length > 1}
+    <div class="merge">
+      <span>{t("There are several sets. You can bring them all together into the selected one.")}</span>
+      <button class="btn" onclick={() => app.mergeProfiles()}><Icon name="plus" size={14} /> {t("Merge all sets into the selected one")}</button>
+    </div>
+  {/if}
+
   <div class="cols">
     <div class="profiles">
       {#each app.profiles as p (p.key)}
@@ -61,6 +68,7 @@
   .intro { display: flex; align-items: center; gap: 18px; padding: 16px 20px; border-radius: var(--r-md); }
   .intro .text { flex: 1; min-width: 0; }
   .intro p { margin: 6px 0 0; color: var(--text-dim); font-size: 13px; }
+  .merge { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; color: var(--text-dim); font-size: 13px; }
   .cols { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 14px; align-items: start; }
   .profiles { display: grid; gap: 8px; }
   .profile { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 12px 14px; border-radius: var(--r-md); text-align: start; cursor: pointer; border: 1px solid var(--stroke); }

@@ -56,6 +56,7 @@ export const profilesList = () => invoke<SaveProfile[]>("profiles_list");
 export const profileFiles = (key: string) => invoke<SaveFile[]>("profile_files", { key });
 export const profileMove = (from: string, kind: string, name: string, to: string) => invoke<void>("profile_move", { from, kind, name, to });
 export const profileDelete = (key: string, kind: string, name: string) => invoke<void>("profile_delete", { key, kind, name });
+export const profilesMerge = (into: string) => invoke<{ moved: number; renamed: number }>("profiles_merge", { into });
 export const profileOpen = (key: string) => invoke<void>("profile_open", { key });
 
 // ---- custom maps ----
@@ -68,6 +69,25 @@ export const mapsImport = (path: string) => invoke<MapImport>("maps_import", { p
 export const mapsPreview = (name: string) => invoke<ArrayBuffer>("maps_preview", { name });
 export const mapsRemove = (name: string) => invoke<void>("maps_remove", { name });
 export const mapsOpenFolder = () => invoke<void>("maps_open_folder");
+
+/** A map or map pack the catalog offers. `direct` is set when the author published a download. */
+export interface MapOffer {
+  name: string;
+  author: string | null;
+  description: string | null;
+  page: string | null;
+  image: string | null;
+  direct: { url: string; via: string; size: number | null } | null;
+  subfolder: string | null;
+}
+export interface MapsFinished { id: string; name: string; ok: boolean; cancelled: boolean; error: string | null; added: string[]; replaced: string[] }
+export const mapsCatalog = () => invoke<MapOffer[]>("maps_catalog");
+/** Starts the download; progress arrives as install-progress events under the returned id, the result as maps-finished. */
+export const mapsInstall = (name: string, url: string, subfolder: string | null) => invoke<string>("maps_install", { name, url, subfolder });
+export async function onMapsFinished(cb: (r: MapsFinished) => void): Promise<() => void> {
+  const { listen } = await import("@tauri-apps/api/event");
+  return listen<MapsFinished>("maps-finished", (e) => cb(e.payload));
+}
 
 // ---- presets ----
 

@@ -34,3 +34,29 @@ async fn the_community_build_downloads_and_unpacks() {
     }
     println!("{} unpacked: {} files", got.file_name, std::fs::read_dir(&out).unwrap().count());
 }
+
+/// A map pack of the catalog (the Super Patch maps, straight from the project's repository) is downloaded, unpacked and its maps are
+/// put in folders of their own, with the launcher's own code.
+#[tokio::test]
+#[ignore]
+async fn a_catalog_map_pack_downloads_and_imports() {
+    let catalog: serde_json::Value = serde_json::from_str(include_str!("../bundled/zero-hour.json")).unwrap();
+    let pack = catalog["maps"].as_array().expect("the catalog lists maps").iter().find(|m| m["name"] == "Ranked maps").expect("Ranked maps");
+    let url = pack["download"]["url"].as_str().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let client = reqwest::Client::builder().user_agent("GenLauncher-test").build().unwrap();
+    let got = download::fetch(&client, url, &dir.path().join("d.part"), &Cancel::new(), &|_| {}, &|_| {}, false, &Options::default()).await.unwrap();
+    let zip = dir.path().join(&got.file_name);
+    std::fs::rename(dir.path().join("d.part"), &zip).unwrap();
+    let out = dir.path().join("content");
+    genlauncher2_lib::extract::extract(&zip, &out, &|| false).unwrap();
+    let dest = dir.path().join("Maps");
+    let root = genlauncher2_lib::maps::pack_root(&out, pack["subfolder"].as_str()).unwrap();
+    let report = genlauncher2_lib::maps::import_tree(&root, &dest).unwrap();
+    println!("{} maps added, e.g. {:?}", report.added.len(), report.added.iter().take(3).collect::<Vec<_>>());
+    assert!(!report.added.is_empty());
+    // every imported map has its own folder with a .map of the same name
+    for m in genlauncher2_lib::maps::list(&dest) {
+        assert!(dest.join(&m.name).join(format!("{}.map", m.name)).exists() || std::fs::read_dir(dest.join(&m.name)).unwrap().flatten().any(|e| e.file_name().to_string_lossy().eq_ignore_ascii_case(&format!("{}.map", m.name))));
+    }
+}
